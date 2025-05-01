@@ -185,19 +185,45 @@ Para garantizar la operación offline de cada tienda y la consolidación de info
 - Documentar y probar exhaustivamente los flujos de sincronización y replicación.
 - Mantener la documentación actualizada conforme se ajusten los procesos y herramientas.
 
-## Avance de Implementación Backend
+## Avance de Implementación Backend (Actualizado)
 
 - Modelos, migraciones y administración completados para todas las entidades principales.
 - Endpoints REST implementados y funcionales para:
   - Tiendas: /api/tiendas/
   - Productos: /api/productos/
   - Proveedores: /api/proveedores/
-- Serializers y ViewSets creados para los modelos anteriores.
+  - Clientes: /api/clientes/
+  - Anticipos: /api/anticipos/
+  - Descuentos de Cliente: /api/descuentos_cliente/
+  - Pedidos: /api/pedidos/
+  - Detalles de Pedido: /api/detalles_pedido/
+  - Inventario: /api/inventario/
+  - Traspasos: /api/traspasos/
+  - Caja: /api/caja/
+  - Notas de Cargo: /api/notas_cargo/
+  - Facturas: /api/facturas/
+  - Devoluciones: /api/devoluciones/
+  - Requisiciones: /api/requisiciones/
+  - Detalles de Requisición: /api/detalles_requisicion/
+  - Tabulador de Descuentos: /api/tabulador_descuento/
+  - Logs de Auditoría: /api/logs_auditoria/
+- Serializers y ViewSets creados para todos los modelos anteriores.
 - URLs configuradas para exponer los endpoints REST.
+- Documentación interactiva de la API disponible en:
+  - Swagger: /api/docs/
+  - Redoc: /api/redoc/
 
-Próximos pasos:
-- Implementar endpoints para clientes, ventas, inventario, caja, devoluciones, requisiciones, descuentos y administración.
-- Continuar con pruebas y documentación de los endpoints.
+## Avance de Implementación Backend (Filtros avanzados)
+
+- Filtros avanzados implementados en todos los endpoints principales usando django-filter.
+- Ahora es posible realizar búsquedas y filtrados eficientes en la API para todas las entidades clave.
+- Documentación interactiva de la API actualizada y funcional en /api/docs/ y /api/redoc/.
+
+Próximos pasos sugeridos:
+- Probar los filtros y búsquedas desde Swagger y la interfaz de DRF.
+- Implementar autenticación JWT si se requiere seguridad adicional.
+- Agregar pruebas automáticas para los endpoints.
+- Optimizar permisos, validaciones y performance.
 
 ---
 

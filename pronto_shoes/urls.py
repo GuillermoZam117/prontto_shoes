@@ -30,6 +30,7 @@ from descuentos.views import TabuladorDescuentoViewSet
 from administracion.views import LogAuditoriaViewSet
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 
 router = routers.DefaultRouter()
 router.register(r'tiendas', TiendaViewSet)
@@ -66,4 +67,10 @@ urlpatterns = [
     path('api/', include(router.urls)),
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
+]
+
+urlpatterns += [
+    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+    path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 ]
