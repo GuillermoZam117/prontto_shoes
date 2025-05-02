@@ -21,15 +21,13 @@ from tiendas.views import TiendaViewSet
 from productos.views import ProductoViewSet
 from proveedores.views import ProveedorViewSet
 from clientes.views import ClienteViewSet, AnticipoViewSet, DescuentoClienteViewSet
-from ventas.views import PedidoViewSet, DetallePedidoViewSet
-from inventario.views import InventarioViewSet, TraspasoViewSet
-from caja.views import CajaViewSet, NotaCargoViewSet, FacturaViewSet
-from devoluciones.views import DevolucionViewSet
-from requisiciones.views import RequisicionViewSet, DetalleRequisicionViewSet
-from descuentos.views import TabuladorDescuentoViewSet
-from administracion.views import LogAuditoriaViewSet
-from drf_yasg.views import get_schema_view
-from drf_yasg import openapi
+from ventas.views import PedidoViewSet, DetallePedidoViewSet, ApartadosPorClienteReporteAPIView, PedidosPorSurtirReporteAPIView
+from inventario.views import InventarioViewSet, TraspasoViewSet, InventarioActualReporteAPIView
+from caja.views import CajaViewSet, NotaCargoViewSet, FacturaViewSet, MovimientosCajaReporteAPIView
+from devoluciones.views import DevolucionViewSet, DevolucionesReporteAPIView
+from requisiciones.views import RequisicionViewSet, DetalleRequisicionViewSet, RequisicionesReporteAPIView
+from descuentos.views import TabuladorDescuentoViewSet, DescuentosReporteAPIView
+from administracion.views import LogAuditoriaViewSet, LogsAuditoriaReporteAPIView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 
 router = routers.DefaultRouter()
@@ -52,21 +50,17 @@ router.register(r'detalles_requisicion', DetalleRequisicionViewSet)
 router.register(r'tabulador_descuento', TabuladorDescuentoViewSet)
 router.register(r'logs_auditoria', LogAuditoriaViewSet)
 
-schema_view = get_schema_view(
-    openapi.Info(
-        title="POS Pronto Shoes API",
-        default_version='v1',
-        description="Documentación interactiva de la API del sistema POS Pronto Shoes",
-    ),
-    public=True,
-    permission_classes=(permissions.AllowAny,),
-)
-
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
-    path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
-    path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
+    path('api/reportes/apartados_por_cliente/', ApartadosPorClienteReporteAPIView.as_view(), name='apartados-por-cliente-reporte'),
+    path('api/reportes/pedidos_por_surtir/', PedidosPorSurtirReporteAPIView.as_view(), name='pedidos-por-surtir-reporte'),
+    path('api/reportes/inventario_actual/', InventarioActualReporteAPIView.as_view(), name='inventario-actual-reporte'),
+    path('api/reportes/movimientos_caja/', MovimientosCajaReporteAPIView.as_view(), name='movimientos-caja-reporte'),
+    path('api/reportes/devoluciones/', DevolucionesReporteAPIView.as_view(), name='devoluciones-reporte'),
+    path('api/reportes/requisiciones/', RequisicionesReporteAPIView.as_view(), name='requisiciones-reporte'),
+    path('api/reportes/descuentos/', DescuentosReporteAPIView.as_view(), name='descuentos-reporte'),
+    path('api/reportes/logs_auditoria/', LogsAuditoriaReporteAPIView.as_view(), name='logs-auditoria-reporte'),
 ]
 
 urlpatterns += [

@@ -4,7 +4,9 @@ from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Producto
 from .serializers import ProductoSerializer
+from drf_spectacular.utils import extend_schema
 
+@extend_schema(tags=["Productos"])
 class ProductoViewSet(viewsets.ModelViewSet):
     queryset = Producto.objects.all()
     serializer_class = ProductoSerializer

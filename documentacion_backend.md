@@ -225,6 +225,295 @@ Próximos pasos sugeridos:
 - Agregar pruebas automáticas para los endpoints.
 - Optimizar permisos, validaciones y performance.
 
+## Ejecución y análisis de pruebas automáticas
+
+### ¿Cómo ejecutar todas las pruebas?
+
+1. Abre una terminal en la raíz del proyecto (donde está `manage.py`).
+2. Ejecuta el siguiente comando:
+
+   ```bash
+   python manage.py test
+   ```
+
+3. Django buscará y ejecutará automáticamente todas las pruebas definidas en los archivos `tests.py` de cada app.
+
+### ¿Qué esperar como salida?
+
+- Si todas las pruebas pasan, verás una salida similar a:
+
+  ```
+  Creating test database for alias 'default'...
+  ..........
+  ----------------------------------------------------------------------
+  Ran XX tests in YYs
+
+  OK
+  ```
+- Si alguna prueba falla, verás detalles del error, incluyendo:
+  - El nombre de la prueba que falló
+  - El motivo del fallo (por ejemplo, status code inesperado, error de validación, etc.)
+  - Un traceback para depuración
+
+### ¿Cómo interpretar los resultados?
+
+- **OK**: Todas las pruebas pasaron correctamente. El backend está funcionando según lo esperado para los casos básicos.
+- **FAIL/ERROR**: Revisa el mensaje de error y el traceback. Corrige el código o la prueba según corresponda y vuelve a ejecutar los tests.
+- **Cobertura**: Estas pruebas cubren creación, listado y filtrado de las entidades principales. Para cobertura completa, se recomienda agregar pruebas de actualización, eliminación, validaciones y casos de error.
+
+### Buenas prácticas
+
+- Ejecuta las pruebas antes de cada despliegue o cambio importante.
+- Agrega nuevas pruebas al implementar nuevas funcionalidades o corregir bugs.
+- Mantén los tests y la documentación actualizados.
+
+---
+
+# Guía de Uso de la API: Flujos y Ejemplos
+
+Esta sección describe el flujo típico de uso del sistema POS Pronto Shoes vía API, con ejemplos de requests y responses agrupados por proceso. Así podrás integrar o probar la API fácilmente desde herramientas como Swagger, Postman o código propio.
+
+## 1. Autenticación
+
+La API utiliza autenticación básica (usuario y contraseña de Django) o por sesión. Para obtener acceso:
+- Ingresa tus credenciales en el botón "Authorize" de Swagger o envía el header `Authorization: Basic <base64(usuario:contraseña)>`.
+- Si prefieres autenticación por token, solicita al administrador que habilite JWT o Token DRF.
+
+## 2. Alta de Cliente
+
+**Endpoint:** `POST /api/clientes/`
+
+**Request ejemplo:**
+```json
+{
+  "nombre": "Zapatería El Paso",
+  "contacto": "Juan Pérez",
+  "observaciones": "Cliente frecuente",
+  "saldo_a_favor": 0,
+  "tienda": 1
+}
+```
+**Response ejemplo:**
+```json
+{
+  "id": 5,
+  "nombre": "Zapatería El Paso",
+  "contacto": "Juan Pérez",
+  "observaciones": "Cliente frecuente",
+  "saldo_a_favor": "0.00",
+  "tienda": 1
+}
+```
+
+## 3. Creación de Pedido
+
+**Endpoint:** `POST /api/pedidos/`
+
+**Request ejemplo:**
+```json
+{
+  "cliente": 5,
+  "fecha": "2025-05-01",
+  "estado": "pendiente",
+  "total": 1200.00,
+  "tienda": 1,
+  "tipo": "venta",
+  "descuento_aplicado": 0
+}
+```
+**Response ejemplo:**
+```json
+{
+  "id": 10,
+  "cliente": 5,
+  "fecha": "2025-05-01",
+  "estado": "pendiente",
+  "total": "1200.00",
+  "tienda": 1,
+  "tipo": "venta",
+  "descuento_aplicado": "0.00"
+}
+```
+
+## 4. Agregar Detalles a un Pedido
+
+**Endpoint:** `POST /api/detalles_pedido/`
+
+**Request ejemplo:**
+```json
+{
+  "pedido": 10,
+  "producto": 3,
+  "cantidad": 2,
+  "precio_unitario": 600.00,
+  "subtotal": 1200.00
+}
+```
+**Response ejemplo:**
+```json
+{
+  "id": 21,
+  "pedido": 10,
+  "producto": 3,
+  "cantidad": 2,
+  "precio_unitario": "600.00",
+  "subtotal": "1200.00"
+}
+```
+
+## 5. Registrar Pago (Anticipo)
+
+**Endpoint:** `POST /api/anticipos/`
+
+**Request ejemplo:**
+```json
+{
+  "cliente": 5,
+  "monto": 1200.00,
+  "fecha": "2025-05-01"
+}
+```
+**Response ejemplo:**
+```json
+{
+  "id": 8,
+  "cliente": 5,
+  "monto": "1200.00",
+  "fecha": "2025-05-01"
+}
+```
+
+## 6. Registrar Devolución
+
+**Endpoint:** `POST /api/devoluciones/`
+
+**Request ejemplo:**
+```json
+{
+  "cliente": 5,
+  "producto": 3,
+  "tipo": "defecto",
+  "motivo": "Producto dañado",
+  "fecha": "2025-05-01",
+  "estado": "pendiente",
+  "confirmacion_proveedor": false,
+  "afecta_inventario": true,
+  "saldo_a_favor_generado": 1200.00
+}
+```
+**Response ejemplo:**
+```json
+{
+  "id": 4,
+  "cliente": 5,
+  "producto": 3,
+  "tipo": "defecto",
+  "motivo": "Producto dañado",
+  "fecha": "2025-05-01",
+  "estado": "pendiente",
+  "confirmacion_proveedor": false,
+  "afecta_inventario": true,
+  "saldo_a_favor_generado": "1200.00"
+}
+```
+
+## 7. Flujo Sugerido de Operación
+
+1. Registrar cliente (si es nuevo)
+2. Crear pedido y agregar detalles
+3. Registrar pago (anticipo)
+4. Registrar devolución si aplica
+5. Consultar reportes y estados usando los endpoints de consulta (`GET`)
+
+---
+
+**Recomendaciones:**
+- Todos los endpoints requieren autenticación.
+- Los IDs de cliente, producto, tienda, etc., pueden consultarse con los endpoints de listado (`GET /api/clientes/`, `GET /api/productos/`, etc.).
+- Usa los ejemplos como base para tus integraciones o pruebas en Swagger/Postman.
+- Consulta la documentación interactiva en `/api/docs/` para ver todos los endpoints y sus parámetros.
+
+---
+
+# Mejora de la Documentación Interactiva (Swagger)
+
+Para que la documentación de Swagger/Redoc sea clara, útil y muestre ejemplos y agrupación lógica, sigue estas recomendaciones y pasos:
+
+## 1. Instalar drf-yasg (si no está instalado)
+
+Agrega en tu `requirements.txt`:
+```
+drf-yasg
+```
+Luego instala:
+```
+pip install drf-yasg
+```
+
+## 2. Mejora de Serializers y Modelos
+- Usa `help_text` en los campos de modelos y serializers para que Swagger muestre descripciones.
+- Agrega docstrings a los serializers para explicar su propósito.
+- Usa `extra_kwargs` en Meta para ejemplos rápidos.
+
+## 3. Ejemplo de Serializer Mejorado
+```python
+class ClienteSerializer(serializers.ModelSerializer):
+    """Serializador para clientes. Permite alta, consulta y edición de clientes."""
+    class Meta:
+        model = Cliente
+        fields = '__all__'
+        extra_kwargs = {
+            'nombre': {'help_text': 'Nombre completo del cliente', 'example': 'Zapatería El Paso'},
+            'contacto': {'help_text': 'Persona o medio de contacto', 'example': 'Juan Pérez'},
+            'saldo_a_favor': {'help_text': 'Saldo disponible a favor del cliente', 'example': 0},
+            'tienda': {'help_text': 'ID de la tienda asociada', 'example': 1},
+        }
+```
+
+## 4. Mejora de ViewSets
+- Agrega docstrings a cada ViewSet explicando el proceso que cubre.
+- Usa decoradores como `@swagger_auto_schema` para definir ejemplos de request y response en cada método (requiere drf-yasg).
+- Personaliza los tags para agrupar endpoints.
+
+## 5. Ejemplo de ViewSet Mejorado
+```python
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
+
+class ClienteViewSet(viewsets.ModelViewSet):
+    """Gestiona el alta, consulta, edición y filtrado de clientes."""
+    # ...existing code...
+
+    @swagger_auto_schema(
+        operation_description="Crea un nuevo cliente.",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'nombre': openapi.Schema(type=openapi.TYPE_STRING, description='Nombre del cliente', example='Zapatería El Paso'),
+                'contacto': openapi.Schema(type=openapi.TYPE_STRING, description='Contacto', example='Juan Pérez'),
+                'saldo_a_favor': openapi.Schema(type=openapi.TYPE_NUMBER, description='Saldo a favor', example=0),
+                'tienda': openapi.Schema(type=openapi.TYPE_INTEGER, description='ID de tienda', example=1),
+            },
+            required=['nombre', 'tienda']
+        ),
+        responses={201: ClienteSerializer}
+    )
+    def create(self, request, *args, **kwargs):
+        """Crea un cliente nuevo y lo retorna."""
+        return super().create(request, *args, **kwargs)
+```
+
+## 6. Agrupación de Endpoints
+- Usa el atributo `tags` en los decoradores o en la configuración de drf-yasg para agrupar endpoints por proceso (por ejemplo: Clientes, Pedidos, Caja).
+
+## 7. Mantener la Documentación
+- Cada vez que agregues o modifiques un endpoint, actualiza los docstrings, help_text y ejemplos.
+- Prueba la documentación en `/api/docs/` y asegúrate de que los ejemplos y descripciones sean claros.
+
+---
+
+**Siguiendo estos pasos, la documentación interactiva será mucho más útil y clara para desarrolladores e integradores.**
+
 ---
 
 Este documento debe mantenerse actualizado conforme avance el desarrollo y se definan detalles específicos de implementación, sincronización y reglas de negocio.

@@ -32,14 +32,14 @@ class AnticipoAPITestCase(APITestCase):
         self.assertEqual(Anticipo.objects.get().cliente, self.cliente)
 
     def test_list_anticipos(self):
-        Anticipo.objects.create(**self.anticipo_data)
+        Anticipo.objects.create(cliente=self.cliente, monto=100.0, fecha='2025-05-01')
         url = reverse('anticipo-list')
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
 
     def test_filter_anticipo_by_cliente(self):
-        Anticipo.objects.create(**self.anticipo_data)
+        Anticipo.objects.create(cliente=self.cliente, monto=100.0, fecha='2025-05-01')
         url = reverse('anticipo-list') + f'?cliente={self.cliente.id}'
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
