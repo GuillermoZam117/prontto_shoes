@@ -47,14 +47,14 @@ class DevolucionAPITestCase(APITestCase):
         self.assertEqual(Devolucion.objects.get().tipo, 'defecto')
 
     def test_list_devoluciones(self):
-        Devolucion.objects.create(**self.devolucion_data)
+        Devolucion.objects.create(cliente=self.cliente, producto=self.producto, tipo='defecto', motivo='Defecto de fábrica', estado='pendiente', confirmacion_proveedor=False, afecta_inventario=True, saldo_a_favor_generado=0)
         url = reverse('devolucion-list')
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
 
     def test_filter_devolucion_by_tipo(self):
-        Devolucion.objects.create(**self.devolucion_data)
+        Devolucion.objects.create(cliente=self.cliente, producto=self.producto, tipo='defecto', motivo='Defecto de fábrica', estado='pendiente', confirmacion_proveedor=False, afecta_inventario=True, saldo_a_favor_generado=0)
         url = reverse('devolucion-list') + '?tipo=defecto'
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)

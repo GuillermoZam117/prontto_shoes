@@ -37,9 +37,9 @@ class TabuladorDescuentoAPITestCase(APITestCase):
         self.assertEqual(len(response.data), 1)
 
     def test_filter_tabulador_by_porcentaje(self):
-        TabuladorDescuento.objects.create(**self.tabulador_data)
+        TabuladorDescuento.objects.create(rango_min=0, rango_max=1000, porcentaje=10)
         url = reverse('tabuladordescuento-list') + '?porcentaje=10'
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]['porcentaje'], 10)
+        self.assertEqual(float(response.data[0]['porcentaje']), 10.0)

@@ -32,14 +32,14 @@ class PedidoAPITestCase(APITestCase):
         self.assertEqual(Pedido.objects.get().cliente, self.cliente)
 
     def test_list_pedidos(self):
-        Pedido.objects.create(**self.pedido_data)
+        Pedido.objects.create(cliente=self.cliente, fecha='2025-05-01T10:00:00Z', estado='pendiente', total=100.0, tienda=self.tienda, tipo='venta', descuento_aplicado=0)
         url = reverse('pedido-list')
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
 
     def test_filter_pedido_by_estado(self):
-        Pedido.objects.create(**self.pedido_data)
+        Pedido.objects.create(cliente=self.cliente, fecha='2025-05-01T10:00:00Z', estado='pendiente', total=100.0, tienda=self.tienda, tipo='venta', descuento_aplicado=0)
         url = reverse('pedido-list') + '?estado=pendiente'
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -95,14 +95,14 @@ class DetallePedidoAPITestCase(APITestCase):
         self.assertEqual(DetallePedido.objects.get().pedido, self.pedido)
 
     def test_list_detalles_pedido(self):
-        DetallePedido.objects.create(**self.detalle_data)
+        DetallePedido.objects.create(pedido=self.pedido, producto=self.producto, cantidad=2, precio_unitario=150.0, subtotal=300.0)
         url = reverse('detallepedido-list')
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
 
     def test_filter_detalle_by_pedido(self):
-        DetallePedido.objects.create(**self.detalle_data)
+        DetallePedido.objects.create(pedido=self.pedido, producto=self.producto, cantidad=2, precio_unitario=150.0, subtotal=300.0)
         url = reverse('detallepedido-list') + f'?pedido={self.pedido.id}'
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)

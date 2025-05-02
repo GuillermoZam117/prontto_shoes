@@ -35,14 +35,14 @@ class InventarioAPITestCase(APITestCase):
         self.assertEqual(Inventario.objects.get().producto, self.producto)
 
     def test_list_inventario(self):
-        Inventario.objects.create(**self.inventario_data)
+        Inventario.objects.create(tienda=self.tienda, producto=self.producto, cantidad_actual=10, fecha_registro='2025-05-01')
         url = reverse('inventario-list')
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
 
     def test_filter_inventario_by_producto(self):
-        Inventario.objects.create(**self.inventario_data)
+        Inventario.objects.create(tienda=self.tienda, producto=self.producto, cantidad_actual=10, fecha_registro='2025-05-01')
         url = reverse('inventario-list') + f'?producto={self.producto.id}'
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -94,14 +94,14 @@ class TraspasoAPITestCase(APITestCase):
         self.assertEqual(Traspaso.objects.get().producto, self.producto)
 
     def test_list_traspasos(self):
-        Traspaso.objects.create(**self.traspaso_data)
+        Traspaso.objects.create(producto=self.producto, tienda_origen=self.tienda_origen, tienda_destino=self.tienda_destino, cantidad=5, fecha='2025-05-01', estado='pendiente')
         url = reverse('traspaso-list')
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
 
     def test_filter_traspaso_by_producto(self):
-        Traspaso.objects.create(**self.traspaso_data)
+        Traspaso.objects.create(producto=self.producto, tienda_origen=self.tienda_origen, tienda_destino=self.tienda_destino, cantidad=5, fecha='2025-05-01', estado='pendiente')
         url = reverse('traspaso-list') + f'?producto={self.producto.id}'
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)

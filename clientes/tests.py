@@ -28,14 +28,14 @@ class ClienteAPITestCase(APITestCase):
         self.assertEqual(Cliente.objects.get().nombre, 'Cliente Test')
 
     def test_list_clientes(self):
-        Cliente.objects.create(**self.cliente_data)
+        Cliente.objects.create(nombre='Cliente Test', contacto='contacto@test.com', observaciones='Observaciones', saldo_a_favor=0, tienda=self.tienda)
         url = reverse('cliente-list')
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
 
     def test_filter_cliente_by_nombre(self):
-        Cliente.objects.create(**self.cliente_data)
+        Cliente.objects.create(nombre='Cliente Test', contacto='contacto@test.com', observaciones='Observaciones', saldo_a_favor=0, tienda=self.tienda)
         url = reverse('cliente-list') + '?nombre=Cliente Test'
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)

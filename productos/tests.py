@@ -38,14 +38,22 @@ class ProductoAPITestCase(APITestCase):
         self.assertEqual(Producto.objects.get().codigo, 'P001')
 
     def test_list_productos(self):
-        Producto.objects.create(**self.producto_data)
+        Producto.objects.create(
+            codigo='P001', marca='MarcaX', modelo='ModeloY', color='Rojo', propiedad='Talla 26',
+            costo=100.0, precio=150.0, numero_pagina='10', temporada='Verano', oferta=False,
+            admite_devolucion=True, proveedor=self.proveedor, tienda=self.tienda
+        )
         url = reverse('producto-list')
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
 
     def test_filter_producto_by_codigo(self):
-        Producto.objects.create(**self.producto_data)
+        Producto.objects.create(
+            codigo='P001', marca='MarcaX', modelo='ModeloY', color='Rojo', propiedad='Talla 26',
+            costo=100.0, precio=150.0, numero_pagina='10', temporada='Verano', oferta=False,
+            admite_devolucion=True, proveedor=self.proveedor, tienda=self.tienda
+        )
         url = reverse('producto-list') + '?codigo=P001'
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)

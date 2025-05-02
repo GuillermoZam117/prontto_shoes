@@ -33,14 +33,14 @@ class RequisicionAPITestCase(APITestCase):
         self.assertEqual(Requisicion.objects.get().estado, 'pendiente')
 
     def test_list_requisiciones(self):
-        Requisicion.objects.create(**self.requisicion_data)
+        Requisicion.objects.create(cliente=self.cliente, estado='pendiente')
         url = reverse('requisicion-list')
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
 
     def test_filter_requisicion_by_estado(self):
-        Requisicion.objects.create(**self.requisicion_data)
+        Requisicion.objects.create(cliente=self.cliente, estado='pendiente')
         url = reverse('requisicion-list') + '?estado=pendiente'
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -91,14 +91,14 @@ class DetalleRequisicionAPITestCase(APITestCase):
         self.assertEqual(DetalleRequisicion.objects.get().requisicion, self.requisicion)
 
     def test_list_detalles_requisicion(self):
-        DetalleRequisicion.objects.create(**self.detalle_data)
+        DetalleRequisicion.objects.create(requisicion=self.requisicion, producto=self.producto, cantidad=2)
         url = reverse('detallerequisicion-list')
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
 
     def test_filter_detalle_by_requisicion(self):
-        DetalleRequisicion.objects.create(**self.detalle_data)
+        DetalleRequisicion.objects.create(requisicion=self.requisicion, producto=self.producto, cantidad=2)
         url = reverse('detallerequisicion-list') + f'?requisicion={self.requisicion.id}'
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
