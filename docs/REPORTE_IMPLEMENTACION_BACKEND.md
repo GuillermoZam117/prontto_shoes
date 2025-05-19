@@ -9,8 +9,8 @@ Dejar el backend al 100% según la documentación y requerimientos funcionales.
 
 ### 1. Reportes avanzados
 - [x] Clientes sin movimientos en un periodo
-- [ ] Apartados por cliente
-- [ ] Devoluciones por cliente (motivo, tipo, estado validación)
+- [x] Apartados por cliente
+- [x] Devoluciones por cliente (motivo, tipo, estado validación)
 - [ ] Pedidos surtidos y pendientes
 - [ ] Historial de cambios de precios
 - [ ] Inventario diario y traspasos
