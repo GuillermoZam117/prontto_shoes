@@ -14,6 +14,7 @@ from productos.models import Producto
 from tiendas.models import Tienda
 from proveedores.models import Proveedor
 from django.contrib.auth import get_user_model
+from decimal import Decimal
 
 class DevolucionAPITestCase(APITestCase):
     def setUp(self):
@@ -60,3 +61,91 @@ class DevolucionAPITestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]['tipo'], 'defecto')
+
+class DevolucionesReporteAPITestCase(APITestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(username='testuser', password='testpass')
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        self.tienda = Tienda.objects.create(nombre='Tienda Test', direccion='Calle 1')
+        
+        # Crear clientes de prueba
+        self.cliente1 = Cliente.objects.create(nombre='Cliente Uno', tienda=self.tienda)
+        self.cliente2 = Cliente.objects.create(nombre='Cliente Dos', tienda=self.tienda)
+        
+        # Crear proveedor y productos
+        self.proveedor = Proveedor.objects.create(nombre='Proveedor Test')
+        self.producto1 = Producto.objects.create(
+            codigo='P001', marca='MarcaX', modelo='ModeloY', color='Rojo',
+            propiedad='Talla 26', costo=100.0, precio=150.0,
+            numero_pagina='10', temporada='Verano', oferta=False,
+            admite_devolucion=True, proveedor=self.proveedor, tienda=self.tienda
+        )
+        self.producto2 = Producto.objects.create(
+            codigo='P002', marca='MarcaY', modelo='ModeloZ', color='Azul',
+            propiedad='Talla 27', costo=120.0, precio=180.0,
+            numero_pagina='11', temporada='Verano', oferta=False,
+            admite_devolucion=True, proveedor=self.proveedor, tienda=self.tienda
+        )
+        
+        # Crear devoluciones de prueba
+        self.devolucion1 = Devolucion.objects.create(
+            cliente=self.cliente1, producto=self.producto1,
+            tipo='defecto', motivo='Defecto de fábrica',
+            estado='pendiente', confirmacion_proveedor=False,
+            afecta_inventario=True, saldo_a_favor_generado=Decimal('150.00')
+        )
+        self.devolucion2 = Devolucion.objects.create(
+            cliente=self.cliente2, producto=self.producto2,
+            tipo='cambio', motivo='Talla incorrecta',
+            estado='validada', confirmacion_proveedor=True,
+            afecta_inventario=True, saldo_a_favor_generado=Decimal('180.00')
+        )
+
+    def test_devoluciones_reporte_basic(self):
+        url = '/api/reportes/devoluciones/'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data['results']), 2)  # 2 clientes con devoluciones
+
+    def test_devoluciones_reporte_filter_cliente(self):
+        url = f'/api/reportes/devoluciones/?cliente_id={self.cliente1.id}'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data['results']), 1)
+        self.assertEqual(response.data['results'][0]['cliente_id'], self.cliente1.id)
+        self.assertEqual(response.data['results'][0]['total_devoluciones'], 1)
+
+    def test_devoluciones_reporte_filter_tipo(self):
+        url = '/api/reportes/devoluciones/?tipo=defecto'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.data['results']
+        self.assertTrue(any(dev['tipo'] == 'defecto' 
+                          for cliente in data 
+                          for dev in cliente['devoluciones']))
+
+    def test_devoluciones_reporte_filter_estado(self):
+        url = '/api/reportes/devoluciones/?estado=validada'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.data['results']
+        self.assertTrue(any(dev['estado'] == 'validada' 
+                          for cliente in data 
+                          for dev in cliente['devoluciones']))
+
+    def test_devoluciones_reporte_pagination(self):
+        url = '/api/reportes/devoluciones/?limit=1'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data['results']), 1)
+        self.assertIn('count', response.data)
+        self.assertTrue(response.data['count'] >= 2)  # Al menos 2 clientes en total
+
+    def test_devoluciones_reporte_totals(self):
+        url = f'/api/reportes/devoluciones/?cliente_id={self.cliente1.id}'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        cliente_data = response.data['results'][0]
+        self.assertEqual(cliente_data['total_devoluciones'], 1)
+        self.assertEqual(float(cliente_data['saldo_a_favor_total']), 150.00)
