@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'requisiciones',
     'descuentos',
     'administracion',
+    'dashboard',
     'drf_spectacular',
 ]
 
@@ -67,7 +68,7 @@ ROOT_URLCONF = 'pronto_shoes.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'frontend' / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -132,6 +133,9 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATICFILES_DIRS = [
+    BASE_DIR / 'frontend' / 'static',
+]
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -166,3 +170,7 @@ SPECTACULAR_SETTINGS = {
         {'name': 'Reportes', 'description': 'Endpoints para generar reportes'},
     ],
 }
+
+# Authentication settings
+LOGIN_REDIRECT_URL = '/dashboard/'  # Redirect to dashboard after login
+LOGOUT_REDIRECT_URL = '/login/'  # Redirect to login page after logout

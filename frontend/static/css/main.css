@@ -1,6 +1,111 @@
-/* 
- * Estilos principales para el Sistema POS Pronto Shoes
+/**
+ * Main CSS file for Pronto Shoes POS System
  */
+
+/* Card styling */
+.border-left-primary {
+    border-left: 0.25rem solid #4e73df !important;
+}
+
+.border-left-success {
+    border-left: 0.25rem solid #1cc88a !important;
+}
+
+.border-left-info {
+    border-left: 0.25rem solid #36b9cc !important;
+}
+
+.border-left-warning {
+    border-left: 0.25rem solid #f6c23e !important;
+}
+
+.border-left-danger {
+    border-left: 0.25rem solid #e74a3b !important;
+}
+
+/* Chart container */
+.chart-area {
+    position: relative;
+    height: 20rem;
+    width: 100%;
+}
+
+/* Custom text colors */
+.text-primary {
+    color: #4e73df !important;
+}
+
+.text-success {
+    color: #1cc88a !important;
+}
+
+.text-info {
+    color: #36b9cc !important;
+}
+
+.text-warning {
+    color: #f6c23e !important;
+}
+
+.text-danger {
+    color: #e74a3b !important;
+}
+
+.text-gray-800 {
+    color: #5a5c69 !important;
+}
+
+.text-gray-300 {
+    color: #dddfeb !important;
+}
+
+/* Custom backgrounds */
+.bg-primary {
+    background-color: #4e73df !important;
+}
+
+.bg-success {
+    background-color: #1cc88a !important;
+}
+
+.bg-info {
+    background-color: #36b9cc !important;
+}
+
+.bg-warning {
+    background-color: #f6c23e !important;
+}
+
+.bg-danger {
+    background-color: #e74a3b !important;
+}
+
+/* Font sizes for dashboard cards */
+.text-xs {
+    font-size: 0.7rem;
+}
+
+.text-lg {
+    font-size: 1.2rem;
+}
+
+/* Make footer stick to bottom */
+html, body {
+    height: 100%;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+}
+
+main {
+    flex: 1 0 auto;
+}
+
+footer {
+    flex-shrink: 0;
+}
 
 /* Variables CSS */
 :root {
@@ -10,15 +115,59 @@
     --pronto-dark: #222;
 }
 
-/* Estilos generales */
+/* Base Styles */
 body {
+    min-height: 100vh;
     display: flex;
     flex-direction: column;
-    min-height: 100vh;
+    background-color: #f8f9fa;
 }
 
-main {
-    flex: 1;
+/* Login Page Styles */
+.login-card {
+    max-width: 450px;
+    margin: 50px auto;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+.login-header {
+    background-color: #007bff;
+    padding: 1.5rem;
+    color: white;
+    text-align: center;
+}
+
+.login-body {
+    padding: 2rem;
+}
+
+/* Sync Status Indicator */
+.sync-status-badge {
+    box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.15);
+}
+
+/* Progress bar width classes */
+.progress-width-0 { width: 0%; }
+.progress-width-10 { width: 10%; }
+.progress-width-20 { width: 20%; }
+.progress-width-30 { width: 30%; }
+.progress-width-40 { width: 40%; }
+.progress-width-50 { width: 50%; }
+.progress-width-60 { width: 60%; }
+.progress-width-70 { width: 70%; }
+.progress-width-80 { width: 80%; }
+.progress-width-90 { width: 90%; }
+.progress-width-100 { width: 100%; }
+
+/* Utility classes */
+.cursor-pointer {
+    cursor: pointer;
+}
+
+.text-small {
+    font-size: 0.8rem;
 }
 
 /* Personalización de componentes Bootstrap */
@@ -54,9 +203,9 @@ main {
 }
 
 @keyframes pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.6; }
-    100% { opacity: 1; }
+    0% { opacity: 0.5; }
+    50% { opacity: 1; }
+    100% { opacity: 0.5; }
 }
 
 /* Estilos para POS */
@@ -140,10 +289,6 @@ main {
 }
 
 /* Utilitarios */
-.cursor-pointer {
-    cursor: pointer;
-}
-
 .transition-all {
     transition: all 0.3s;
 }

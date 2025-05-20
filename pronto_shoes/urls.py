@@ -30,6 +30,7 @@ from requisiciones.views import RequisicionViewSet, DetalleRequisicionViewSet, R
 from descuentos.views import TabuladorDescuentoViewSet, DescuentosReporteAPIView
 from administracion.views import LogAuditoriaViewSet, LogsAuditoriaReporteAPIView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
+from django.contrib.auth import views as auth_views
 
 router = routers.DefaultRouter()
 router.register(r'tiendas', TiendaViewSet)
@@ -56,9 +57,11 @@ router.register(r'tabulador_descuento', TabuladorDescuentoViewSet)
 router.register(r'logs_auditoria', LogAuditoriaViewSet)
 
 urlpatterns = [
-    # Redirect root to Swagger UI
-    path('', RedirectView.as_view(url='/api/docs/', permanent=False)),
+    # Redirect root to login page
+    path('', RedirectView.as_view(url='/dashboard/', permanent=False)),
     path('admin/', admin.site.urls),
+    # Dashboard application
+    path('dashboard/', include('dashboard.urls')),
     path('api/', include(router.urls)),
     path('api/reportes/apartados_por_cliente/', ApartadosPorClienteReporteAPIView.as_view(), name='apartados-por-cliente-reporte'),
     path('api/reportes/pedidos_por_surtir/', PedidosPorSurtirReporteAPIView.as_view(), name='pedidos-por-surtir-reporte'),
@@ -68,6 +71,16 @@ urlpatterns = [
     path('api/reportes/requisiciones/', RequisicionesReporteAPIView.as_view(), name='requisiciones-reporte'),
     path('api/reportes/descuentos/', DescuentosReporteAPIView.as_view(), name='descuentos-reporte'),
     path('api/reportes/logs_auditoria/', LogsAuditoriaReporteAPIView.as_view(), name='logs-auditoria-reporte'),
+    
+    # Authentication URLs
+    path('login/', auth_views.LoginView.as_view(), name='login'),
+    path('logout/', auth_views.LogoutView.as_view(), name='logout'),
+    path('password_change/', auth_views.PasswordChangeView.as_view(), name='password_change'),
+    path('password_change/done/', auth_views.PasswordChangeDoneView.as_view(), name='password_change_done'),
+    path('password_reset/', auth_views.PasswordResetView.as_view(), name='password_reset'),
+    path('password_reset/done/', auth_views.PasswordResetDoneView.as_view(), name='password_reset_done'),
+    path('reset/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
+    path('reset/done/', auth_views.PasswordResetCompleteView.as_view(), name='password_reset_complete'),
 ]
 
 urlpatterns += [

@@ -1,196 +1,68 @@
 {% comment %}
-Componente para el menú principal de navegación
+Componente para el menú principal de navegación (versión simplificada para login)
 {% endcomment %}
 
+{% if user.is_authenticated %}
 <ul class="navbar-nav me-auto">
     <li class="nav-item">
-        <a class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}" href="{% url 'home' %}">
-            <i class="bi bi-house-fill"></i> Inicio
+        <a class="nav-link {% if request.resolver_match.app_name == 'dashboard' %}active{% endif %}" href="{% url 'dashboard:index' %}">
+            <i class="bi bi-speedometer2 me-1"></i> Dashboard
         </a>
     </li>
-
-    {% if perms.productos.view_producto %}
-    <li class="nav-item dropdown">
-        <a class="nav-link dropdown-toggle {% if 'productos' in request.path %}active{% endif %}" href="#" id="productosDropdown" role="button" data-bs-toggle="dropdown">
-            <i class="bi bi-box-seam"></i> Productos
+    <li class="nav-item">
+        <a class="nav-link {% if request.resolver_match.app_name == 'ventas' %}active{% endif %}" href="#">
+            <i class="bi bi-cart me-1"></i> Ventas
         </a>
-        <ul class="dropdown-menu" aria-labelledby="productosDropdown">
-            <li><a class="dropdown-item" href="{% url 'productos:lista' %}">Catálogo</a></li>
-            <li><a class="dropdown-item" href="{% url 'productos:importar' %}">Importar Catálogo</a></li>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if request.resolver_match.app_name == 'clientes' %}active{% endif %}" href="#">
+            <i class="bi bi-people me-1"></i> Clientes
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if request.resolver_match.app_name == 'productos' %}active{% endif %}" href="#">
+            <i class="bi bi-box-seam me-1"></i> Productos
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if request.resolver_match.app_name == 'inventario' %}active{% endif %}" href="#">
+            <i class="bi bi-stack me-1"></i> Inventario
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if request.resolver_match.app_name == 'caja' %}active{% endif %}" href="#">
+            <i class="bi bi-cash me-1"></i> Caja
+        </a>
+    </li>
+    <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+            <i class="bi bi-graph-up me-1"></i> Reportes
+        </a>
+        <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="#">Ventas</a></li>
+            <li><a class="dropdown-item" href="#">Inventario</a></li>
+            <li><a class="dropdown-item" href="#">Compras</a></li>
             <li><hr class="dropdown-divider"></li>
-            <li><a class="dropdown-item" href="{% url 'productos:cambios_precio' %}">Cambios de Precio</a></li>
+            <li><a class="dropdown-item" href="#">Personalizado</a></li>
         </ul>
     </li>
-    {% endif %}
-
-    {% if perms.clientes.view_cliente %}
-    <li class="nav-item dropdown">
-        <a class="nav-link dropdown-toggle {% if 'clientes' in request.path %}active{% endif %}" href="#" id="clientesDropdown" role="button" data-bs-toggle="dropdown">
-            <i class="bi bi-people-fill"></i> Clientes
-        </a>
-        <ul class="dropdown-menu" aria-labelledby="clientesDropdown">
-            <li><a class="dropdown-item" href="{% url 'clientes:lista' %}">Lista de Clientes</a></li>
-            <li><a class="dropdown-item" href="{% url 'clientes:anticipos' %}">Anticipos</a></li>
-            <li><hr class="dropdown-divider"></li>
-            <li><a class="dropdown-item" href="{% url 'clientes:descuentos' %}">Descuentos Aplicados</a></li>
-        </ul>
-    </li>
-    {% endif %}
-
-    {% if perms.proveedores.view_proveedor %}
-    <li class="nav-item dropdown">
-        <a class="nav-link dropdown-toggle {% if 'proveedores' in request.path %}active{% endif %}" href="#" id="proveedoresDropdown" role="button" data-bs-toggle="dropdown">
-            <i class="bi bi-truck"></i> Proveedores
-        </a>
-        <ul class="dropdown-menu" aria-labelledby="proveedoresDropdown">
-            <li><a class="dropdown-item" href="{% url 'proveedores:lista' %}">Lista de Proveedores</a></li>
-            <li><a class="dropdown-item" href="{% url 'proveedores:pedidos' %}">Pedidos a Proveedores</a></li>
-        </ul>
-    </li>
-    {% endif %}
-
-    {% if perms.ventas.view_pedido %}
-    <li class="nav-item dropdown">
-        <a class="nav-link dropdown-toggle {% if 'ventas' in request.path or 'pedidos' in request.path %}active{% endif %}" href="#" id="ventasDropdown" role="button" data-bs-toggle="dropdown">
-            <i class="bi bi-cart-check-fill"></i> Ventas
-        </a>
-        <ul class="dropdown-menu" aria-labelledby="ventasDropdown">
-            <li><a class="dropdown-item" href="{% url 'ventas:nueva' %}">Nueva Venta</a></li>
-            <li><a class="dropdown-item" href="{% url 'ventas:pedidos' %}">Pedidos</a></li>
-            <li><hr class="dropdown-divider"></li>
-            <li><a class="dropdown-item" href="{% url 'ventas:pendientes' %}">Pendientes de Surtir</a></li>
-        </ul>
-    </li>
-    {% endif %}
-
-    {% if perms.inventario.view_inventario %}
-    <li class="nav-item dropdown">
-        <a class="nav-link dropdown-toggle {% if 'inventario' in request.path %}active{% endif %}" href="#" id="inventarioDropdown" role="button" data-bs-toggle="dropdown">
-            <i class="bi bi-boxes"></i> Inventario
-        </a>
-        <ul class="dropdown-menu" aria-labelledby="inventarioDropdown">
-            <li><a class="dropdown-item" href="{% url 'inventario:consulta' %}">Consulta de Stock</a></li>
-            <li><a class="dropdown-item" href="{% url 'inventario:movimientos' %}">Movimientos</a></li>
-            <li><hr class="dropdown-divider"></li>
-            <li><a class="dropdown-item" href="{% url 'inventario:traspasos' %}">Traspasos</a></li>
-            <li><a class="dropdown-item" href="{% url 'inventario:ajustes' %}">Ajustes</a></li>
-        </ul>
-    </li>
-    {% endif %}
-
-    {% if perms.caja.view_caja %}
-    <li class="nav-item dropdown">
-        <a class="nav-link dropdown-toggle {% if 'caja' in request.path or 'facturas' in request.path %}active{% endif %}" href="#" id="cajaDropdown" role="button" data-bs-toggle="dropdown">
-            <i class="bi bi-cash-stack"></i> Caja
-        </a>
-        <ul class="dropdown-menu" aria-labelledby="cajaDropdown">
-            <li><a class="dropdown-item" href="{% url 'caja:apertura' %}">Apertura/Cierre</a></li>
-            <li><a class="dropdown-item" href="{% url 'caja:operaciones' %}">Operaciones</a></li>
-            <li><hr class="dropdown-divider"></li>
-            <li><a class="dropdown-item" href="{% url 'caja:facturas' %}">Facturas</a></li>
-            <li><a class="dropdown-item" href="{% url 'caja:notas' %}">Notas de Cargo</a></li>
-        </ul>
-    </li>
-    {% endif %}
-
-    {% if perms.devoluciones.view_devolucion %}
-    <li class="nav-item dropdown">
-        <a class="nav-link dropdown-toggle {% if 'devoluciones' in request.path %}active{% endif %}" href="#" id="devolucionesDropdown" role="button" data-bs-toggle="dropdown">
-            <i class="bi bi-arrow-return-left"></i> Devoluciones
-        </a>
-        <ul class="dropdown-menu" aria-labelledby="devolucionesDropdown">
-            <li><a class="dropdown-item" href="{% url 'devoluciones:nueva' %}">Nueva Devolución</a></li>
-            <li><a class="dropdown-item" href="{% url 'devoluciones:lista' %}">Lista de Devoluciones</a></li>
-            <li><hr class="dropdown-divider"></li>
-            <li><a class="dropdown-item" href="{% url 'devoluciones:validacion' %}">Validaciones Pendientes</a></li>
-        </ul>
-    </li>
-    {% endif %}
-
-    {% if perms.requisiciones.view_requisicion %}
-    <li class="nav-item dropdown">
-        <a class="nav-link dropdown-toggle {% if 'requisiciones' in request.path %}active{% endif %}" href="#" id="requisicionesDropdown" role="button" data-bs-toggle="dropdown">
-            <i class="bi bi-list-check"></i> Requisiciones
-        </a>
-        <ul class="dropdown-menu" aria-labelledby="requisicionesDropdown">
-            <li><a class="dropdown-item" href="{% url 'requisiciones:nueva' %}">Nueva Requisición</a></li>
-            <li><a class="dropdown-item" href="{% url 'requisiciones:lista' %}">Lista de Requisiciones</a></li>
-        </ul>
-    </li>
-    {% endif %}
-
-    {% if perms.descuentos.view_tabuladordescuento %}
-    <li class="nav-item dropdown">
-        <a class="nav-link dropdown-toggle {% if 'descuentos' in request.path %}active{% endif %}" href="#" id="descuentosDropdown" role="button" data-bs-toggle="dropdown">
-            <i class="bi bi-percent"></i> Descuentos
-        </a>
-        <ul class="dropdown-menu" aria-labelledby="descuentosDropdown">
-            <li><a class="dropdown-item" href="{% url 'descuentos:tabulador' %}">Tabulador</a></li>
-            <li><a class="dropdown-item" href="{% url 'descuentos:recalcular' %}">Recalcular Descuentos</a></li>
-        </ul>
-    </li>
-    {% endif %}
-
-    {% if perms.auth.view_user %}
-    <li class="nav-item dropdown">
-        <a class="nav-link dropdown-toggle {% if 'reportes' in request.path %}active{% endif %}" href="#" id="reportesDropdown" role="button" data-bs-toggle="dropdown">
-            <i class="bi bi-file-earmark-bar-graph"></i> Reportes
-        </a>
-        <ul class="dropdown-menu" aria-labelledby="reportesDropdown">
-            <li><h6 class="dropdown-header">Clientes</h6></li>
-            <li><a class="dropdown-item" href="{% url 'reportes:clientes_sin_movimientos' %}">Sin Movimientos</a></li>
-            <li><a class="dropdown-item" href="{% url 'reportes:apartados_cliente' %}">Apartados por Cliente</a></li>
-            <li><a class="dropdown-item" href="{% url 'reportes:devoluciones_cliente' %}">Devoluciones por Cliente</a></li>
-            
-            <li><hr class="dropdown-divider"></li>
-            <li><h6 class="dropdown-header">Ventas</h6></li>
-            <li><a class="dropdown-item" href="{% url 'reportes:pedidos_surtidos' %}">Pedidos Surtidos</a></li>
-            <li><a class="dropdown-item" href="{% url 'reportes:pedidos_pendientes' %}">Pedidos por Surtir</a></li>
-            
-            <li><hr class="dropdown-divider"></li>
-            <li><h6 class="dropdown-header">Inventario</h6></li>
-            <li><a class="dropdown-item" href="{% url 'reportes:cambios_precios' %}">Cambios de Precios</a></li>
-            <li><a class="dropdown-item" href="{% url 'reportes:inventario_diario' %}">Inventario por Día</a></li>
-            <li><a class="dropdown-item" href="{% url 'reportes:mercancia_disponible' %}">Mercancía Disponible</a></li>
-        </ul>
-    </li>
-    {% endif %}
-
-    {% if perms.auth.view_user %}
-    <li class="nav-item dropdown">
-        <a class="nav-link dropdown-toggle {% if 'admin' in request.path or 'sincronizacion' in request.path %}active{% endif %}" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown">
-            <i class="bi bi-gear-fill"></i> Administración
-        </a>
-        <ul class="dropdown-menu" aria-labelledby="adminDropdown">
-            <li><a class="dropdown-item" href="{% url 'administracion:usuarios' %}">Usuarios</a></li>
-            <li><a class="dropdown-item" href="{% url 'administracion:tiendas' %}">Tiendas</a></li>
-            <li><hr class="dropdown-divider"></li>
-            <li><a class="dropdown-item" href="{% url 'administracion:logs' %}">Logs de Auditoría</a></li>
-            <li><hr class="dropdown-divider"></li>
-            <li><a class="dropdown-item" href="{% url 'sincronizacion:panel' %}">Panel de Sincronización</a></li>
-            <li><a class="dropdown-item" href="{% url 'sincronizacion:conflictos' %}">Conflictos</a></li>
-        </ul>
-    </li>
-    {% endif %}
 </ul>
 
-<div class="d-flex">
-    <form class="d-flex me-2" action="{% url 'busqueda_global' %}" method="get">
-        <div class="input-group">
-            <input class="form-control" type="search" name="q" placeholder="Buscar..." aria-label="Buscar">
-            <button class="btn btn-outline-light" type="submit"><i class="bi bi-search"></i></button>
-        </div>
-    </form>
-    
-    <div class="nav-item dropdown">
-        <a class="nav-link dropdown-toggle text-white" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
-            <i class="bi bi-person-circle"></i>
+<ul class="navbar-nav">
+    <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+            <i class="bi bi-gear me-1"></i> Administración
         </a>
-        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-            <li><h6 class="dropdown-header">{{ request.user.get_full_name }}</h6></li>
-            <li><a class="dropdown-item" href="{% url 'perfil' %}">Mi Perfil</a></li>
+        <ul class="dropdown-menu dropdown-menu-end">
+            <li><a class="dropdown-item" href="#">Proveedores</a></li>
+            <li><a class="dropdown-item" href="#">Tabulador de Descuentos</a></li>
+            <li><a class="dropdown-item" href="#">Tiendas</a></li>
             <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="#">Usuarios</a></li>
             <li><a class="dropdown-item" href="{% url 'logout' %}">Cerrar Sesión</a></li>
         </ul>
-    </div>
-</div> 
+    </li>
+</ul>
+{% else %}
+<!-- No navigation when not logged in -->
+{% endif %} 

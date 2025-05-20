@@ -1,117 +1,12 @@
 {% comment %}
-Componente para indicador de estado de sincronización
+Componente para indicador de estado de sincronización (versión simplificada para login)
 {% endcomment %}
 
-<div class="sync-status-badge"
-     hx-get="{% url 'sincronizacion:estado' %}"
-     hx-trigger="load, every 30s"
-     hx-swap="outerHTML">
-    
-    {% if sync_status == "connected" %}
-        <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true">
-            <div class="toast-header bg-success text-white">
-                <i class="bi bi-wifi me-2"></i>
-                <strong class="me-auto">Conectado</strong>
-                <small>{{ last_sync|default:"Ahora" }}</small>
-            </div>
-            <div class="toast-body">
-                <div class="d-flex align-items-center">
-                    <span class="me-2">Todo sincronizado</span>
-                    <span class="badge bg-success">0</span>
-                </div>
-            </div>
-        </div>
-    {% elif sync_status == "syncing" %}
-        <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true">
-            <div class="toast-header bg-warning text-white">
-                <i class="bi bi-arrow-repeat me-2 spin"></i>
-                <strong class="me-auto">Sincronizando</strong>
-                <small>{{ last_sync|default:"Ahora" }}</small>
-            </div>
-            <div class="toast-body">
-                <div class="d-flex align-items-center">
-                    <span class="me-2">Operaciones pendientes</span>
-                    <span class="badge bg-warning text-dark">{{ pending_operations|default:"0" }}</span>
-                </div>
-                <div class="progress mt-2" style="height: 5px;">
-                    <div class="progress-bar progress-bar-striped progress-bar-animated bg-warning"
-                         role="progressbar"
-                         {% with progress=sync_progress|default:'0' %}
-                         style="width: {{ progress }}%"
-                         aria-valuenow="{{ progress }}"
-                         {% endwith %}
-                         aria-valuemin="0"
-                         aria-valuemax="100">
-                    </div>
-                </div>
-            </div>
-        </div>
-    {% elif sync_status == "error" %}
-        <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true">
-            <div class="toast-header bg-danger text-white">
-                <i class="bi bi-exclamation-triangle me-2"></i>
-                <strong class="me-auto">Error de conexión</strong>
-                <small>{{ last_sync|default:"Desconocido" }}</small>
-            </div>
-            <div class="toast-body">
-                <div class="d-flex align-items-center">
-                    <span class="me-2">Operaciones pendientes</span>
-                    <span class="badge bg-danger">{{ pending_operations|default:"!" }}</span>
-                </div>
-                <div class="d-flex mt-2 justify-content-between">
-                    <button class="btn btn-sm btn-outline-secondary"
-                            hx-get="{% url 'sincronizacion:estado' %}"
-                            hx-target="closest .sync-status-badge"
-                            hx-swap="outerHTML">
-                        <i class="bi bi-arrow-clockwise"></i> Actualizar
-                    </button>
-                    <button class="btn btn-sm btn-danger"
-                            hx-post="{% url 'sincronizacion:forzar' %}"
-                            hx-target="closest .sync-status-badge"
-                            hx-swap="outerHTML">
-                        <i class="bi bi-arrow-repeat"></i> Forzar sincronización
-                    </button>
-                </div>
-            </div>
-        </div>
-    {% elif sync_status == "conflict" %}
-        <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true">
-            <div class="toast-header bg-danger text-white">
-                <i class="bi bi-exclamation-diamond me-2"></i>
-                <strong class="me-auto">Conflicto de datos</strong>
-                <small>{{ last_sync|default:"Desconocido" }}</small>
-            </div>
-            <div class="toast-body">
-                <div class="d-flex align-items-center">
-                    <span class="me-2">Conflictos detectados</span>
-                    <span class="badge bg-danger">{{ conflict_count|default:"!" }}</span>
-                </div>
-                <div class="mt-2">
-                    <a href="{% url 'sincronizacion:conflictos' %}" class="btn btn-sm btn-outline-danger w-100">
-                        <i class="bi bi-tools"></i> Resolver conflictos
-                    </a>
-                </div>
-            </div>
-        </div>
-    {% else %}
-        <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true">
-            <div class="toast-header bg-secondary text-white">
-                <i class="bi bi-question-circle me-2"></i>
-                <strong class="me-auto">Estado desconocido</strong>
-                <small>{{ last_sync|default:"Nunca" }}</small>
-            </div>
-            <div class="toast-body">
-                <div class="d-flex justify-content-center">
-                    <button class="btn btn-sm btn-outline-secondary"
-                            hx-get="{% url 'sincronizacion:estado' %}"
-                            hx-target="closest .sync-status-badge"
-                            hx-swap="outerHTML">
-                        <i class="bi bi-arrow-clockwise"></i> Verificar estado
-                    </button>
-                </div>
-            </div>
-        </div>
-    {% endif %}
+<!-- Static login information banner -->
+<div class="card shadow-sm">
+    <div class="card-body p-2 text-center">
+        <small class="text-muted">Sistema POS Pronto Shoes</small>
+    </div>
 </div>
 
 <style>
@@ -120,14 +15,5 @@ Componente para indicador de estado de sincronización
     top: 10px;
     right: 10px;
     z-index: 1050;
-}
-
-.spin {
-    animation: spin 2s linear infinite;
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
 }
 </style> 

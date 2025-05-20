@@ -12,7 +12,26 @@ from productos.models import Producto
 from rest_framework.pagination import LimitOffsetPagination
 from django.utils.dateparse import parse_date
 from django.utils import timezone
+from django.contrib.auth.decorators import login_required
 
+# Vistas para frontend
+@login_required
+def pos_view(request):
+    """Vista principal del punto de venta (POS)"""
+    context = {
+        'title': 'Punto de Venta',
+    }
+    return render(request, 'ventas/pos.html', context)
+
+@login_required
+def pedidos_view(request):
+    """Vista para listar pedidos"""
+    context = {
+        'title': 'Pedidos',
+    }
+    return render(request, 'ventas/pedidos.html', context)
+
+# Vistas API
 @extend_schema(tags=["Ventas"])
 class PedidoViewSet(viewsets.ModelViewSet):
     queryset = Pedido.objects.all()
