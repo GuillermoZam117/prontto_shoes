@@ -126,8 +126,8 @@ def inventario_list(request):
     if search_query:
         inventario = inventario.filter(
             Q(producto__codigo__icontains=search_query) | 
-            Q(producto__nombre__icontains=search_query) |
             Q(producto__marca__icontains=search_query) |
+            Q(producto__modelo__icontains=search_query) |
             Q(tienda__nombre__icontains=search_query)
         )
     
@@ -138,6 +138,19 @@ def inventario_list(request):
         # Filter products with stock below minimum level
         inventario = inventario.filter(cantidad_actual__lt=F('producto__stock_minimo'))
     
+    # Calculate inventory metrics
+    # All inventory items (for filtering purposes)
+    all_inventory = Inventario.objects.all()
+    
+    # Count products with zero or negative stock
+    sin_stock = all_inventory.filter(cantidad_actual__lte=0).count()
+    
+    # Count products with low stock (greater than 0 but less than minimum)
+    stock_bajo_count = all_inventory.filter(
+        cantidad_actual__gt=0, 
+        cantidad_actual__lt=F('producto__stock_minimo')
+    ).count()
+    
     # Get stores for filter dropdown
     tiendas = Tienda.objects.all()
     
@@ -147,6 +160,8 @@ def inventario_list(request):
         'search_query': search_query,
         'tienda_seleccionada': tienda_id,
         'stock_bajo': stock_bajo,
+        'sin_stock': sin_stock,
+        'stock_bajo_count': stock_bajo_count,
     }
     
     return render(request, 'inventario/inventario_list.html', context)

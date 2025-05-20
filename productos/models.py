@@ -28,6 +28,7 @@ class Producto(models.Model):
     temporada = models.CharField(max_length=30)
     oferta = models.BooleanField(default=False)
     admite_devolucion = models.BooleanField(default=True)
+    stock_minimo = models.IntegerField(default=5)  # Nivel mínimo recomendado de stock
     proveedor = models.ForeignKey('proveedores.Proveedor', on_delete=models.PROTECT, related_name='productos')
     tienda = models.ForeignKey(Tienda, on_delete=models.PROTECT, related_name='productos')
     catalogo = models.ForeignKey(Catalogo, on_delete=models.SET_NULL, null=True, blank=True, related_name='productos')
