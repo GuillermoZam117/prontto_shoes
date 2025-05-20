@@ -1,0 +1,207 @@
+{% extends "layouts/base.html" %}
+{% load static %}
+
+{% block title %}Clientes{% endblock %}
+
+{% block page_title %}Clientes{% endblock %}
+
+{% block breadcrumbs_content %}
+    <li class="breadcrumb-item active">Clientes</li>
+{% endblock %}
+
+{% block page_actions %}
+    <a href="{% url 'clientes:nuevo' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-1"></i> Nuevo Cliente
+    </a>
+{% endblock %}
+
+{% block content %}
+<div class="card shadow mb-4">
+    <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+        <h6 class="m-0 font-weight-bold text-primary">Lista de Clientes</h6>
+        
+        <div class="d-flex">
+            <form class="form-inline me-2" method="GET">
+                {% if tienda_seleccionada %}
+                <input type="hidden" name="tienda" value="{{ tienda_seleccionada }}">
+                {% endif %}
+                <div class="input-group">
+                    <input type="text" class="form-control" name="q" value="{{ search_query }}" placeholder="Buscar...">
+                    <button class="btn btn-outline-primary" type="submit">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </form>
+            
+            <div class="dropdown">
+                <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="filterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-funnel me-1"></i> Filtros
+                </button>
+                <div class="dropdown-menu dropdown-menu-end p-3" style="width: 300px;">
+                    <form method="GET">
+                        {% if search_query %}
+                        <input type="hidden" name="q" value="{{ search_query }}">
+                        {% endif %}
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Tienda</label>
+                            <select name="tienda" class="form-select">
+                                <option value="">Todas las tiendas</option>
+                                {% for tienda in tiendas %}
+                                <option value="{{ tienda.id }}" {% if tienda_seleccionada == tienda.id|stringformat:"i" %}selected{% endif %}>{{ tienda.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'clientes:lista' %}" class="btn btn-sm btn-outline-secondary">Limpiar</a>
+                            <button type="submit" class="btn btn-sm btn-primary">Aplicar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card-body">
+        {% if clientes %}
+            <div class="table-responsive">
+                <table class="table table-hover table-sm">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Nombre</th>
+                            <th>Contacto</th>
+                            <th>Tienda</th>
+                            <th class="text-end">Saldo a Favor</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cliente in clientes %}
+                        <tr>
+                            <td>{{ cliente.id }}</td>
+                            <td><a href="{% url 'clientes:detalle' cliente.id %}">{{ cliente.nombre }}</a></td>
+                            <td>{{ cliente.contacto }}</td>
+                            <td>{{ cliente.tienda.nombre }}</td>
+                            <td class="text-end">${{ cliente.saldo_a_favor|floatformat:2 }}</td>
+                            <td>
+                                <a href="{% url 'clientes:detalle' cliente.id %}" class="btn btn-sm btn-info" data-bs-toggle="tooltip" title="Ver Detalles">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{% url 'clientes:editar' cliente.id %}" class="btn btn-sm btn-primary" data-bs-toggle="tooltip" title="Editar">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center my-5">
+                <div class="mb-3">
+                    <i class="bi bi-people text-muted" style="font-size: 4rem;"></i>
+                </div>
+                <h5>No hay clientes para mostrar</h5>
+                <p class="text-muted">
+                    {% if search_query or tienda_seleccionada %}
+                    No se encontraron clientes que coincidan con tu búsqueda.
+                    <a href="{% url 'clientes:lista' %}">Ver todos los clientes</a>
+                    {% else %}
+                    No hay clientes registrados actualmente.
+                    <a href="{% url 'clientes:nuevo' %}" class="btn btn-primary btn-sm mt-2">
+                        <i class="bi bi-plus-circle me-1"></i> Crear Primer Cliente
+                    </a>
+                    {% endif %}
+                </p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Recent Orders Summary -->
+<div class="card shadow">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Resumen de Clientes</h6>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <!-- Total de Clientes -->
+            <div class="col-xl-4 col-md-6 mb-4">
+                <div class="card border-left-primary shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                    Total de Clientes
+                                </div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                    {{ clientes|length }}
+                                </div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-people fa-2x text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Clientes con Saldo a Favor -->
+            <div class="col-xl-4 col-md-6 mb-4">
+                <div class="card border-left-success shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                    Con Saldo a Favor
+                                </div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                    {{ clientes_con_saldo }}
+                                </div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-cash fa-2x text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Anticipos del Mes -->
+            <div class="col-xl-4 col-md-6 mb-4">
+                <div class="card border-left-info shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                    Anticipos Mes Actual
+                                </div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                    {{ anticipos_mes }}
+                                </div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-calendar3 fa-2x text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Initialize tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+          return new bootstrap.Tooltip(tooltipTriggerEl)
+        });
+    });
+</script>
+{% endblock %} 
