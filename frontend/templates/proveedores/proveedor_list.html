@@ -1,0 +1,215 @@
+{% extends "layouts/base.html" %}
+{% load static %}
+
+{% block title %}Proveedores{% endblock %}
+
+{% block page_title %}Proveedores{% endblock %}
+
+{% block breadcrumbs_content %}
+    <li class="breadcrumb-item active">Proveedores</li>
+{% endblock %}
+
+{% block page_actions %}
+    <a href="{% url 'proveedores:nuevo' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-1"></i> Nuevo Proveedor
+    </a>
+{% endblock %}
+
+{% block content %}
+<div class="card shadow mb-4">
+    <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+        <h6 class="m-0 font-weight-bold text-primary">Lista de Proveedores</h6>
+        
+        <div class="d-flex">
+            <form class="form-inline me-2" method="GET">
+                <div class="input-group">
+                    <input type="text" class="form-control" name="q" value="{{ search_query }}" placeholder="Buscar...">
+                    <button class="btn btn-outline-primary" type="submit">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </form>
+            
+            <div class="dropdown">
+                <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="filterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-funnel me-1"></i> Filtros
+                </button>
+                <div class="dropdown-menu dropdown-menu-end p-3" style="width: 300px;">
+                    <form method="GET">
+                        {% if search_query %}
+                        <input type="hidden" name="q" value="{{ search_query }}">
+                        {% endif %}
+                        
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="requiereAnticipo" name="requiere_anticipo" value="true" {% if requiere_anticipo %}checked{% endif %}>
+                                <label class="form-check-label" for="requiereAnticipo">
+                                    Requiere anticipo
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'proveedores:lista' %}" class="btn btn-sm btn-outline-secondary">Limpiar</a>
+                            <button type="submit" class="btn btn-sm btn-primary">Aplicar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card-body">
+        {% if proveedores %}
+            <div class="table-responsive">
+                <table class="table table-hover table-sm">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Nombre</th>
+                            <th>Contacto</th>
+                            <th>Requiere Anticipo</th>
+                            <th>Días para Devolución</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for proveedor in proveedores %}
+                        <tr>
+                            <td>{{ proveedor.id }}</td>
+                            <td><a href="{% url 'proveedores:detalle' proveedor.id %}">{{ proveedor.nombre }}</a></td>
+                            <td>{{ proveedor.contacto }}</td>
+                            <td>
+                                {% if proveedor.requiere_anticipo %}
+                                <span class="badge bg-warning text-dark">Sí</span>
+                                {% else %}
+                                <span class="badge bg-success">No</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if proveedor.max_return_days > 0 %}
+                                {{ proveedor.max_return_days }} días
+                                {% else %}
+                                <span class="text-muted">No acepta</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'proveedores:detalle' proveedor.id %}" class="btn btn-sm btn-info" data-bs-toggle="tooltip" title="Ver Detalles">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{% url 'proveedores:editar' proveedor.id %}" class="btn btn-sm btn-primary" data-bs-toggle="tooltip" title="Editar">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center my-5">
+                <div class="mb-3">
+                    <i class="bi bi-building text-muted" style="font-size: 4rem;"></i>
+                </div>
+                <h5>No hay proveedores para mostrar</h5>
+                <p class="text-muted">
+                    {% if search_query or requiere_anticipo %}
+                    No se encontraron proveedores que coincidan con tu búsqueda.
+                    <a href="{% url 'proveedores:lista' %}">Ver todos los proveedores</a>
+                    {% else %}
+                    No hay proveedores registrados actualmente.
+                    <a href="{% url 'proveedores:nuevo' %}" class="btn btn-primary btn-sm mt-2">
+                        <i class="bi bi-plus-circle me-1"></i> Crear Primer Proveedor
+                    </a>
+                    {% endif %}
+                </p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Resumen de Proveedores -->
+<div class="card shadow">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Resumen de Proveedores</h6>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <!-- Total de Proveedores -->
+            <div class="col-xl-4 col-md-6 mb-4">
+                <div class="card border-left-primary shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                    Total de Proveedores
+                                </div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                    {{ proveedores|length }}
+                                </div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-building fa-2x text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Con Anticipo -->
+            <div class="col-xl-4 col-md-6 mb-4">
+                <div class="card border-left-warning shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                    Requieren Anticipo
+                                </div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                    {{ proveedores_anticipo }}
+                                </div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-cash-coin fa-2x text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Aceptan Devolución -->
+            <div class="col-xl-4 col-md-6 mb-4">
+                <div class="card border-left-info shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                    Aceptan Devolución
+                                </div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                    {{ proveedores_devolucion }}
+                                </div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-arrow-return-left fa-2x text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Initialize tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+          return new bootstrap.Tooltip(tooltipTriggerEl)
+        });
+    });
+</script>
+{% endblock %} 

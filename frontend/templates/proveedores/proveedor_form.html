@@ -1,0 +1,124 @@
+{% extends "layouts/base.html" %}
+{% load static %}
+
+{% block title %}
+    {% if is_edit %}Editar{% else %}Nuevo{% endif %} Proveedor
+{% endblock %}
+
+{% block page_title %}
+    {% if is_edit %}Editar{% else %}Nuevo{% endif %} Proveedor
+{% endblock %}
+
+{% block breadcrumbs_content %}
+    <li class="breadcrumb-item"><a href="{% url 'proveedores:lista' %}">Proveedores</a></li>
+    <li class="breadcrumb-item active">{% if is_edit %}Editar{% else %}Nuevo{% endif %} Proveedor</li>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 col-xl-6 mx-auto">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">{% if is_edit %}Editar{% else %}Nuevo{% endif %} Proveedor</h6>
+            </div>
+            
+            <div class="card-body">
+                <form method="post" class="needs-validation" novalidate>
+                    {% csrf_token %}
+                    
+                    <!-- Alertas de errores o mensajes de validación -->
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    
+                    <!-- Datos básicos del proveedor -->
+                    <div class="mb-4">
+                        <h5 class="text-gray-800">Información Básica</h5>
+                        <hr>
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <label for="nombre" class="form-label">Nombre del Proveedor *</label>
+                                <input type="text" class="form-control" id="nombre" name="nombre" value="{{ proveedor.nombre|default:'' }}" required>
+                                <div class="invalid-feedback">
+                                    El nombre del proveedor es obligatorio
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <label for="contacto" class="form-label">Contacto</label>
+                                <input type="text" class="form-control" id="contacto" name="contacto" value="{{ proveedor.contacto|default:'' }}">
+                                <div class="form-text">Nombre de la persona de contacto, teléfono o correo electrónico</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Configuración de pagos y devoluciones -->
+                    <div class="mb-4">
+                        <h5 class="text-gray-800">Configuración de Pagos y Devoluciones</h5>
+                        <hr>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check mt-2">
+                                    <input class="form-check-input" type="checkbox" id="requiere_anticipo" name="requiere_anticipo" {% if proveedor.requiere_anticipo %}checked{% endif %}>
+                                    <label class="form-check-label" for="requiere_anticipo">
+                                        Requiere anticipo
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="max_return_days" class="form-label">Días máximos para devolución</label>
+                                <input type="number" min="0" class="form-control" id="max_return_days" name="max_return_days" value="{{ proveedor.max_return_days|default:'0' }}">
+                                <div class="form-text">0 = No acepta devoluciones</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Botones de acción -->
+                    <div class="d-flex justify-content-between mt-4">
+                        <a href="{% url 'proveedores:lista' %}" class="btn btn-light">Cancelar</a>
+                        <button type="submit" class="btn btn-primary">
+                            {% if is_edit %}
+                                Guardar Cambios
+                            {% else %}
+                                Crear Proveedor
+                            {% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Form validation
+    (function() {
+        'use strict'
+        
+        // Fetch all forms to which we want to apply validation styles
+        var forms = document.querySelectorAll('.needs-validation')
+        
+        // Loop over them and prevent submission
+        Array.prototype.slice.call(forms)
+            .forEach(function(form) {
+                form.addEventListener('submit', function(event) {
+                    if (!form.checkValidity()) {
+                        event.preventDefault()
+                        event.stopPropagation()
+                    }
+                    
+                    form.classList.add('was-validated')
+                }, false)
+            })
+    })()
+</script>
+{% endblock %} 

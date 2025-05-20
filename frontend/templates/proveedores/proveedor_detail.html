@@ -1,0 +1,283 @@
+{% extends "layouts/base.html" %}
+{% load static %}
+
+{% block title %}Proveedor: {{ proveedor.nombre }}{% endblock %}
+
+{% block page_title %}Proveedor: {{ proveedor.nombre }}{% endblock %}
+
+{% block breadcrumbs_content %}
+    <li class="breadcrumb-item"><a href="{% url 'proveedores:lista' %}">Proveedores</a></li>
+    <li class="breadcrumb-item active">{{ proveedor.nombre }}</li>
+{% endblock %}
+
+{% block page_actions %}
+    <a href="{% url 'proveedores:editar' proveedor.id %}" class="btn btn-primary">
+        <i class="bi bi-pencil me-1"></i> Editar
+    </a>
+    <a href="{% url 'proveedores:nueva_purchase_order' %}?proveedor={{ proveedor.id }}" class="btn btn-success ms-2">
+        <i class="bi bi-truck me-1"></i> Nueva Orden de Compra
+    </a>
+{% endblock %}
+
+{% block content %}
+<!-- Información del Proveedor -->
+<div class="row">
+    <div class="col-lg-6">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Información del Proveedor</h6>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-lg-4 font-weight-bold text-gray-800">Nombre:</div>
+                    <div class="col-lg-8">{{ proveedor.nombre }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-lg-4 font-weight-bold text-gray-800">Contacto:</div>
+                    <div class="col-lg-8">{{ proveedor.contacto|default:"No especificado" }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-lg-4 font-weight-bold text-gray-800">Requiere Anticipo:</div>
+                    <div class="col-lg-8">
+                        {% if proveedor.requiere_anticipo %}
+                            <span class="badge bg-warning text-dark">Sí</span>
+                        {% else %}
+                            <span class="badge bg-success">No</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-lg-4 font-weight-bold text-gray-800">Días para Devolución:</div>
+                    <div class="col-lg-8">
+                        {% if proveedor.max_return_days > 0 %}
+                            {{ proveedor.max_return_days }} días
+                        {% else %}
+                            <span class="text-danger">No acepta devoluciones</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-lg-4 font-weight-bold text-gray-800">Fecha de Registro:</div>
+                    <div class="col-lg-8">{{ proveedor.created_at|date:"d/m/Y H:i" }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Métricas del Proveedor -->
+    <div class="col-lg-6">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Resumen de Actividad</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <!-- Total de Productos -->
+                    <div class="col-md-6 mb-4">
+                        <div class="card border-left-primary h-100 py-2">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                            Productos Activos
+                                        </div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                            {{ productos_count }}
+                                        </div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="bi bi-box-seam fa-2x text-gray-300"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Órdenes de Compra -->
+                    <div class="col-md-6 mb-4">
+                        <div class="card border-left-info h-100 py-2">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                            Órdenes de Compra
+                                        </div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                            {{ purchase_orders|length }}
+                                        </div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="bi bi-truck fa-2x text-gray-300"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Gráfico de órdenes de compra por estado (simulado) -->
+                <div class="chart-container mt-3">
+                    <div class="d-flex justify-content-around">
+                        <div class="text-center">
+                            <div class="progress-circle bg-success" style="width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                                <span class="text-white font-weight-bold" style="font-size: 14px;">
+                                    {{ purchase_orders_completed }}
+                                </span>
+                            </div>
+                            <div class="mt-2 small">Completadas</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="progress-circle bg-warning" style="width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                                <span class="text-dark font-weight-bold" style="font-size: 14px;">
+                                    {{ purchase_orders_pending }}
+                                </span>
+                            </div>
+                            <div class="mt-2 small">Pendientes</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="progress-circle bg-danger" style="width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                                <span class="text-white font-weight-bold" style="font-size: 14px;">
+                                    {{ purchase_orders_canceled }}
+                                </span>
+                            </div>
+                            <div class="mt-2 small">Canceladas</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Productos del Proveedor -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+        <h6 class="m-0 font-weight-bold text-primary">Productos de este Proveedor</h6>
+        <a href="{% url 'productos:nuevo' %}?proveedor={{ proveedor.id }}" class="btn btn-sm btn-primary">
+            <i class="bi bi-plus-circle me-1"></i> Nuevo Producto
+        </a>
+    </div>
+    <div class="card-body">
+        {% if productos %}
+            <div class="table-responsive">
+                <table class="table table-hover table-sm">
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Marca</th>
+                            <th>Modelo</th>
+                            <th>Color</th>
+                            <th class="text-end">Precio</th>
+                            <th class="text-center">Stock</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for producto in productos %}
+                        <tr>
+                            <td>{{ producto.codigo }}</td>
+                            <td>{{ producto.marca }}</td>
+                            <td>{{ producto.modelo }}</td>
+                            <td>{{ producto.color }}</td>
+                            <td class="text-end">${{ producto.precio }}</td>
+                            <td class="text-center">
+                                {% if producto.stock_actual > producto.stock_minimo %}
+                                    <span class="badge bg-success">{{ producto.stock_actual }}</span>
+                                {% elif producto.stock_actual > 0 %}
+                                    <span class="badge bg-warning text-dark">{{ producto.stock_actual }}</span>
+                                {% else %}
+                                    <span class="badge bg-danger">0</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'productos:detalle' producto.id %}" class="btn btn-sm btn-info" data-bs-toggle="tooltip" title="Ver Detalles">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center my-4">
+                <p class="text-muted">Este proveedor no tiene productos registrados.</p>
+                <a href="{% url 'productos:nuevo' %}?proveedor={{ proveedor.id }}" class="btn btn-primary btn-sm">
+                    <i class="bi bi-plus-circle me-1"></i> Agregar Producto
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Órdenes de Compra -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+        <h6 class="m-0 font-weight-bold text-primary">Órdenes de Compra</h6>
+        <a href="{% url 'proveedores:nueva_purchase_order' %}?proveedor={{ proveedor.id }}" class="btn btn-sm btn-primary">
+            <i class="bi bi-plus-circle me-1"></i> Nueva Orden de Compra
+        </a>
+    </div>
+    <div class="card-body">
+        {% if purchase_orders %}
+            <div class="table-responsive">
+                <table class="table table-hover table-sm">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Tienda</th>
+                            <th>Fecha</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in purchase_orders %}
+                        <tr>
+                            <td>PO-{{ order.id }}</td>
+                            <td>{{ order.tienda.nombre }}</td>
+                            <td>{{ order.fecha_creacion|date:"d/m/Y H:i" }}</td>
+                            <td>
+                                {% if order.estado == 'completado' %}
+                                    <span class="badge bg-success">Completado</span>
+                                {% elif order.estado == 'enviado' %}
+                                    <span class="badge bg-info">Enviado</span>
+                                {% elif order.estado == 'pendiente' %}
+                                    <span class="badge bg-warning text-dark">Pendiente</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Cancelado</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'proveedores:detalle_purchase_order' order.id %}" class="btn btn-sm btn-info" data-bs-toggle="tooltip" title="Ver Detalles">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center my-4">
+                <p class="text-muted">No hay órdenes de compra para este proveedor.</p>
+                <a href="{% url 'proveedores:nueva_purchase_order' %}?proveedor={{ proveedor.id }}" class="btn btn-primary btn-sm">
+                    <i class="bi bi-plus-circle me-1"></i> Crear Orden de Compra
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Initialize tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+          return new bootstrap.Tooltip(tooltipTriggerEl)
+        });
+    });
+</script>
+{% endblock %} 

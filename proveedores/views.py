@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404, redirect
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
@@ -9,12 +9,225 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db import transaction
 from requisiciones.models import DetalleRequisicion
-from django.db.models import Sum, F
+from django.db.models import Sum, F, Q, Count
 from inventario.models import Inventario
 from tiendas.models import Tienda
+from productos.models import Producto
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 
-# Create your views here.
+# Frontend views
+@login_required
+def proveedor_list(request):
+    """Vista para listar proveedores"""
+    # Get filter parameters
+    search_query = request.GET.get('q', '')
+    requiere_anticipo = request.GET.get('requiere_anticipo', False)
+    
+    # Base query
+    proveedores = Proveedor.objects.all()
+    
+    # Apply filters
+    if search_query:
+        proveedores = proveedores.filter(
+            Q(nombre__icontains=search_query) | 
+            Q(contacto__icontains=search_query)
+        )
+    
+    if requiere_anticipo:
+        proveedores = proveedores.filter(requiere_anticipo=True)
+    
+    # Calculate metrics for summary cards
+    proveedores_anticipo = Proveedor.objects.filter(requiere_anticipo=True).count()
+    proveedores_devolucion = Proveedor.objects.filter(max_return_days__gt=0).count()
+    
+    context = {
+        'proveedores': proveedores,
+        'search_query': search_query,
+        'requiere_anticipo': requiere_anticipo,
+        'proveedores_anticipo': proveedores_anticipo,
+        'proveedores_devolucion': proveedores_devolucion,
+    }
+    
+    return render(request, 'proveedores/proveedor_list.html', context)
 
+@login_required
+def proveedor_detail(request, pk):
+    """Vista de detalle de un proveedor"""
+    proveedor = get_object_or_404(Proveedor, pk=pk)
+    
+    # Get products related to this provider
+    productos = Producto.objects.filter(proveedor=proveedor)
+    productos_count = productos.count()
+    
+    # Add stock information to products
+    for producto in productos:
+        inventario_total = Inventario.objects.filter(producto=producto).aggregate(
+            total=Sum('cantidad_actual')
+        )
+        producto.stock_actual = inventario_total['total'] or 0
+    
+    # Get purchase orders for this provider
+    purchase_orders = PurchaseOrder.objects.filter(proveedor=proveedor).order_by('-fecha_creacion')
+    
+    # Count purchase orders by status
+    purchase_orders_completed = purchase_orders.filter(estado='completado').count()
+    purchase_orders_pending = purchase_orders.filter(estado='pendiente').count()
+    purchase_orders_canceled = purchase_orders.filter(estado='cancelado').count()
+    
+    context = {
+        'proveedor': proveedor,
+        'productos': productos,
+        'productos_count': productos_count,
+        'purchase_orders': purchase_orders,
+        'purchase_orders_completed': purchase_orders_completed,
+        'purchase_orders_pending': purchase_orders_pending,
+        'purchase_orders_canceled': purchase_orders_canceled,
+    }
+    
+    return render(request, 'proveedores/proveedor_detail.html', context)
+
+@login_required
+def proveedor_create(request):
+    """Vista para crear un nuevo proveedor"""
+    if request.method == 'POST':
+        try:
+            # Get form data
+            nombre = request.POST.get('nombre', '').strip()
+            contacto = request.POST.get('contacto', '').strip()
+            requiere_anticipo = request.POST.get('requiere_anticipo', '') == 'on'
+            max_return_days = int(request.POST.get('max_return_days', 0) or 0)
+            
+            # Validate required fields
+            if not nombre:
+                messages.error(request, "El nombre del proveedor es obligatorio.")
+                return redirect('proveedores:nuevo')
+            
+            # Create proveedor
+            proveedor = Proveedor.objects.create(
+                nombre=nombre,
+                contacto=contacto,
+                requiere_anticipo=requiere_anticipo,
+                max_return_days=max_return_days,
+                created_by=request.user
+            )
+            
+            messages.success(request, f"Proveedor '{nombre}' creado exitosamente.")
+            return redirect('proveedores:detalle', pk=proveedor.pk)
+        
+        except Exception as e:
+            messages.error(request, f"Error al crear el proveedor: {str(e)}")
+    
+    context = {}
+    return render(request, 'proveedores/proveedor_form.html', context)
+
+@login_required
+def proveedor_edit(request, pk):
+    """Vista para editar un proveedor existente"""
+    proveedor = get_object_or_404(Proveedor, pk=pk)
+    
+    if request.method == 'POST':
+        try:
+            # Get form data
+            nombre = request.POST.get('nombre', '').strip()
+            contacto = request.POST.get('contacto', '').strip()
+            requiere_anticipo = request.POST.get('requiere_anticipo', '') == 'on'
+            max_return_days = int(request.POST.get('max_return_days', 0) or 0)
+            
+            # Validate required fields
+            if not nombre:
+                messages.error(request, "El nombre del proveedor es obligatorio.")
+                return redirect('proveedores:editar', pk=proveedor.pk)
+            
+            # Update proveedor
+            proveedor.nombre = nombre
+            proveedor.contacto = contacto
+            proveedor.requiere_anticipo = requiere_anticipo
+            proveedor.max_return_days = max_return_days
+            proveedor.save()
+            
+            messages.success(request, f"Proveedor '{nombre}' actualizado exitosamente.")
+            return redirect('proveedores:detalle', pk=proveedor.pk)
+        
+        except Exception as e:
+            messages.error(request, f"Error al actualizar el proveedor: {str(e)}")
+    
+    context = {
+        'proveedor': proveedor,
+        'is_edit': True,
+    }
+    
+    return render(request, 'proveedores/proveedor_form.html', context)
+
+@login_required
+def purchase_order_list(request):
+    """Vista para listar órdenes de compra"""
+    # Base query with related fields
+    purchase_orders = PurchaseOrder.objects.select_related('proveedor', 'tienda', 'created_by')
+    
+    # Get filter parameters
+    proveedor_id = request.GET.get('proveedor', '')
+    tienda_id = request.GET.get('tienda', '')
+    estado = request.GET.get('estado', '')
+    
+    # Apply filters
+    if proveedor_id:
+        purchase_orders = purchase_orders.filter(proveedor_id=proveedor_id)
+    
+    if tienda_id:
+        purchase_orders = purchase_orders.filter(tienda_id=tienda_id)
+    
+    if estado:
+        purchase_orders = purchase_orders.filter(estado=estado)
+    
+    # Get lists for filter dropdowns
+    proveedores = Proveedor.objects.all()
+    tiendas = Tienda.objects.all()
+    
+    context = {
+        'purchase_orders': purchase_orders,
+        'proveedores': proveedores,
+        'tiendas': tiendas,
+        'proveedor_id': proveedor_id,
+        'tienda_id': tienda_id,
+        'estado': estado,
+    }
+    
+    return render(request, 'proveedores/purchase_order_list.html', context)
+
+@login_required
+def purchase_order_detail(request, pk):
+    """Vista de detalle de una orden de compra"""
+    purchase_order = get_object_or_404(PurchaseOrder.objects.select_related('proveedor', 'tienda', 'created_by'), pk=pk)
+    items = purchase_order.items.select_related('producto').all()
+    
+    context = {
+        'purchase_order': purchase_order,
+        'items': items,
+    }
+    
+    return render(request, 'proveedores/purchase_order_detail.html', context)
+
+@login_required
+def purchase_order_create(request):
+    """Vista para crear una nueva orden de compra"""
+    # This is a placeholder - purchase orders will need a more complex implementation
+    # with item selection, quantities, etc.
+    proveedores = Proveedor.objects.all()
+    tiendas = Tienda.objects.all()
+    
+    # Pre-select provider if provided in query parameter
+    selected_proveedor = request.GET.get('proveedor', '')
+    
+    context = {
+        'proveedores': proveedores,
+        'tiendas': tiendas,
+        'selected_proveedor': selected_proveedor,
+    }
+    
+    return render(request, 'proveedores/purchase_order_form.html', context)
+
+# API viewsets
 @extend_schema(tags=["Proveedores"])
 class ProveedorViewSet(viewsets.ModelViewSet):
     queryset = Proveedor.objects.all()
