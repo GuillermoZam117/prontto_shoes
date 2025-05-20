@@ -3,18 +3,15 @@
 
 {% block title %}Inventario{% endblock %}
 
-{% block page_title %}Control de Inventario{% endblock %}
+{% block page_title %}Gestión de Inventario{% endblock %}
 
 {% block breadcrumbs_content %}
     <li class="breadcrumb-item active">Inventario</li>
 {% endblock %}
 
 {% block page_actions %}
-    <a href="{% url 'inventario:traspasos' %}" class="btn btn-secondary me-2">
-        <i class="bi bi-arrow-left-right me-1"></i> Traspasos
-    </a>
     <a href="{% url 'inventario:nuevo_traspaso' %}" class="btn btn-primary">
-        <i class="bi bi-plus-circle me-1"></i> Nuevo Traspaso
+        <i class="bi bi-arrow-left-right me-1"></i> Nuevo Traspaso
     </a>
 {% endblock %}
 
@@ -170,7 +167,7 @@
                                     Sin Stock
                                 </div>
                                 <div class="h5 mb-0 font-weight-bold text-gray-800">
-                                    {{ inventario|dictsortbykey:"cantidad_actual"|slice:":0"|length }}
+                                    {{ sin_stock }}
                                 </div>
                             </div>
                             <div class="col-auto">
@@ -191,8 +188,7 @@
                                     Stock Bajo
                                 </div>
                                 <div class="h5 mb-0 font-weight-bold text-gray-800">
-                                    <!-- Placeholder - would be calculated in view -->
-                                    0
+                                    {{ stock_bajo_count }}
                                 </div>
                             </div>
                             <div class="col-auto">

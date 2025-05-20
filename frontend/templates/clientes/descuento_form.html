@@ -1,0 +1,125 @@
+{% extends "layouts/base.html" %}
+{% load static %}
+
+{% block title %}Nuevo Descuento{% endblock %}
+
+{% block page_title %}Registrar Nuevo Descuento{% endblock %}
+
+{% block breadcrumbs_content %}
+    <li class="breadcrumb-item"><a href="{% url 'clientes:lista' %}">Clientes</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'clientes:descuentos' %}">Descuentos</a></li>
+    <li class="breadcrumb-item active">Nuevo Descuento</li>
+{% endblock %}
+
+{% block content %}
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Registrar Descuento de Cliente</h6>
+    </div>
+    <div class="card-body">
+        <form method="post" id="descuentoForm">
+            {% csrf_token %}
+            
+            <div class="row mb-3">
+                <!-- Cliente -->
+                <div class="col-md-12">
+                    <label for="cliente" class="form-label">Cliente <span class="text-danger">*</span></label>
+                    <select class="form-select" id="cliente" name="cliente" required>
+                        <option value="">Seleccionar cliente...</option>
+                        {% for cliente in clientes %}
+                        <option value="{{ cliente.id }}" {% if request.GET.cliente == cliente.id|stringformat:"i" %}selected{% endif %}>
+                            {{ cliente.nombre }} - {{ cliente.contacto }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <!-- Mes Vigente -->
+                <div class="col-md-6">
+                    <label for="mes_vigente" class="form-label">Mes Vigente <span class="text-danger">*</span></label>
+                    <input type="month" class="form-control" id="mes_vigente" name="mes_vigente" 
+                           value="{% now 'Y-m' %}" required>
+                </div>
+                
+                <!-- Porcentaje de Descuento -->
+                <div class="col-md-6">
+                    <label for="porcentaje" class="form-label">Porcentaje de Descuento (%) <span class="text-danger">*</span></label>
+                    <input type="number" class="form-control" id="porcentaje" name="porcentaje" 
+                           value="0" step="1" min="0" max="100" required>
+                </div>
+            </div>
+            
+            <div class="row mb-3">
+                <!-- Monto Acumulado Mes Anterior -->
+                <div class="col-md-6">
+                    <label for="monto_acumulado_mes_anterior" class="form-label">Monto Acumulado Mes Anterior ($)</label>
+                    <input type="number" class="form-control" id="monto_acumulado_mes_anterior" name="monto_acumulado_mes_anterior" 
+                           value="0.00" step="0.01" min="0">
+                </div>
+            </div>
+            
+            <!-- Observaciones -->
+            <div class="mb-3">
+                <label for="observaciones" class="form-label">Observaciones</label>
+                <textarea class="form-control" id="observaciones" name="observaciones" rows="3"></textarea>
+            </div>
+
+            <hr>
+
+            <div class="alert alert-info mb-3">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <div>
+                        <strong>Información:</strong> El porcentaje de descuento será aplicado automáticamente en las ventas 
+                        realizadas al cliente durante el mes vigente configurado.
+                    </div>
+                </div>
+            </div>
+            
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'clientes:descuentos' %}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left me-1"></i> Cancelar
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-save me-1"></i> Guardar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Form validation
+        $("#descuentoForm").submit(function(event) {
+            var cliente = $("#cliente").val();
+            var porcentaje = parseInt($("#porcentaje").val());
+            var mesVigente = $("#mes_vigente").val();
+            
+            if (cliente === '') {
+                alert("Por favor seleccione un cliente.");
+                event.preventDefault();
+                return false;
+            }
+            
+            if (isNaN(porcentaje) || porcentaje < 0 || porcentaje > 100) {
+                alert("Por favor ingrese un porcentaje válido entre 0 y 100.");
+                event.preventDefault();
+                return false;
+            }
+            
+            if (!mesVigente) {
+                alert("Por favor seleccione el mes vigente.");
+                event.preventDefault();
+                return false;
+            }
+            
+            return true;
+        });
+    });
+</script>
+{% endblock %} 

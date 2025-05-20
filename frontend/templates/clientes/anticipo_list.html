@@ -1,0 +1,220 @@
+{% extends "layouts/base.html" %}
+{% load static %}
+
+{% block title %}Anticipos{% endblock %}
+
+{% block page_title %}Anticipos de Clientes{% endblock %}
+
+{% block breadcrumbs_content %}
+    <li class="breadcrumb-item"><a href="{% url 'clientes:lista' %}">Clientes</a></li>
+    <li class="breadcrumb-item active">Anticipos</li>
+{% endblock %}
+
+{% block page_actions %}
+    <a href="{% url 'clientes:nuevo_anticipo' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-1"></i> Nuevo Anticipo
+    </a>
+{% endblock %}
+
+{% block content %}
+<div class="card shadow mb-4">
+    <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+        <h6 class="m-0 font-weight-bold text-primary">Lista de Anticipos</h6>
+        
+        <div class="d-flex">
+            <form class="form-inline me-2" method="GET">
+                {% if cliente_id %}
+                <input type="hidden" name="cliente" value="{{ cliente_id }}">
+                {% endif %}
+                {% if fecha_desde %}
+                <input type="hidden" name="fecha_desde" value="{{ fecha_desde }}">
+                {% endif %}
+                {% if fecha_hasta %}
+                <input type="hidden" name="fecha_hasta" value="{{ fecha_hasta }}">
+                {% endif %}
+                
+                <div class="input-group">
+                    <input type="text" class="form-control" name="q" placeholder="Buscar...">
+                    <button class="btn btn-outline-primary" type="submit">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </form>
+            
+            <div class="dropdown">
+                <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="filterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-funnel me-1"></i> Filtros
+                </button>
+                <div class="dropdown-menu dropdown-menu-end p-3" style="width: 300px;">
+                    <form method="GET">
+                        <div class="mb-3">
+                            <label class="form-label">Cliente</label>
+                            <select name="cliente" class="form-select">
+                                <option value="">Todos los clientes</option>
+                                {% for cliente in clientes %}
+                                <option value="{{ cliente.id }}" {% if cliente_id == cliente.id|stringformat:"i" %}selected{% endif %}>
+                                    {{ cliente.nombre }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Fecha Desde</label>
+                            <input type="date" class="form-control" name="fecha_desde" value="{{ fecha_desde }}">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Fecha Hasta</label>
+                            <input type="date" class="form-control" name="fecha_hasta" value="{{ fecha_hasta }}">
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'clientes:anticipos' %}" class="btn btn-sm btn-outline-secondary">Limpiar</a>
+                            <button type="submit" class="btn btn-sm btn-primary">Aplicar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card-body">
+        {% if anticipos %}
+            <div class="table-responsive">
+                <table class="table table-hover table-sm">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Cliente</th>
+                            <th>Fecha</th>
+                            <th class="text-end">Monto</th>
+                            <th>Registrado por</th>
+                            <th>Observaciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for anticipo in anticipos %}
+                        <tr>
+                            <td>{{ anticipo.id }}</td>
+                            <td>
+                                <a href="{% url 'clientes:detalle' anticipo.cliente.id %}">
+                                    {{ anticipo.cliente.nombre }}
+                                </a>
+                            </td>
+                            <td>{{ anticipo.fecha|date:"d/m/Y" }}</td>
+                            <td class="text-end">${{ anticipo.monto|floatformat:2 }}</td>
+                            <td>{{ anticipo.created_by.username|default:"Sistema" }}</td>
+                            <td class="text-truncate" style="max-width: 200px;">{{ anticipo.observaciones|default:"-" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center my-5">
+                <div class="mb-3">
+                    <i class="bi bi-cash-stack text-muted" style="font-size: 4rem;"></i>
+                </div>
+                <h5>No hay anticipos registrados</h5>
+                <p class="text-muted">
+                    {% if cliente_id or fecha_desde or fecha_hasta %}
+                    No se encontraron anticipos con los filtros aplicados.
+                    <a href="{% url 'clientes:anticipos' %}">Ver todos los anticipos</a>
+                    {% else %}
+                    No hay anticipos registrados actualmente.
+                    <a href="{% url 'clientes:nuevo_anticipo' %}" class="btn btn-primary btn-sm mt-2">
+                        <i class="bi bi-plus-circle me-1"></i> Registrar Primer Anticipo
+                    </a>
+                    {% endif %}
+                </p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Summary Card -->
+<div class="card shadow">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Resumen de Anticipos</h6>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <!-- Total de Anticipos -->
+            <div class="col-xl-4 col-md-6 mb-4">
+                <div class="card border-left-primary shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                    Total de Anticipos
+                                </div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                    {{ anticipos|length }}
+                                </div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-cash fa-2x text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Monto Total -->
+            <div class="col-xl-4 col-md-6 mb-4">
+                <div class="card border-left-success shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                    Monto Total
+                                </div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                    ${{ monto_total|floatformat:2 }}
+                                </div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-currency-dollar fa-2x text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Anticipo Promedio -->
+            <div class="col-xl-4 col-md-6 mb-4">
+                <div class="card border-left-info shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                    Anticipo Promedio
+                                </div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                    ${{ anticipo_promedio|floatformat:2 }}
+                                </div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-graph-up fa-2x text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Initialize tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+          return new bootstrap.Tooltip(tooltipTriggerEl)
+        });
+    });
+</script>
+{% endblock %} 

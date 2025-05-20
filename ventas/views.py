@@ -38,7 +38,7 @@ def pos_view(request):
         tiendas[item.tienda_id]['productos'].append({
             'id': item.producto.id,
             'codigo': item.producto.codigo,
-            'nombre': item.producto.nombre,
+            'nombre': f"{item.producto.marca} {item.producto.modelo}",
             'marca': item.producto.marca,
             'modelo': item.producto.modelo,
             'color': item.producto.color,

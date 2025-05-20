@@ -1,0 +1,109 @@
+{% extends "layouts/base.html" %}
+{% load static %}
+
+{% block title %}Nuevo Anticipo{% endblock %}
+
+{% block page_title %}Registrar Nuevo Anticipo{% endblock %}
+
+{% block breadcrumbs_content %}
+    <li class="breadcrumb-item"><a href="{% url 'clientes:lista' %}">Clientes</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'clientes:anticipos' %}">Anticipos</a></li>
+    <li class="breadcrumb-item active">Nuevo Anticipo</li>
+{% endblock %}
+
+{% block content %}
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Registrar Anticipo de Cliente</h6>
+    </div>
+    <div class="card-body">
+        <form method="post" id="anticipoForm">
+            {% csrf_token %}
+            
+            <div class="row mb-3">
+                <!-- Cliente -->
+                <div class="col-md-12">
+                    <label for="cliente" class="form-label">Cliente <span class="text-danger">*</span></label>
+                    <select class="form-select" id="cliente" name="cliente" required>
+                        <option value="">Seleccionar cliente...</option>
+                        {% for cliente in clientes %}
+                        <option value="{{ cliente.id }}" {% if request.GET.cliente == cliente.id|stringformat:"i" %}selected{% endif %}>
+                            {{ cliente.nombre }} - {{ cliente.contacto }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <!-- Monto -->
+                <div class="col-md-6">
+                    <label for="monto" class="form-label">Monto ($) <span class="text-danger">*</span></label>
+                    <input type="number" class="form-control" id="monto" name="monto" 
+                           value="0.00" step="0.01" min="0.01" required>
+                </div>
+                
+                <!-- Fecha -->
+                <div class="col-md-6">
+                    <label for="fecha" class="form-label">Fecha <span class="text-danger">*</span></label>
+                    <input type="date" class="form-control" id="fecha" name="fecha" 
+                           value="{% now 'Y-m-d' %}" required>
+                </div>
+            </div>
+            
+            <!-- Observaciones -->
+            <div class="mb-3">
+                <label for="observaciones" class="form-label">Observaciones</label>
+                <textarea class="form-control" id="observaciones" name="observaciones" rows="3"></textarea>
+            </div>
+
+            <hr>
+
+            <div class="alert alert-info mb-3">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <div>
+                        <strong>Importante:</strong> El anticipo será registrado como un ingreso de caja.
+                        Asegúrese de que haya una caja abierta para la tienda actual.
+                    </div>
+                </div>
+            </div>
+            
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'clientes:anticipos' %}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left me-1"></i> Cancelar
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-save me-1"></i> Guardar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Form validation
+        $("#anticipoForm").submit(function(event) {
+            var cliente = $("#cliente").val();
+            var monto = parseFloat($("#monto").val());
+            
+            if (cliente === '') {
+                alert("Por favor seleccione un cliente.");
+                event.preventDefault();
+                return false;
+            }
+            
+            if (isNaN(monto) || monto <= 0) {
+                alert("Por favor ingrese un monto válido mayor a cero.");
+                event.preventDefault();
+                return false;
+            }
+            
+            return true;
+        });
+    });
+</script>
+{% endblock %} 

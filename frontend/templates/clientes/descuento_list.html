@@ -1,0 +1,210 @@
+{% extends "layouts/base.html" %}
+{% load static %}
+
+{% block title %}Descuentos{% endblock %}
+
+{% block page_title %}Descuentos de Clientes{% endblock %}
+
+{% block breadcrumbs_content %}
+    <li class="breadcrumb-item"><a href="{% url 'clientes:lista' %}">Clientes</a></li>
+    <li class="breadcrumb-item active">Descuentos</li>
+{% endblock %}
+
+{% block page_actions %}
+    <a href="{% url 'clientes:nuevo_descuento' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-1"></i> Nuevo Descuento
+    </a>
+{% endblock %}
+
+{% block content %}
+<div class="card shadow mb-4">
+    <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+        <h6 class="m-0 font-weight-bold text-primary">Lista de Descuentos</h6>
+        
+        <div class="d-flex">
+            <form class="form-inline me-2" method="GET">
+                {% if cliente_id %}
+                <input type="hidden" name="cliente" value="{{ cliente_id }}">
+                {% endif %}
+                {% if mes %}
+                <input type="hidden" name="mes" value="{{ mes }}">
+                {% endif %}
+                
+                <div class="input-group">
+                    <input type="text" class="form-control" name="q" placeholder="Buscar...">
+                    <button class="btn btn-outline-primary" type="submit">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </form>
+            
+            <div class="dropdown">
+                <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="filterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-funnel me-1"></i> Filtros
+                </button>
+                <div class="dropdown-menu dropdown-menu-end p-3" style="width: 300px;">
+                    <form method="GET">
+                        <div class="mb-3">
+                            <label class="form-label">Cliente</label>
+                            <select name="cliente" class="form-select">
+                                <option value="">Todos los clientes</option>
+                                {% for cliente in clientes %}
+                                <option value="{{ cliente.id }}" {% if cliente_id == cliente.id|stringformat:"i" %}selected{% endif %}>
+                                    {{ cliente.nombre }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Mes</label>
+                            <input type="month" class="form-control" name="mes" value="{{ mes }}">
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'clientes:descuentos' %}" class="btn btn-sm btn-outline-secondary">Limpiar</a>
+                            <button type="submit" class="btn btn-sm btn-primary">Aplicar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card-body">
+        {% if descuentos %}
+            <div class="table-responsive">
+                <table class="table table-hover table-sm">
+                    <thead>
+                        <tr>
+                            <th>Cliente</th>
+                            <th>Mes Vigente</th>
+                            <th class="text-end">Porcentaje</th>
+                            <th class="text-end">Monto Acumulado Mes Anterior</th>
+                            <th>Observaciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for descuento in descuentos %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'clientes:detalle' descuento.cliente.id %}">
+                                    {{ descuento.cliente.nombre }}
+                                </a>
+                            </td>
+                            <td>{{ descuento.mes_vigente }}</td>
+                            <td class="text-end">{{ descuento.porcentaje }}%</td>
+                            <td class="text-end">${{ descuento.monto_acumulado_mes_anterior|floatformat:2 }}</td>
+                            <td class="text-truncate" style="max-width: 200px;">{{ descuento.observaciones|default:"-" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center my-5">
+                <div class="mb-3">
+                    <i class="bi bi-percent text-muted" style="font-size: 4rem;"></i>
+                </div>
+                <h5>No hay descuentos registrados</h5>
+                <p class="text-muted">
+                    {% if cliente_id or mes %}
+                    No se encontraron descuentos con los filtros aplicados.
+                    <a href="{% url 'clientes:descuentos' %}">Ver todos los descuentos</a>
+                    {% else %}
+                    No hay descuentos registrados actualmente.
+                    <a href="{% url 'clientes:nuevo_descuento' %}" class="btn btn-primary btn-sm mt-2">
+                        <i class="bi bi-plus-circle me-1"></i> Registrar Primer Descuento
+                    </a>
+                    {% endif %}
+                </p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Summary Stats -->
+<div class="card shadow">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Resumen de Descuentos</h6>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <!-- Total de Descuentos -->
+            <div class="col-xl-4 col-md-6 mb-4">
+                <div class="card border-left-primary shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                    Total de Descuentos
+                                </div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                    {{ descuentos|length }}
+                                </div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-percent fa-2x text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Descuento Promedio -->
+            <div class="col-xl-4 col-md-6 mb-4">
+                <div class="card border-left-info shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                    Descuento Promedio
+                                </div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                    {{ descuento_promedio|floatformat:0 }}%
+                                </div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-graph-up fa-2x text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Clientes con Descuento -->
+            <div class="col-xl-4 col-md-6 mb-4">
+                <div class="card border-left-success shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                    Clientes con Descuento
+                                </div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                    {{ clientes_unicos }}
+                                </div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-people fa-2x text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Initialize tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+          return new bootstrap.Tooltip(tooltipTriggerEl)
+        });
+    });
+</script>
+{% endblock %} 
