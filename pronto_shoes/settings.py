@@ -142,3 +142,27 @@ REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend'],
 }
+
+# Configuración de drf-spectacular para Swagger UI
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Pronto Shoes API',
+    'DESCRIPTION': 'API REST para el sistema POS de Pronto Shoes - gestión de catálogo, ventas, inventario y más',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'SWAGGER_UI_SETTINGS': {
+        'deepLinking': True,
+        'persistAuthorization': True,
+        'displayOperationId': False,
+    },
+    'COMPONENT_SPLIT_REQUEST': True,
+    'TAGS': [
+        {'name': 'Productos', 'description': 'Operaciones relacionadas con productos y catálogos'},
+        {'name': 'Ventas', 'description': 'Operaciones relacionadas con pedidos y ventas'},
+        {'name': 'Inventario', 'description': 'Operaciones relacionadas con inventario y traspasos'},
+        {'name': 'Caja', 'description': 'Operaciones relacionadas con cajas, facturas y movimientos de dinero'},
+        {'name': 'Clientes', 'description': 'Operaciones relacionadas con clientes'},
+        {'name': 'Proveedores', 'description': 'Operaciones relacionadas con proveedores'},
+        {'name': 'Purchase Orders', 'description': 'Órdenes de compra a proveedores'},
+        {'name': 'Reportes', 'description': 'Endpoints para generar reportes'},
+    ],
+}

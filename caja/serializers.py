@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Caja, NotaCargo, Factura
+from .models import Caja, NotaCargo, Factura, TransaccionCaja
 
 class CajaSerializer(serializers.ModelSerializer):
     class Meta:
@@ -14,4 +14,9 @@ class NotaCargoSerializer(serializers.ModelSerializer):
 class FacturaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Factura
+        fields = '__all__'
+
+class TransaccionCajaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TransaccionCaja
         fields = '__all__'

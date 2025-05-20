@@ -1,6 +1,6 @@
 from django.db import models
 from clientes.models import Cliente
-from productos.models import Producto
+# from productos.models import Producto # Remove direct import
 from django.contrib.auth import get_user_model
 
 class Requisicion(models.Model):
@@ -19,7 +19,7 @@ class Requisicion(models.Model):
 
 class DetalleRequisicion(models.Model):
     requisicion = models.ForeignKey(Requisicion, on_delete=models.CASCADE, related_name='detalles')
-    producto = models.ForeignKey(Producto, on_delete=models.PROTECT, related_name='detalles_requisicion')
+    producto = models.ForeignKey('productos.Producto', on_delete=models.PROTECT, related_name='detalles_requisicion') # Use string reference
     cantidad = models.PositiveIntegerField()
 
     def __str__(self):

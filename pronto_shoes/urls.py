@@ -16,14 +16,15 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.views.generic import RedirectView
 from rest_framework import routers, permissions
 from tiendas.views import TiendaViewSet
-from productos.views import ProductoViewSet
-from proveedores.views import ProveedorViewSet
+from productos.views import ProductoViewSet, CatalogoViewSet
+from proveedores.views import ProveedorViewSet, PurchaseOrderViewSet, PurchaseOrderItemViewSet
 from clientes.views import ClienteViewSet, AnticipoViewSet, DescuentoClienteViewSet
 from ventas.views import PedidoViewSet, DetallePedidoViewSet, ApartadosPorClienteReporteAPIView, PedidosPorSurtirReporteAPIView
 from inventario.views import InventarioViewSet, TraspasoViewSet, InventarioActualReporteAPIView
-from caja.views import CajaViewSet, NotaCargoViewSet, FacturaViewSet, MovimientosCajaReporteAPIView
+from caja.views import CajaViewSet, NotaCargoViewSet, FacturaViewSet, TransaccionCajaViewSet, MovimientosCajaReporteAPIView
 from devoluciones.views import DevolucionViewSet, DevolucionesReporteAPIView
 from requisiciones.views import RequisicionViewSet, DetalleRequisicionViewSet, RequisicionesReporteAPIView
 from descuentos.views import TabuladorDescuentoViewSet, DescuentosReporteAPIView
@@ -33,7 +34,10 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, Sp
 router = routers.DefaultRouter()
 router.register(r'tiendas', TiendaViewSet)
 router.register(r'productos', ProductoViewSet)
+router.register(r'catalogos', CatalogoViewSet)
 router.register(r'proveedores', ProveedorViewSet)
+router.register(r'purchase_orders', PurchaseOrderViewSet)
+router.register(r'purchase_order_items', PurchaseOrderItemViewSet)
 router.register(r'clientes', ClienteViewSet)
 router.register(r'anticipos', AnticipoViewSet)
 router.register(r'descuentos_cliente', DescuentoClienteViewSet)
@@ -44,6 +48,7 @@ router.register(r'traspasos', TraspasoViewSet)
 router.register(r'caja', CajaViewSet)
 router.register(r'notas_cargo', NotaCargoViewSet)
 router.register(r'facturas', FacturaViewSet)
+router.register(r'transacciones_caja', TransaccionCajaViewSet)
 router.register(r'devoluciones', DevolucionViewSet)
 router.register(r'requisiciones', RequisicionViewSet)
 router.register(r'detalles_requisicion', DetalleRequisicionViewSet)
@@ -51,6 +56,8 @@ router.register(r'tabulador_descuento', TabuladorDescuentoViewSet)
 router.register(r'logs_auditoria', LogAuditoriaViewSet)
 
 urlpatterns = [
+    # Redirect root to Swagger UI
+    path('', RedirectView.as_view(url='/api/docs/', permanent=False)),
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
     path('api/reportes/apartados_por_cliente/', ApartadosPorClienteReporteAPIView.as_view(), name='apartados-por-cliente-reporte'),

@@ -8,6 +8,8 @@ class Cliente(models.Model):
     observaciones = models.TextField(blank=True)
     saldo_a_favor = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     tienda = models.ForeignKey(Tienda, on_delete=models.PROTECT, related_name='clientes')
+    max_return_days = models.PositiveIntegerField(default=30)
+    puntos_lealtad = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     created_by = models.ForeignKey(get_user_model(), related_name='clientes_creados', on_delete=models.SET_NULL, null=True, blank=True)
@@ -35,3 +37,12 @@ class DescuentoCliente(models.Model):
 
     def __str__(self):
         return f"{self.porcentaje}% - {self.cliente.nombre} ({self.mes_vigente})"
+
+class ReglaProgramaLealtad(models.Model):
+    monto_compra_requerido = models.DecimalField(max_digits=12, decimal_places=2, unique=True)
+    puntos_otorgados = models.PositiveIntegerField()
+    activo = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Por cada {self.monto_compra_requerido} de compra, otorga {self.puntos_otorgados} puntos"
