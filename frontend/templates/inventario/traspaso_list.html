@@ -1,0 +1,231 @@
+{% extends "layouts/base.html" %}
+{% load static %}
+
+{% block title %}Traspasos de Inventario{% endblock %}
+
+{% block page_title %}Traspasos de Inventario{% endblock %}
+
+{% block breadcrumbs_content %}
+    <li class="breadcrumb-item"><a href="{% url 'inventario:lista' %}">Inventario</a></li>
+    <li class="breadcrumb-item active">Traspasos</li>
+{% endblock %}
+
+{% block page_actions %}
+    <a href="{% url 'inventario:nuevo_traspaso' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-1"></i> Nuevo Traspaso
+    </a>
+{% endblock %}
+
+{% block content %}
+<div class="card shadow mb-4">
+    <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+        <h6 class="m-0 font-weight-bold text-primary">Traspasos de Inventario</h6>
+        
+        <div class="dropdown">
+            <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="filterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="bi bi-funnel me-1"></i> Filtros
+            </button>
+            <div class="dropdown-menu dropdown-menu-end p-3" style="width: 300px;">
+                <form method="GET">
+                    <div class="mb-3">
+                        <label class="form-label">Estado</label>
+                        <select name="estado" class="form-select">
+                            <option value="">Todos los estados</option>
+                            <option value="pendiente" {% if estado == 'pendiente' %}selected{% endif %}>Pendiente</option>
+                            <option value="completado" {% if estado == 'completado' %}selected{% endif %}>Completado</option>
+                            <option value="cancelado" {% if estado == 'cancelado' %}selected{% endif %}>Cancelado</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Desde</label>
+                        <input type="date" class="form-control" name="fecha_desde" value="{{ fecha_desde }}">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Hasta</label>
+                        <input type="date" class="form-control" name="fecha_hasta" value="{{ fecha_hasta }}">
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'inventario:traspasos' %}" class="btn btn-sm btn-outline-secondary">Limpiar</a>
+                        <button type="submit" class="btn btn-sm btn-primary">Aplicar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card-body">
+        {% if traspasos %}
+            <div class="table-responsive">
+                <table class="table table-hover table-sm">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Origen</th>
+                            <th>Destino</th>
+                            <th>Fecha</th>
+                            <th>Estado</th>
+                            <th>Creado Por</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for traspaso in traspasos %}
+                        <tr>
+                            <td>{{ traspaso.id }}</td>
+                            <td>{{ traspaso.tienda_origen.nombre }}</td>
+                            <td>{{ traspaso.tienda_destino.nombre }}</td>
+                            <td>{{ traspaso.fecha|date:"d/m/Y H:i" }}</td>
+                            <td>
+                                {% if traspaso.estado == 'pendiente' %}
+                                <span class="badge bg-warning text-dark">Pendiente</span>
+                                {% elif traspaso.estado == 'completado' %}
+                                <span class="badge bg-success">Completado</span>
+                                {% elif traspaso.estado == 'cancelado' %}
+                                <span class="badge bg-danger">Cancelado</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ traspaso.estado }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ traspaso.created_by.username }}</td>
+                            <td>
+                                <a href="{% url 'inventario:detalle_traspaso' traspaso.id %}" class="btn btn-sm btn-info" data-bs-toggle="tooltip" title="Ver Detalles">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                {% if traspaso.estado == 'pendiente' %}
+                                <button 
+                                    class="btn btn-sm btn-success confirm-traspaso" 
+                                    data-id="{{ traspaso.id }}"
+                                    data-bs-toggle="tooltip" 
+                                    title="Confirmar Traspaso"
+                                >
+                                    <i class="bi bi-check2"></i>
+                                </button>
+                                <button 
+                                    class="btn btn-sm btn-danger cancel-traspaso" 
+                                    data-id="{{ traspaso.id }}"
+                                    data-bs-toggle="tooltip" 
+                                    title="Cancelar Traspaso"
+                                >
+                                    <i class="bi bi-x"></i>
+                                </button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center my-5">
+                <div class="mb-3">
+                    <i class="bi bi-arrow-left-right text-muted" style="font-size: 4rem;"></i>
+                </div>
+                <h5>No hay traspasos de inventario para mostrar</h5>
+                <p class="text-muted">
+                    {% if estado or fecha_desde or fecha_hasta %}
+                    No se encontraron traspasos que coincidan con tu búsqueda.
+                    <a href="{% url 'inventario:traspasos' %}">Ver todos los traspasos</a>
+                    {% else %}
+                    No hay traspasos registrados actualmente.
+                    {% endif %}
+                </p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Initialize tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+          return new bootstrap.Tooltip(tooltipTriggerEl)
+        });
+        
+        // Confirm transfer button
+        $('.confirm-traspaso').click(function() {
+            const traspasoId = $(this).data('id');
+            Swal.fire({
+                title: '¿Confirmar traspaso?',
+                text: "Se actualizarán los inventarios en ambas tiendas",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Sí, confirmar',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // API call
+                    $.ajax({
+                        url: `/api/traspasos/${traspasoId}/confirmar_traspaso/`,
+                        type: 'POST',
+                        success: function(response) {
+                            Swal.fire(
+                                '¡Confirmado!',
+                                'El traspaso ha sido confirmado correctamente.',
+                                'success'
+                            ).then(() => {
+                                // Reload page
+                                location.reload();
+                            });
+                        },
+                        error: function(xhr) {
+                            Swal.fire(
+                                'Error',
+                                'No se pudo confirmar el traspaso. ' + xhr.responseJSON.error,
+                                'error'
+                            );
+                        }
+                    });
+                }
+            });
+        });
+        
+        // Cancel transfer button
+        $('.cancel-traspaso').click(function() {
+            const traspasoId = $(this).data('id');
+            Swal.fire({
+                title: '¿Cancelar traspaso?',
+                text: "Esta acción no se puede deshacer",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Sí, cancelar',
+                cancelButtonText: 'No'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // API call
+                    $.ajax({
+                        url: `/api/traspasos/${traspasoId}/cancelar_traspaso/`,
+                        type: 'POST',
+                        success: function(response) {
+                            Swal.fire(
+                                '¡Cancelado!',
+                                'El traspaso ha sido cancelado correctamente.',
+                                'success'
+                            ).then(() => {
+                                // Reload page
+                                location.reload();
+                            });
+                        },
+                        error: function(xhr) {
+                            Swal.fire(
+                                'Error',
+                                'No se pudo cancelar el traspaso. ' + xhr.responseJSON.error,
+                                'error'
+                            );
+                        }
+                    });
+                }
+            });
+        });
+    });
+</script>
+{% endblock %} 

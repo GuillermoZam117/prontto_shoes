@@ -1,0 +1,308 @@
+{% extends "layouts/base.html" %}
+{% load static %}
+
+{% block title %}Nuevo Traspaso de Inventario{% endblock %}
+
+{% block page_title %}Nuevo Traspaso de Inventario{% endblock %}
+
+{% block breadcrumbs_content %}
+    <li class="breadcrumb-item"><a href="{% url 'inventario:lista' %}">Inventario</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'inventario:traspasos' %}">Traspasos</a></li>
+    <li class="breadcrumb-item active">Nuevo Traspaso</li>
+{% endblock %}
+
+{% block content %}
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Crear Traspaso de Inventario</h6>
+    </div>
+    <div class="card-body">
+        <form id="traspaso-form" method="POST" class="needs-validation" novalidate>
+            {% csrf_token %}
+            
+            <div class="row mb-4">
+                <div class="col-md-6 mb-3">
+                    <label for="tienda_origen" class="form-label">Tienda de Origen *</label>
+                    <select class="form-select select2" id="tienda_origen" name="tienda_origen" required>
+                        <option value="">Seleccionar...</option>
+                        {% for tienda in tiendas %}
+                        <option value="{{ tienda.id }}">{{ tienda.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="invalid-feedback">Seleccione una tienda de origen</div>
+                </div>
+                
+                <div class="col-md-6 mb-3">
+                    <label for="tienda_destino" class="form-label">Tienda de Destino *</label>
+                    <select class="form-select select2" id="tienda_destino" name="tienda_destino" required>
+                        <option value="">Seleccionar...</option>
+                        {% for tienda in tiendas %}
+                        <option value="{{ tienda.id }}">{{ tienda.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="invalid-feedback">Seleccione una tienda de destino</div>
+                </div>
+            </div>
+            
+            <div class="alert alert-info" role="alert">
+                <i class="bi bi-info-circle me-2"></i>
+                Selecciona los productos a traspasar y especifica la cantidad para cada uno.
+            </div>
+            
+            <div class="mb-4">
+                <div class="d-flex justify-content-between mb-3">
+                    <h5>Productos a Traspasar</h5>
+                    <button type="button" class="btn btn-sm btn-primary" id="add-producto">
+                        <i class="bi bi-plus-circle me-1"></i> Agregar Producto
+                    </button>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="table table-sm" id="productos-table">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th style="width: 150px;">Cantidad</th>
+                                <th style="width: 40px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Initial empty row -->
+                            <tr class="producto-row">
+                                <td>
+                                    <select class="form-select select2 producto-select" name="productos[]" required>
+                                        <option value="">Seleccionar producto...</option>
+                                        <!-- Options will be populated dynamically using AJAX -->
+                                    </select>
+                                    <div class="invalid-feedback">Seleccione un producto</div>
+                                </td>
+                                <td>
+                                    <input type="number" class="form-control cantidad-input" name="cantidades[]" min="1" value="1" required>
+                                    <div class="invalid-feedback">Ingrese una cantidad válida</div>
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-sm btn-danger remove-row">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="d-flex justify-content-end">
+                <a href="{% url 'inventario:traspasos' %}" class="btn btn-secondary me-2">Cancelar</a>
+                <button type="submit" class="btn btn-primary">Crear Traspaso</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Initialize Select2
+        initializeSelect2();
+        
+        // Add product row button
+        $('#add-producto').click(function() {
+            const newRow = $('.producto-row').first().clone();
+            newRow.find('select').val('').removeClass('select2-hidden-accessible');
+            newRow.find('span.select2').remove();
+            newRow.find('input').val(1);
+            $('#productos-table tbody').append(newRow);
+            
+            initializeSelect2();
+            validateSameProducts();
+        });
+        
+        // Remove row button
+        $(document).on('click', '.remove-row', function() {
+            if ($('.producto-row').length > 1) {
+                $(this).closest('tr').remove();
+            } else {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'No se puede eliminar',
+                    text: 'Debes mantener al menos un producto en la lista.',
+                });
+            }
+        });
+        
+        // Prevent selecting the same product multiple times
+        function validateSameProducts() {
+            $(document).on('change', '.producto-select', function() {
+                let selectedValue = $(this).val();
+                let isRepeated = false;
+                
+                $('.producto-select').not(this).each(function() {
+                    if ($(this).val() === selectedValue && selectedValue !== '') {
+                        isRepeated = true;
+                        return false;
+                    }
+                });
+                
+                if (isRepeated) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Producto duplicado',
+                        text: 'Este producto ya está en la lista. Por favor seleccione otro producto.',
+                    });
+                    $(this).val('').trigger('change');
+                }
+            });
+        }
+        
+        // Load products based on selected origin store
+        $('#tienda_origen').change(function() {
+            const tiendaId = $(this).val();
+            
+            if (tiendaId) {
+                // Clear and disable product selects
+                $('.producto-select').empty().append('<option value="">Cargando productos...</option>').prop('disabled', true);
+                
+                // Fetch products for the selected store
+                $.ajax({
+                    url: `/api/inventario/?tienda=${tiendaId}`,
+                    method: 'GET',
+                    success: function(data) {
+                        // Get products with inventory
+                        const productos = data.filter(item => item.cantidad_actual > 0);
+                        
+                        // Clear and enable product selects
+                        $('.producto-select').empty().append('<option value="">Seleccionar producto...</option>').prop('disabled', false);
+                        
+                        // Add options for each product
+                        $.each(productos, function(i, item) {
+                            $('.producto-select').append(`
+                                <option value="${item.producto.id}" data-stock="${item.cantidad_actual}">
+                                    ${item.producto.codigo} - ${item.producto.nombre} (Stock: ${item.cantidad_actual})
+                                </option>
+                            `);
+                        });
+                        
+                        // Refresh Select2
+                        $('.select2').select2({
+                            theme: 'bootstrap-5'
+                        });
+                    },
+                    error: function() {
+                        // Show error
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'No se pudieron cargar los productos. Por favor intente nuevamente.',
+                        });
+                        
+                        // Reset product selects
+                        $('.producto-select').empty().append('<option value="">Seleccionar producto...</option>').prop('disabled', false);
+                    }
+                });
+            } else {
+                // Clear product selects if no store selected
+                $('.producto-select').empty().append('<option value="">Seleccione una tienda primero</option>').prop('disabled', true);
+            }
+        });
+        
+        // Validate tienda destino can't be the same as origen
+        $('#tienda_destino').change(function() {
+            const destinoId = $(this).val();
+            const origenId = $('#tienda_origen').val();
+            
+            if (destinoId && destinoId === origenId) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Error',
+                    text: 'La tienda de destino no puede ser la misma que la de origen',
+                });
+                $(this).val('').trigger('change');
+            }
+        });
+        
+        // Initialize Select2 function
+        function initializeSelect2() {
+            $('.select2').select2({
+                theme: 'bootstrap-5'
+            });
+        }
+        
+        // Form validation
+        $('#traspaso-form').submit(function(event) {
+            event.preventDefault();
+            
+            const form = this;
+            
+            if (!form.checkValidity()) {
+                event.stopPropagation();
+                form.classList.add('was-validated');
+                return;
+            }
+            
+            // Get form data
+            const tiendaOrigen = $('#tienda_origen').val();
+            const tiendaDestino = $('#tienda_destino').val();
+            const productos = [];
+            
+            $('.producto-row').each(function() {
+                const productoId = $(this).find('.producto-select').val();
+                const cantidad = $(this).find('.cantidad-input').val();
+                
+                if (productoId && cantidad) {
+                    productos.push({
+                        producto: productoId,
+                        cantidad: parseInt(cantidad)
+                    });
+                }
+            });
+            
+            if (productos.length === 0) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Debe agregar al menos un producto para realizar el traspaso',
+                });
+                return;
+            }
+            
+            // Create data object
+            const data = {
+                tienda_origen: tiendaOrigen,
+                tienda_destino: tiendaDestino,
+                items: productos
+            };
+            
+            // Send API request
+            $.ajax({
+                url: '/api/traspasos/',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(data),
+                success: function(response) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Traspaso creado',
+                        text: 'El traspaso se ha creado correctamente',
+                    }).then(() => {
+                        window.location.href = `{% url 'inventario:traspasos' %}`;
+                    });
+                },
+                error: function(xhr) {
+                    let errorMsg = 'No se pudo crear el traspaso';
+                    
+                    if (xhr.responseJSON && xhr.responseJSON.error) {
+                        errorMsg = xhr.responseJSON.error;
+                    }
+                    
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: errorMsg,
+                    });
+                }
+            });
+        });
+    });
+</script>
+{% endblock %} 

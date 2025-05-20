@@ -1,0 +1,220 @@
+{% extends "layouts/base.html" %}
+{% load static %}
+
+{% block title %}Inventario{% endblock %}
+
+{% block page_title %}Control de Inventario{% endblock %}
+
+{% block breadcrumbs_content %}
+    <li class="breadcrumb-item active">Inventario</li>
+{% endblock %}
+
+{% block page_actions %}
+    <a href="{% url 'inventario:traspasos' %}" class="btn btn-secondary me-2">
+        <i class="bi bi-arrow-left-right me-1"></i> Traspasos
+    </a>
+    <a href="{% url 'inventario:nuevo_traspaso' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-1"></i> Nuevo Traspaso
+    </a>
+{% endblock %}
+
+{% block content %}
+<div class="card shadow mb-4">
+    <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+        <h6 class="m-0 font-weight-bold text-primary">Existencias por Producto</h6>
+        
+        <div class="d-flex">
+            <form class="form-inline me-2" method="GET">
+                <div class="input-group">
+                    {% if stock_bajo %}
+                    <input type="hidden" name="stock_bajo" value="true">
+                    {% endif %}
+                    {% if tienda_seleccionada %}
+                    <input type="hidden" name="tienda" value="{{ tienda_seleccionada }}">
+                    {% endif %}
+                    <input type="text" class="form-control" name="q" value="{{ search_query }}" placeholder="Buscar...">
+                    <button class="btn btn-outline-primary" type="submit">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </form>
+            
+            <div class="dropdown">
+                <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="filterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-funnel me-1"></i> Filtros
+                </button>
+                <div class="dropdown-menu dropdown-menu-end p-3" style="width: 300px;">
+                    <form method="GET">
+                        {% if search_query %}
+                        <input type="hidden" name="q" value="{{ search_query }}">
+                        {% endif %}
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Tienda</label>
+                            <select name="tienda" class="form-select">
+                                <option value="">Todas las tiendas</option>
+                                {% for tienda in tiendas %}
+                                <option value="{{ tienda.id }}" {% if tienda_seleccionada == tienda.id|stringformat:"i" %}selected{% endif %}>{{ tienda.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="stockBajo" name="stock_bajo" value="true" {% if stock_bajo %}checked{% endif %}>
+                                <label class="form-check-label" for="stockBajo">
+                                    Mostrar solo productos con stock bajo
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'inventario:lista' %}" class="btn btn-sm btn-outline-secondary">Limpiar</a>
+                            <button type="submit" class="btn btn-sm btn-primary">Aplicar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card-body">
+        {% if inventario %}
+            <div class="table-responsive">
+                <table class="table table-hover table-sm">
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Producto</th>
+                            <th>Tienda</th>
+                            <th>Cantidad</th>
+                            <th>Estado</th>
+                            <th>Última Actualización</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in inventario %}
+                        <tr>
+                            <td>{{ item.producto.codigo }}</td>
+                            <td><a href="{% url 'productos:detalle' item.producto.id %}">{{ item.producto.nombre }}</a></td>
+                            <td>{{ item.tienda.nombre }}</td>
+                            <td>{{ item.cantidad_actual }}</td>
+                            <td>
+                                {% if item.cantidad_actual <= 0 %}
+                                <span class="badge bg-danger">Sin Stock</span>
+                                {% elif item.cantidad_actual < item.producto.stock_minimo %}
+                                <span class="badge bg-warning text-dark">Stock Bajo</span>
+                                {% else %}
+                                <span class="badge bg-success">Disponible</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ item.updated_at|date:"d/m/Y H:i" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center my-5">
+                <div class="mb-3">
+                    <i class="bi bi-exclamation-diamond text-muted" style="font-size: 4rem;"></i>
+                </div>
+                <h5>No hay datos de inventario para mostrar</h5>
+                <p class="text-muted">
+                    {% if search_query or tienda_seleccionada or stock_bajo %}
+                    No se encontraron productos que coincidan con tu búsqueda.
+                    <a href="{% url 'inventario:lista' %}">Ver todo el inventario</a>
+                    {% else %}
+                    No hay productos registrados en el inventario actualmente.
+                    {% endif %}
+                </p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card shadow">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Resumen de Inventario</h6>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <!-- Total de Productos -->
+            <div class="col-md-4 mb-4">
+                <div class="card border-left-primary shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                    Total de Productos
+                                </div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                    {{ inventario|length }}
+                                </div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-boxes fa-2x text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Productos sin Stock -->
+            <div class="col-md-4 mb-4">
+                <div class="card border-left-danger shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                                    Sin Stock
+                                </div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                    {{ inventario|dictsortbykey:"cantidad_actual"|slice:":0"|length }}
+                                </div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-x-circle fa-2x text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Productos Stock Bajo -->
+            <div class="col-md-4 mb-4">
+                <div class="card border-left-warning shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                    Stock Bajo
+                                </div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                    <!-- Placeholder - would be calculated in view -->
+                                    0
+                                </div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-exclamation-triangle fa-2x text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Initialize tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+          return new bootstrap.Tooltip(tooltipTriggerEl)
+        });
+    });
+</script>
+{% endblock %} 

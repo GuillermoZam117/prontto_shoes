@@ -1,8 +1,8 @@
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404, redirect
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
-from .models import Inventario, Traspaso
+from .models import Inventario, Traspaso, TraspasoItem
 from .serializers import InventarioSerializer, TraspasoSerializer
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -12,6 +12,8 @@ from django.db import transaction
 from django.db.models import F # Import F object for atomic updates
 from tiendas.models import Tienda
 from productos.models import Producto
+from django.contrib.auth.decorators import login_required
+from django.db.models import Q
 
 # Create your views here.
 
@@ -105,3 +107,111 @@ class InventarioActualReporteAPIView(APIView):
                 'fecha_registro': inv.fecha_registro
             })
         return Response(data)
+
+# Frontend views for the inventory app
+@login_required
+def inventario_list(request):
+    """
+    Display inventory levels across stores. Allows filtering by product, store, or low stock status.
+    """
+    # Get filter parameters
+    search_query = request.GET.get('q', '')
+    tienda_id = request.GET.get('tienda', '')
+    stock_bajo = request.GET.get('stock_bajo', False)
+    
+    # Base query
+    inventario = Inventario.objects.select_related('tienda', 'producto')
+    
+    # Apply filters
+    if search_query:
+        inventario = inventario.filter(
+            Q(producto__codigo__icontains=search_query) | 
+            Q(producto__nombre__icontains=search_query) |
+            Q(producto__marca__icontains=search_query) |
+            Q(tienda__nombre__icontains=search_query)
+        )
+    
+    if tienda_id:
+        inventario = inventario.filter(tienda_id=tienda_id)
+    
+    if stock_bajo:
+        # Filter products with stock below minimum level
+        inventario = inventario.filter(cantidad_actual__lt=F('producto__stock_minimo'))
+    
+    # Get stores for filter dropdown
+    tiendas = Tienda.objects.all()
+    
+    context = {
+        'inventario': inventario,
+        'tiendas': tiendas,
+        'search_query': search_query,
+        'tienda_seleccionada': tienda_id,
+        'stock_bajo': stock_bajo,
+    }
+    
+    return render(request, 'inventario/inventario_list.html', context)
+
+@login_required
+def traspaso_list(request):
+    """
+    Display a list of inventory transfers between stores
+    """
+    # Get filter parameters
+    estado = request.GET.get('estado', '')
+    fecha_desde = request.GET.get('fecha_desde', '')
+    fecha_hasta = request.GET.get('fecha_hasta', '')
+    
+    # Base query
+    traspasos = Traspaso.objects.select_related('tienda_origen', 'tienda_destino', 'created_by').order_by('-fecha')
+    
+    # Apply filters
+    if estado:
+        traspasos = traspasos.filter(estado=estado)
+    
+    if fecha_desde:
+        traspasos = traspasos.filter(fecha__gte=fecha_desde)
+    
+    if fecha_hasta:
+        traspasos = traspasos.filter(fecha__lte=fecha_hasta)
+    
+    context = {
+        'traspasos': traspasos,
+        'estado': estado,
+        'fecha_desde': fecha_desde,
+        'fecha_hasta': fecha_hasta,
+    }
+    
+    return render(request, 'inventario/traspaso_list.html', context)
+
+@login_required
+def traspaso_detail(request, pk):
+    """
+    Display details of a specific transfer
+    """
+    traspaso = get_object_or_404(Traspaso.objects.select_related('tienda_origen', 'tienda_destino', 'created_by'), pk=pk)
+    items = traspaso.items.select_related('producto').all()
+    
+    context = {
+        'traspaso': traspaso,
+        'items': items,
+    }
+    
+    return render(request, 'inventario/traspaso_detail.html', context)
+
+@login_required
+def traspaso_create(request):
+    """
+    Create a new inventory transfer between stores
+    """
+    tiendas = Tienda.objects.all()
+    
+    if request.method == 'POST':
+        # This is a placeholder for form processing - to be implemented later
+        # Will need to handle traspaso and its related items creation
+        return redirect('inventario:traspasos')
+    
+    context = {
+        'tiendas': tiendas,
+    }
+    
+    return render(request, 'inventario/traspaso_form.html', context)
