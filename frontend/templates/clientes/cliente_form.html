@@ -58,18 +58,32 @@
             </div>
 
             <div class="row mb-3">
+                <!-- Monto Acumulado -->
+                <div class="col-md-6">
+                    <label for="monto_acumulado" class="form-label">Monto Acumulado ($)</label>
+                    <input type="number" class="form-control" id="monto_acumulado" name="monto_acumulado" 
+                           value="{% if cliente %}{{ cliente.monto_acumulado }}{% else %}0.00{% endif %}" step="0.01" min="0">
+                    <div class="form-text">Total de compras acumuladas para cálculo de descuentos</div>
+                </div>
+                
                 <!-- Puntos Lealtad -->
                 <div class="col-md-6">
                     <label for="puntos_lealtad" class="form-label">Puntos de Lealtad</label>
                     <input type="number" class="form-control" id="puntos_lealtad" name="puntos_lealtad" 
                            value="{% if cliente %}{{ cliente.puntos_lealtad }}{% else %}0{% endif %}" step="1" min="0">
                 </div>
-                
+            </div>
+
+            <div class="row mb-3">
                 <!-- Días Máx. Devolución -->
                 <div class="col-md-6">
                     <label for="max_return_days" class="form-label">Días Máximos para Devolución</label>
                     <input type="number" class="form-control" id="max_return_days" name="max_return_days" 
                            value="{% if cliente %}{{ cliente.max_return_days }}{% else %}15{% endif %}" step="1" min="0">
+                </div>
+                
+                <div class="col-md-6">
+                    <!-- Empty space for layout balance -->
                 </div>
             </div>
             

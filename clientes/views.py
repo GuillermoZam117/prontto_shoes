@@ -48,6 +48,9 @@ def cliente_list(request):
     # Count clients with positive balance
     clientes_con_saldo = Cliente.objects.filter(saldo_a_favor__gt=0).count()
     
+    # Count clients eligible for discounts (with accumulated amount > 0)
+    clientes_con_descuento = Cliente.objects.filter(monto_acumulado__gt=0).count()
+    
     # Count advances in the current month
     current_month = timezone.now().strftime('%Y-%m')
     anticipos_mes = Anticipo.objects.filter(
@@ -61,6 +64,7 @@ def cliente_list(request):
         'search_query': search_query,
         'tienda_seleccionada': tienda_id,
         'clientes_con_saldo': clientes_con_saldo,
+        'clientes_con_descuento': clientes_con_descuento,
         'anticipos_mes': anticipos_mes,
     }
     
@@ -106,6 +110,7 @@ def cliente_create(request):
             contacto = request.POST.get('contacto', '').strip()
             tienda_id = request.POST.get('tienda')
             saldo_a_favor = request.POST.get('saldo_a_favor', 0)
+            monto_acumulado = request.POST.get('monto_acumulado', 0)
             puntos_lealtad = request.POST.get('puntos_lealtad', 0)
             max_return_days = request.POST.get('max_return_days', 15)
             observaciones = request.POST.get('observaciones', '').strip()
@@ -125,6 +130,7 @@ def cliente_create(request):
                 contacto=contacto,
                 tienda_id=tienda_id,
                 saldo_a_favor=saldo_a_favor,
+                monto_acumulado=monto_acumulado,
                 puntos_lealtad=puntos_lealtad,
                 max_return_days=max_return_days,
                 observaciones=observaciones,
@@ -156,6 +162,7 @@ def cliente_edit(request, pk):
             contacto = request.POST.get('contacto', '').strip()
             tienda_id = request.POST.get('tienda')
             saldo_a_favor = request.POST.get('saldo_a_favor', 0)
+            monto_acumulado = request.POST.get('monto_acumulado', 0)
             puntos_lealtad = request.POST.get('puntos_lealtad', 0)
             max_return_days = request.POST.get('max_return_days', 15)
             observaciones = request.POST.get('observaciones', '').strip()
@@ -174,6 +181,7 @@ def cliente_edit(request, pk):
             cliente.contacto = contacto
             cliente.tienda_id = tienda_id
             cliente.saldo_a_favor = saldo_a_favor
+            cliente.monto_acumulado = monto_acumulado
             cliente.puntos_lealtad = puntos_lealtad
             cliente.max_return_days = max_return_days
             cliente.observaciones = observaciones

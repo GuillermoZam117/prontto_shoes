@@ -55,6 +55,10 @@
                         <td>${{ cliente.saldo_a_favor|floatformat:2 }}</td>
                     </tr>
                     <tr>
+                        <th>Monto Acumulado:</th>
+                        <td>${{ cliente.monto_acumulado|floatformat:2 }}</td>
+                    </tr>
+                    <tr>
                         <th>Descuento Actual:</th>
                         <td>
                             {% if descuento_actual %}

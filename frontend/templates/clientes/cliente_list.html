@@ -74,6 +74,7 @@
                             <th>Contacto</th>
                             <th>Tienda</th>
                             <th class="text-end">Saldo a Favor</th>
+                            <th class="text-end">Monto Acumulado</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
@@ -85,6 +86,7 @@
                             <td>{{ cliente.contacto }}</td>
                             <td>{{ cliente.tienda.nombre }}</td>
                             <td class="text-end">${{ cliente.saldo_a_favor|floatformat:2 }}</td>
+                            <td class="text-end">${{ cliente.monto_acumulado|floatformat:2 }}</td>
                             <td>
                                 <a href="{% url 'clientes:detalle' cliente.id %}" class="btn btn-sm btn-info" data-bs-toggle="tooltip" title="Ver Detalles">
                                     <i class="bi bi-eye"></i>
@@ -128,7 +130,7 @@
     <div class="card-body">
         <div class="row">
             <!-- Total de Clientes -->
-            <div class="col-xl-4 col-md-6 mb-4">
+            <div class="col-xl-3 col-md-6 mb-4">
                 <div class="card border-left-primary shadow h-100 py-2">
                     <div class="card-body">
                         <div class="row no-gutters align-items-center">
@@ -149,7 +151,7 @@
             </div>
 
             <!-- Clientes con Saldo a Favor -->
-            <div class="col-xl-4 col-md-6 mb-4">
+            <div class="col-xl-3 col-md-6 mb-4">
                 <div class="card border-left-success shadow h-100 py-2">
                     <div class="card-body">
                         <div class="row no-gutters align-items-center">
@@ -169,8 +171,29 @@
                 </div>
             </div>
 
+            <!-- Clientes con Descuento -->
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card border-left-warning shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                    Con Descuentos
+                                </div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                    {{ clientes_con_descuento }}
+                                </div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-percent fa-2x text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Anticipos del Mes -->
-            <div class="col-xl-4 col-md-6 mb-4">
+            <div class="col-xl-3 col-md-6 mb-4">
                 <div class="card border-left-info shadow h-100 py-2">
                     <div class="card-body">
                         <div class="row no-gutters align-items-center">
