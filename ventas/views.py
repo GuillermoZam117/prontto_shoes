@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404, redirect
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
@@ -9,27 +9,117 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from clientes.models import Cliente, DescuentoCliente
 from productos.models import Producto
+from inventario.models import Inventario
 from rest_framework.pagination import LimitOffsetPagination
 from django.utils.dateparse import parse_date
 from django.utils import timezone
+from django.db import transaction
 from django.contrib.auth.decorators import login_required
+from django.db.models import F, Sum, Q
 
 # Vistas para frontend
 @login_required
 def pos_view(request):
     """Vista principal del punto de venta (POS)"""
+    # Get list of clients and products with inventory
+    clientes = Cliente.objects.all()
+    inventario = Inventario.objects.filter(cantidad_actual__gt=0).select_related('producto', 'tienda')
+    
+    # Group products by store
+    tiendas = {}
+    for item in inventario:
+        if item.tienda_id not in tiendas:
+            tiendas[item.tienda_id] = {
+                'id': item.tienda_id,
+                'nombre': item.tienda.nombre,
+                'productos': []
+            }
+        
+        tiendas[item.tienda_id]['productos'].append({
+            'id': item.producto.id,
+            'codigo': item.producto.codigo,
+            'nombre': item.producto.nombre,
+            'marca': item.producto.marca,
+            'modelo': item.producto.modelo,
+            'color': item.producto.color,
+            'precio': float(item.producto.precio),
+            'stock': item.cantidad_actual
+        })
+    
     context = {
-        'title': 'Punto de Venta',
+        'clientes': clientes,
+        'tiendas': list(tiendas.values()),
     }
     return render(request, 'ventas/pos.html', context)
 
 @login_required
 def pedidos_view(request):
     """Vista para listar pedidos"""
+    # Get filter parameters
+    estado = request.GET.get('estado', '')
+    cliente_id = request.GET.get('cliente', '')
+    fecha_desde = request.GET.get('fecha_desde', '')
+    fecha_hasta = request.GET.get('fecha_hasta', '')
+    
+    # Base query
+    pedidos = Pedido.objects.select_related('cliente', 'tienda', 'created_by').order_by('-fecha')
+    
+    # Apply filters
+    if estado:
+        pedidos = pedidos.filter(estado=estado)
+    
+    if cliente_id:
+        pedidos = pedidos.filter(cliente_id=cliente_id)
+    
+    if fecha_desde:
+        pedidos = pedidos.filter(fecha__gte=parse_date(fecha_desde))
+    
+    if fecha_hasta:
+        pedidos = pedidos.filter(fecha__lte=parse_date(fecha_hasta))
+    
+    # Get clients for filter dropdown
+    clientes = Cliente.objects.all()
+    
     context = {
-        'title': 'Pedidos',
+        'pedidos': pedidos,
+        'clientes': clientes,
+        'estado': estado,
+        'cliente_id': cliente_id,
+        'fecha_desde': fecha_desde,
+        'fecha_hasta': fecha_hasta,
     }
     return render(request, 'ventas/pedidos.html', context)
+
+@login_required
+def pedido_detail_view(request, pk):
+    """Vista de detalle de un pedido"""
+    pedido = get_object_or_404(
+        Pedido.objects.select_related('cliente', 'tienda', 'created_by'), 
+        pk=pk
+    )
+    detalles = DetallePedido.objects.filter(pedido=pedido).select_related('producto')
+    
+    context = {
+        'pedido': pedido,
+        'detalles': detalles,
+    }
+    return render(request, 'ventas/pedido_detail.html', context)
+
+@login_required
+def pedido_create_view(request):
+    """Vista para crear un nuevo pedido"""
+    # Get clients and stores
+    clientes = Cliente.objects.all()
+    
+    if request.method == 'POST':
+        # This is a placeholder - actual form handling will be implemented in the frontend
+        # with JavaScript and AJAX to interact with the API
+        return redirect('ventas:pedidos')
+    
+    context = {
+        'clientes': clientes,
+    }
+    return render(request, 'ventas/pedido_form.html', context)
 
 # Vistas API
 @extend_schema(tags=["Ventas"])

@@ -10,7 +10,7 @@ Componente para el menú principal de navegación (versión simplificada para lo
         </a>
     </li>
     <li class="nav-item">
-        <a class="nav-link {% if request.resolver_match.app_name == 'ventas' %}active{% endif %}" href="#">
+        <a class="nav-link {% if request.resolver_match.app_name == 'ventas' %}active{% endif %}" href="{% url 'ventas:pos' %}">
             <i class="bi bi-cart me-1"></i> Ventas
         </a>
     </li>
@@ -39,7 +39,7 @@ Componente para el menú principal de navegación (versión simplificada para lo
             <i class="bi bi-graph-up me-1"></i> Reportes
         </a>
         <ul class="dropdown-menu">
-            <li><a class="dropdown-item" href="#">Ventas</a></li>
+            <li><a class="dropdown-item" href="{% url 'ventas:pedidos' %}">Pedidos</a></li>
             <li><a class="dropdown-item" href="#">Inventario</a></li>
             <li><a class="dropdown-item" href="#">Compras</a></li>
             <li><hr class="dropdown-divider"></li>

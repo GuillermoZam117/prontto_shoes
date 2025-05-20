@@ -1,0 +1,507 @@
+{% extends "layouts/base.html" %}
+{% load static %}
+
+{% block title %}Punto de Venta{% endblock %}
+
+{% block page_title %}Punto de Venta{% endblock %}
+
+{% block breadcrumbs_content %}
+    <li class="breadcrumb-item active">Ventas</li>
+{% endblock %}
+
+{% block page_actions %}
+    <a href="{% url 'ventas:pedidos' %}" class="btn btn-secondary me-2">
+        <i class="bi bi-list-ul me-1"></i> Ver Pedidos
+    </a>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Panel Izquierdo - Productos -->
+    <div class="col-lg-8 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3 bg-primary">
+                <h6 class="m-0 font-weight-bold text-white d-flex justify-content-between align-items-center">
+                    <span>Catálogo de Productos</span>
+                    <div class="input-group" style="max-width: 300px;">
+                        <input type="text" class="form-control" id="search-products" placeholder="Buscar productos...">
+                        <button class="btn btn-light" type="button" id="search-button">
+                            <i class="bi bi-search"></i>
+                        </button>
+                    </div>
+                </h6>
+            </div>
+            <div class="card-body">
+                <!-- Tienda Selector -->
+                <div class="mb-3">
+                    <label for="tienda-select" class="form-label">Seleccionar Tienda</label>
+                    <select class="form-select" id="tienda-select">
+                        {% for tienda in tiendas %}
+                        <option value="{{ tienda.id }}">{{ tienda.nombre }} ({{ tienda.productos|length }} productos)</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Productos Grid -->
+                <div class="products-container" style="height: 460px; overflow-y: auto;">
+                    <div class="row" id="products-grid">
+                        {% for tienda in tiendas %}
+                            {% for producto in tienda.productos %}
+                            <div class="col-md-4 mb-3 product-item" data-store="{{ tienda.id }}" data-product-id="{{ producto.id }}" data-codigo="{{ producto.codigo }}" data-name="{{ producto.nombre }}" data-brand="{{ producto.marca }}" data-model="{{ producto.modelo }}" data-color="{{ producto.color }}" data-price="{{ producto.precio }}" data-stock="{{ producto.stock }}">
+                                <div class="card h-100">
+                                    <div class="card-body p-2 text-center">
+                                        <h6 class="card-title mb-0">{{ producto.nombre }}</h6>
+                                        <p class="small text-muted mb-1">{{ producto.codigo }}</p>
+                                        <p class="text-muted mb-1">{{ producto.marca }} {{ producto.modelo }}</p>
+                                        <p class="mb-1">{{ producto.color }}</p>
+                                        <div class="d-flex justify-content-between align-items-center mt-2">
+                                            <span class="badge bg-primary">${{ producto.precio }}</span>
+                                            <span class="badge {% if producto.stock > 10 %}bg-success{% elif producto.stock > 0 %}bg-warning{% else %}bg-danger{% endif %}">
+                                                {{ producto.stock }} en stock
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="card-footer p-2 text-center">
+                                        <button class="btn btn-sm btn-primary add-to-cart" {% if producto.stock <= 0 %}disabled{% endif %}>
+                                            <i class="bi bi-cart-plus"></i> Agregar
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% empty %}
+                            <div class="col-12 text-center py-5">
+                                <i class="bi bi-exclamation-triangle text-warning" style="font-size: 3rem;"></i>
+                                <p class="mt-3">No hay productos disponibles</p>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Panel Derecho - Carrito -->
+    <div class="col-lg-4 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3 bg-success">
+                <h6 class="m-0 font-weight-bold text-white">Carrito de Venta</h6>
+            </div>
+            <div class="card-body">
+                <!-- Cliente Selector -->
+                <div class="mb-3">
+                    <label for="cliente-select" class="form-label">Cliente</label>
+                    <select class="form-select" id="cliente-select" required>
+                        <option value="">Seleccionar cliente...</option>
+                        {% for cliente in clientes %}
+                        <option value="{{ cliente.id }}" data-discount="{{ cliente.descuento_aplicable|default:0 }}">{{ cliente.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Tipo de Venta -->
+                <div class="mb-3">
+                    <label class="form-label">Tipo de Venta</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="tipo_venta" id="tipo-venta" value="venta" checked>
+                        <label class="form-check-label" for="tipo-venta">
+                            Venta
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="tipo_venta" id="tipo-preventivo" value="preventivo">
+                        <label class="form-check-label" for="tipo-preventivo">
+                            Preventivo (Apartado)
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- Cart Items -->
+                <div class="table-responsive mb-3" style="max-height: 250px; overflow-y: auto;">
+                    <table class="table table-sm" id="cart-table">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th class="text-end">Cant.</th>
+                                <th class="text-end">Precio</th>
+                                <th class="text-end">Subtot.</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Cart items will be added here dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Totals -->
+                <div class="border-top pt-3">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Subtotal:</span>
+                        <span id="subtotal">$0.00</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Descuento (<span id="discount-rate">0</span>%):</span>
+                        <span id="discount-amount">$0.00</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="fw-bold">Total:</span>
+                        <span class="fw-bold" id="total">$0.00</span>
+                    </div>
+                </div>
+                
+                <!-- Checkout Buttons -->
+                <div class="mt-4">
+                    <button class="btn btn-primary w-100 mb-2" id="checkout-btn" disabled>
+                        <i class="bi bi-check-circle me-1"></i> Finalizar Venta
+                    </button>
+                    <button class="btn btn-outline-secondary w-100" id="clear-cart-btn" disabled>
+                        <i class="bi bi-trash me-1"></i> Vaciar Carrito
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for Checkout -->
+<div class="modal fade" id="checkoutModal" tabindex="-1" aria-labelledby="checkoutModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="checkoutModalLabel">Confirmar Venta</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <h6>Resumen del Pedido</h6>
+                    <div class="d-flex justify-content-between">
+                        <span>Cliente:</span>
+                        <span id="checkout-client"></span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Tipo:</span>
+                        <span id="checkout-type"></span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Total:</span>
+                        <span id="checkout-total"></span>
+                    </div>
+                </div>
+                
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Al confirmar, se registrará la venta y se actualizará el inventario.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="confirm-checkout">Confirmar Venta</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize variables
+        let cart = [];
+        const subtotalEl = document.getElementById('subtotal');
+        const discountRateEl = document.getElementById('discount-rate');
+        const discountAmountEl = document.getElementById('discount-amount');
+        const totalEl = document.getElementById('total');
+        const checkoutBtn = document.getElementById('checkout-btn');
+        const clearCartBtn = document.getElementById('clear-cart-btn');
+        const productsGrid = document.getElementById('products-grid');
+        const cartTable = document.getElementById('cart-table');
+        const tiendaSelect = document.getElementById('tienda-select');
+        const clienteSelect = document.getElementById('cliente-select');
+        const searchInput = document.getElementById('search-products');
+        const searchButton = document.getElementById('search-button');
+        
+        // Filter products by store
+        tiendaSelect.addEventListener('change', function() {
+            const selectedStore = this.value;
+            filterProducts(selectedStore);
+        });
+        
+        // Search products
+        searchButton.addEventListener('click', function() {
+            searchProducts(searchInput.value);
+        });
+        
+        searchInput.addEventListener('keyup', function(e) {
+            if (e.key === 'Enter') {
+                searchProducts(this.value);
+            }
+        });
+        
+        // Add to cart buttons
+        document.querySelectorAll('.add-to-cart').forEach(button => {
+            button.addEventListener('click', function() {
+                const productItem = this.closest('.product-item');
+                const productId = productItem.dataset.productId;
+                const productCode = productItem.dataset.codigo;
+                const productName = productItem.dataset.name;
+                const productBrand = productItem.dataset.brand;
+                const productModel = productItem.dataset.model;
+                const productColor = productItem.dataset.color;
+                const productPrice = parseFloat(productItem.dataset.price);
+                const stock = parseInt(productItem.dataset.stock);
+                
+                addToCart({
+                    id: productId,
+                    codigo: productCode,
+                    nombre: `${productName} (${productBrand} ${productModel} - ${productColor})`,
+                    precio: productPrice,
+                    stock: stock
+                });
+            });
+        });
+        
+        // Client selection changes discount
+        clienteSelect.addEventListener('change', function() {
+            const discountRate = this.options[this.selectedIndex].dataset.discount || 0;
+            discountRateEl.textContent = discountRate;
+            updateTotals();
+            checkFormValidity();
+        });
+        
+        // Clear cart button
+        clearCartBtn.addEventListener('click', function() {
+            clearCart();
+        });
+        
+        // Checkout button
+        checkoutBtn.addEventListener('click', function() {
+            const clientName = clienteSelect.options[clienteSelect.selectedIndex].text;
+            const saleType = document.querySelector('input[name="tipo_venta"]:checked').value;
+            const saleTypeText = saleType === 'venta' ? 'Venta' : 'Preventivo (Apartado)';
+            
+            document.getElementById('checkout-client').textContent = clientName;
+            document.getElementById('checkout-type').textContent = saleTypeText;
+            document.getElementById('checkout-total').textContent = totalEl.textContent;
+            
+            const checkoutModal = new bootstrap.Modal(document.getElementById('checkoutModal'));
+            checkoutModal.show();
+        });
+        
+        // Confirm checkout button
+        document.getElementById('confirm-checkout').addEventListener('click', function() {
+            processSale();
+        });
+        
+        // Functions
+        function filterProducts(storeId) {
+            document.querySelectorAll('.product-item').forEach(item => {
+                if (storeId === '' || item.dataset.store === storeId) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+        
+        function searchProducts(query) {
+            query = query.toLowerCase();
+            document.querySelectorAll('.product-item').forEach(item => {
+                const productCode = item.dataset.codigo.toLowerCase();
+                const productName = item.dataset.name.toLowerCase();
+                const productBrand = item.dataset.brand.toLowerCase();
+                const productModel = item.dataset.model.toLowerCase();
+                const productColor = item.dataset.color.toLowerCase();
+                
+                if (query === '' || 
+                    productCode.includes(query) || 
+                    productName.includes(query) || 
+                    productBrand.includes(query) || 
+                    productModel.includes(query) || 
+                    productColor.includes(query)) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+        
+        function addToCart(product) {
+            // Check if product is already in cart
+            const existingItem = cart.find(item => item.id === product.id);
+            
+            if (existingItem) {
+                // Check if adding one more would exceed stock
+                if (existingItem.cantidad + 1 > product.stock) {
+                    ProntoApp.notify('Stock insuficiente', 'No hay suficiente stock para agregar más unidades de este producto.', 'warning');
+                    return;
+                }
+                existingItem.cantidad += 1;
+                existingItem.subtotal = existingItem.cantidad * existingItem.precio;
+            } else {
+                cart.push({
+                    id: product.id,
+                    codigo: product.codigo,
+                    nombre: product.nombre,
+                    precio: product.precio,
+                    cantidad: 1,
+                    subtotal: product.precio
+                });
+            }
+            
+            updateCartDisplay();
+            updateTotals();
+            checkFormValidity();
+        }
+        
+        function removeFromCart(index) {
+            cart.splice(index, 1);
+            updateCartDisplay();
+            updateTotals();
+            checkFormValidity();
+        }
+        
+        function clearCart() {
+            cart = [];
+            updateCartDisplay();
+            updateTotals();
+            checkFormValidity();
+        }
+        
+        function updateCartDisplay() {
+            const tbody = cartTable.querySelector('tbody');
+            tbody.innerHTML = '';
+            
+            if (cart.length === 0) {
+                const emptyRow = document.createElement('tr');
+                emptyRow.innerHTML = `
+                    <td colspan="5" class="text-center py-3 text-muted">
+                        Carrito vacío
+                    </td>
+                `;
+                tbody.appendChild(emptyRow);
+                return;
+            }
+            
+            cart.forEach((item, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>
+                        <small class="d-block text-muted">${item.codigo}</small>
+                        ${item.nombre}
+                    </td>
+                    <td class="text-end">${item.cantidad}</td>
+                    <td class="text-end">$${item.precio.toFixed(2)}</td>
+                    <td class="text-end">$${item.subtotal.toFixed(2)}</td>
+                    <td class="text-end">
+                        <button class="btn btn-sm btn-danger remove-item" data-index="${index}">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+            
+            // Add remove event listeners
+            document.querySelectorAll('.remove-item').forEach(button => {
+                button.addEventListener('click', function() {
+                    const index = parseInt(this.dataset.index);
+                    removeFromCart(index);
+                });
+            });
+        }
+        
+        function updateTotals() {
+            const subtotal = cart.reduce((sum, item) => sum + item.subtotal, 0);
+            const discountRate = parseFloat(discountRateEl.textContent) || 0;
+            const discountAmount = subtotal * (discountRate / 100);
+            const total = subtotal - discountAmount;
+            
+            subtotalEl.textContent = `$${subtotal.toFixed(2)}`;
+            discountAmountEl.textContent = `$${discountAmount.toFixed(2)}`;
+            totalEl.textContent = `$${total.toFixed(2)}`;
+        }
+        
+        function checkFormValidity() {
+            const hasItems = cart.length > 0;
+            const hasClient = clienteSelect.value !== '';
+            
+            checkoutBtn.disabled = !(hasItems && hasClient);
+            clearCartBtn.disabled = !hasItems;
+        }
+        
+        function processSale() {
+            const clienteId = clienteSelect.value;
+            const tipoVenta = document.querySelector('input[name="tipo_venta"]:checked').value;
+            const subtotal = cart.reduce((sum, item) => sum + item.subtotal, 0);
+            const discountRate = parseFloat(discountRateEl.textContent) || 0;
+            const discountAmount = subtotal * (discountRate / 100);
+            const total = subtotal - discountAmount;
+            
+            // Prepare data for API request
+            const data = {
+                cliente: clienteId,
+                tipo: tipoVenta,
+                descuento_aplicado: discountRate,
+                total: total,
+                tienda: tiendaSelect.value,
+                fecha: new Date().toISOString(),
+                estado: tipoVenta === 'venta' ? 'completado' : 'pendiente',
+                detalles: cart.map(item => ({
+                    producto: item.id,
+                    cantidad: item.cantidad,
+                    precio_unitario: item.precio,
+                    subtotal: item.subtotal
+                }))
+            };
+            
+            // Make API request
+            fetch('/api/pedidos/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Error al procesar la venta');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Close modal
+                bootstrap.Modal.getInstance(document.getElementById('checkoutModal')).hide();
+                
+                // Show success message
+                ProntoApp.notify(
+                    'Venta procesada',
+                    `La venta ha sido registrada correctamente con folio #${data.id}.`,
+                    'success'
+                );
+                
+                // Clear cart
+                clearCart();
+                
+                // Reload page to refresh inventory
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                ProntoApp.notify(
+                    'Error',
+                    'Ha ocurrido un error al procesar la venta. Por favor, inténtalo de nuevo.',
+                    'error'
+                );
+            });
+        }
+        
+        // Init
+        updateCartDisplay();
+        filterProducts(tiendaSelect.value);
+    });
+</script>
+{% endblock %} 
