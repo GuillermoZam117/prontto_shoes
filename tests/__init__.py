@@ -1,0 +1,1 @@
+# Integration tests package for Pronto Shoes POS system 
