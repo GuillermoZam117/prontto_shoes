@@ -73,7 +73,13 @@ def tabulador_detail(request, pk):
         cliente__monto_acumulado__gte=descuento.rango_min,
         cliente__monto_acumulado__lt=descuento.rango_max
     )
-    total_ahorrado = descuentos_aplicados.aggregate(total=Sum('monto'))['total'] or 0
+    
+    # Calculate discount amounts based on percentage and accumulated amounts
+    total_ahorrado = 0
+    for descuento_cliente in descuentos_aplicados:
+        monto_cliente = descuento_cliente.cliente.monto_acumulado
+        descuento_aplicado = monto_cliente * (descuento_cliente.porcentaje / 100)
+        total_ahorrado += descuento_aplicado
     
     context = {
         'descuento': descuento,

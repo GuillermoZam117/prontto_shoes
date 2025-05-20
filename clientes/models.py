@@ -7,6 +7,7 @@ class Cliente(models.Model):
     contacto = models.CharField(max_length=100, blank=True)
     observaciones = models.TextField(blank=True)
     saldo_a_favor = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    monto_acumulado = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     tienda = models.ForeignKey(Tienda, on_delete=models.PROTECT, related_name='clientes')
     max_return_days = models.PositiveIntegerField(default=30)
     puntos_lealtad = models.PositiveIntegerField(default=0)
