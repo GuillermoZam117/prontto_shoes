@@ -1,0 +1,100 @@
+{% extends "layouts/base.html" %}
+{% load static %}
+
+{% block title %}Abrir Caja{% endblock %}
+
+{% block page_title %}Abrir Caja{% endblock %}
+
+{% block breadcrumbs_content %}
+    <li class="breadcrumb-item"><a href="{% url 'caja:lista' %}">Caja</a></li>
+    <li class="breadcrumb-item active">Abrir Caja</li>
+{% endblock %}
+
+{% block content %}
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Apertura de Caja</h6>
+    </div>
+    <div class="card-body">
+        <form method="post" id="cajaForm">
+            {% csrf_token %}
+            
+            <div class="row mb-3">
+                <!-- Tienda -->
+                <div class="col-md-6">
+                    <label for="tienda" class="form-label">Tienda <span class="text-danger">*</span></label>
+                    <select class="form-select" id="tienda" name="tienda" required>
+                        <option value="">Seleccionar tienda...</option>
+                        {% for tienda in tiendas %}
+                        <option value="{{ tienda.id }}">
+                            {{ tienda.nombre }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <div class="form-text">
+                        Seleccione la tienda para la cual desea abrir caja.
+                    </div>
+                </div>
+                
+                <!-- Fondo Inicial -->
+                <div class="col-md-6">
+                    <label for="fondo_inicial" class="form-label">Fondo Inicial ($) <span class="text-danger">*</span></label>
+                    <input type="number" class="form-control" id="fondo_inicial" name="fondo_inicial" 
+                           value="0.00" step="0.01" min="0" required>
+                    <div class="form-text">
+                        Indique el monto con el que inicia operaciones.
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Fecha actual (solo informativo) -->
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Fecha</label>
+                    <input type="text" class="form-control" value="{{ request.now|date:'d/m/Y' }}" disabled>
+                    <div class="form-text">
+                        La caja se abrirá con la fecha de hoy.
+                    </div>
+                </div>
+            </div>
+
+            <hr>
+            
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'caja:lista' %}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left me-1"></i> Cancelar
+                </a>
+                <button type="submit" class="btn btn-success">
+                    <i class="bi bi-unlock me-1"></i> Abrir Caja
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Form validation
+        $("#cajaForm").submit(function(event) {
+            var tienda = $("#tienda").val().trim();
+            var fondo_inicial = $("#fondo_inicial").val().trim();
+            
+            if (tienda === '') {
+                alert("Por favor seleccione una tienda.");
+                event.preventDefault();
+                return false;
+            }
+            
+            if (fondo_inicial === '' || parseFloat(fondo_inicial) < 0) {
+                alert("El fondo inicial debe ser igual o mayor a cero.");
+                event.preventDefault();
+                return false;
+            }
+            
+            return true;
+        });
+    });
+</script>
+{% endblock %} 

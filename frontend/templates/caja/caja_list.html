@@ -1,0 +1,241 @@
+{% extends "layouts/base.html" %}
+{% load static %}
+
+{% block title %}Caja{% endblock %}
+
+{% block page_title %}Caja{% endblock %}
+
+{% block breadcrumbs_content %}
+    <li class="breadcrumb-item active">Caja</li>
+{% endblock %}
+
+{% block page_actions %}
+    <a href="{% url 'caja:abrir' %}" class="btn btn-success me-2">
+        <i class="bi bi-plus-circle me-1"></i> Abrir Caja
+    </a>
+    <a href="{% url 'caja:movimientos' %}" class="btn btn-primary me-2">
+        <i class="bi bi-list-check me-1"></i> Movimientos
+    </a>
+    <a href="{% url 'caja:reporte' %}" class="btn btn-info">
+        <i class="bi bi-bar-chart-line me-1"></i> Reportes
+    </a>
+{% endblock %}
+
+{% block content %}
+<!-- Filtros -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+        <h6 class="m-0 font-weight-bold text-primary">
+            {% if ver_historial %}
+                Historial de Cajas
+            {% else %}
+                Cajas del Día
+            {% endif %}
+        </h6>
+        
+        <div class="d-flex">
+            <form class="form-inline me-2" method="GET">
+                {% if ver_historial %}
+                <input type="hidden" name="historial" value="True">
+                {% endif %}
+                <div class="input-group">
+                    <input type="date" class="form-control" name="fecha" value="{{ fecha }}" {% if not ver_historial %}max="{{ fecha }}"{% endif %}>
+                    <button class="btn btn-outline-primary" type="submit">
+                        <i class="bi bi-calendar-check"></i>
+                    </button>
+                </div>
+            </form>
+            
+            <div class="dropdown">
+                <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="filterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-funnel me-1"></i> Filtros
+                </button>
+                <div class="dropdown-menu dropdown-menu-end p-3" style="width: 300px;">
+                    <form method="GET">
+                        <input type="hidden" name="fecha" value="{{ fecha }}">
+                        {% if ver_historial %}
+                        <input type="hidden" name="historial" value="True">
+                        {% endif %}
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Tienda</label>
+                            <select name="tienda" class="form-select">
+                                <option value="">Todas las tiendas</option>
+                                {% for tienda in tiendas %}
+                                <option value="{{ tienda.id }}" {% if tienda_seleccionada == tienda.id|stringformat:"i" %}selected{% endif %}>{{ tienda.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'caja:lista' %}" class="btn btn-sm btn-outline-secondary">Limpiar</a>
+                            <button type="submit" class="btn btn-sm btn-primary">Aplicar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="ms-2">
+                <a href="{% url 'caja:lista' %}{% if ver_historial %}{% else %}?historial=True{% endif %}" class="btn btn-outline-primary">
+                    {% if ver_historial %}
+                    <i class="bi bi-calendar-day"></i> Ver Hoy
+                    {% else %}
+                    <i class="bi bi-calendar-range"></i> Ver Historial
+                    {% endif %}
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card-body">
+        {% if cajas %}
+            <div class="table-responsive">
+                <table class="table table-hover table-sm">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Tienda</th>
+                            <th>Fecha</th>
+                            <th class="text-end">Fondo Inicial</th>
+                            <th class="text-end">Ingresos</th>
+                            <th class="text-end">Egresos</th>
+                            <th class="text-end">Saldo Final</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for caja in cajas %}
+                        <tr>
+                            <td>{{ caja.id }}</td>
+                            <td>{{ caja.tienda.nombre }}</td>
+                            <td>{{ caja.fecha|date:"d/m/Y" }}</td>
+                            <td class="text-end">${{ caja.fondo_inicial|floatformat:2 }}</td>
+                            <td class="text-end">${{ caja.ingresos|floatformat:2 }}</td>
+                            <td class="text-end">${{ caja.egresos|floatformat:2 }}</td>
+                            <td class="text-end">${{ caja.saldo_final|floatformat:2 }}</td>
+                            <td>
+                                {% if caja.cerrada %}
+                                <span class="badge bg-secondary">Cerrada</span>
+                                {% else %}
+                                <span class="badge bg-success">Abierta</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if not caja.cerrada %}
+                                <a href="{% url 'caja:cerrar' caja.id %}" class="btn btn-sm btn-warning" data-bs-toggle="tooltip" title="Cerrar Caja">
+                                    <i class="bi bi-lock"></i>
+                                </a>
+                                <a href="{% url 'caja:nueva_nota_cargo' %}?caja={{ caja.id }}" class="btn btn-sm btn-danger" data-bs-toggle="tooltip" title="Registrar Gasto">
+                                    <i class="bi bi-dash-circle"></i>
+                                </a>
+                                {% else %}
+                                <button class="btn btn-sm btn-secondary" disabled>
+                                    <i class="bi bi-lock-fill"></i>
+                                </button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center my-5">
+                <div class="mb-3">
+                    <i class="bi bi-cash-register text-muted" style="font-size: 4rem;"></i>
+                </div>
+                <h5>No hay cajas para mostrar</h5>
+                <p class="text-muted">
+                    {% if ver_historial %}
+                    No se encontraron cajas en el rango de fechas seleccionado.
+                    {% else %}
+                    No hay cajas abiertas actualmente.
+                    <a href="{% url 'caja:abrir' %}" class="btn btn-success btn-sm mt-2">
+                        <i class="bi bi-plus-circle me-1"></i> Abrir Nueva Caja
+                    </a>
+                    {% endif %}
+                </p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row">
+    <!-- Cajas Abiertas -->
+    <div class="col-xl-4 col-md-6 mb-4">
+        <div class="card border-left-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Cajas Abiertas
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ cajas.filter.cerrada=False|length }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-unlock fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ingresos del Día -->
+    <div class="col-xl-4 col-md-6 mb-4">
+        <div class="card border-left-primary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            Ingresos del Día
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            ${{ cajas|length|default_if_none:0|add:"0" }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-graph-up-arrow fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Saldo Total -->
+    <div class="col-xl-4 col-md-6 mb-4">
+        <div class="card border-left-info shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            Saldo Total
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            ${{ cajas|length|default_if_none:0|add:"0" }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-cash-coin fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Initialize tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+          return new bootstrap.Tooltip(tooltipTriggerEl)
+        });
+    });
+</script>
+{% endblock %} 

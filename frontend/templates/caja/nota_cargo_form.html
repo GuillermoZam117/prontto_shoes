@@ -1,0 +1,109 @@
+{% extends "layouts/base.html" %}
+{% load static %}
+
+{% block title %}Nueva Nota de Cargo{% endblock %}
+
+{% block page_title %}Nueva Nota de Cargo{% endblock %}
+
+{% block breadcrumbs_content %}
+    <li class="breadcrumb-item"><a href="{% url 'caja:lista' %}">Caja</a></li>
+    <li class="breadcrumb-item active">Nueva Nota de Cargo</li>
+{% endblock %}
+
+{% block content %}
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Registrar Gasto</h6>
+    </div>
+    <div class="card-body">
+        <form method="post" id="notaCargoForm">
+            {% csrf_token %}
+            
+            <div class="row mb-3">
+                <!-- Caja -->
+                <div class="col-md-6">
+                    <label for="caja" class="form-label">Caja <span class="text-danger">*</span></label>
+                    <select class="form-select" id="caja" name="caja" required>
+                        <option value="">Seleccionar caja...</option>
+                        {% for caja in cajas_abiertas %}
+                        <option value="{{ caja.id }}" {% if request.GET.caja == caja.id|stringformat:"i" %}selected{% endif %}>
+                            Caja #{{ caja.id }} - {{ caja.tienda.nombre }} ({{ caja.fecha|date:"d/m/Y" }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <div class="form-text">
+                        Seleccione la caja en la que se registrará el gasto.
+                    </div>
+                </div>
+                
+                <!-- Monto -->
+                <div class="col-md-6">
+                    <label for="monto" class="form-label">Monto ($) <span class="text-danger">*</span></label>
+                    <input type="number" class="form-control" id="monto" name="monto" 
+                           value="0.00" step="0.01" min="0.01" required>
+                    <div class="form-text">
+                        Indique el monto del gasto.
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Motivo -->
+            <div class="mb-3">
+                <label for="motivo" class="form-label">Motivo del Gasto <span class="text-danger">*</span></label>
+                <textarea class="form-control" id="motivo" name="motivo" rows="3" required></textarea>
+                <div class="form-text">
+                    Describa detalladamente el motivo del gasto.
+                </div>
+            </div>
+
+            <div class="alert alert-info">
+                <strong>Nota:</strong> Las notas de cargo se registran como egresos en la caja seleccionada.
+            </div>
+
+            <hr>
+            
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'caja:lista' %}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left me-1"></i> Cancelar
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-save me-1"></i> Registrar Gasto
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Form validation
+        $("#notaCargoForm").submit(function(event) {
+            var caja = $("#caja").val().trim();
+            var monto = $("#monto").val().trim();
+            var motivo = $("#motivo").val().trim();
+            
+            if (caja === '') {
+                alert("Por favor seleccione una caja.");
+                event.preventDefault();
+                return false;
+            }
+            
+            if (monto === '' || parseFloat(monto) <= 0) {
+                alert("El monto debe ser mayor a cero.");
+                event.preventDefault();
+                return false;
+            }
+            
+            if (motivo === '') {
+                alert("Por favor ingrese el motivo del gasto.");
+                event.preventDefault();
+                return false;
+            }
+            
+            return true;
+        });
+    });
+</script>
+{% endblock %} 

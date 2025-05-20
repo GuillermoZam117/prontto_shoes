@@ -1,0 +1,176 @@
+{% extends "layouts/base.html" %}
+{% load static %}
+
+{% block title %}Cerrar Caja{% endblock %}
+
+{% block page_title %}Cerrar Caja{% endblock %}
+
+{% block breadcrumbs_content %}
+    <li class="breadcrumb-item"><a href="{% url 'caja:lista' %}">Caja</a></li>
+    <li class="breadcrumb-item active">Cerrar Caja</li>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Información de la Caja -->
+    <div class="col-lg-4 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Información de la Caja</h6>
+            </div>
+            <div class="card-body">
+                <div class="text-center mb-4">
+                    <i class="bi bi-cash-register text-primary" style="font-size: 5rem;"></i>
+                    <h4 class="mt-2">{{ caja.tienda.nombre }}</h4>
+                    <p class="text-muted">{{ caja.fecha|date:"d/m/Y" }}</p>
+                </div>
+                
+                <hr>
+                
+                <table class="table table-sm">
+                    <tr>
+                        <th>ID:</th>
+                        <td>{{ caja.id }}</td>
+                    </tr>
+                    <tr>
+                        <th>Fondo Inicial:</th>
+                        <td>${{ caja.fondo_inicial|floatformat:2 }}</td>
+                    </tr>
+                    <tr>
+                        <th>Ingresos:</th>
+                        <td>${{ total_ingresos|floatformat:2 }}</td>
+                    </tr>
+                    <tr>
+                        <th>Egresos:</th>
+                        <td>${{ total_egresos|floatformat:2 }}</td>
+                    </tr>
+                    <tr class="table-active">
+                        <th>Saldo Final:</th>
+                        <td class="fw-bold">${{ saldo_actual|floatformat:2 }}</td>
+                    </tr>
+                    <tr>
+                        <th>Estado:</th>
+                        <td>
+                            {% if caja.cerrada %}
+                            <span class="badge bg-secondary">Cerrada</span>
+                            {% else %}
+                            <span class="badge bg-success">Abierta</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Creada por:</th>
+                        <td>{{ caja.created_by.username }}</td>
+                    </tr>
+                </table>
+                
+                <hr>
+                
+                <form method="post" class="mt-4" id="cerrarCajaForm">
+                    {% csrf_token %}
+                    <div class="alert alert-warning">
+                        <strong>¡Atención!</strong> Una vez cerrada la caja, no podrá realizar más operaciones en ella.
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-warning">
+                            <i class="bi bi-lock me-1"></i> Cerrar Caja
+                        </button>
+                        <a href="{% url 'caja:lista' %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left me-1"></i> Volver
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Movimientos de la Caja -->
+    <div class="col-lg-8 mb-4">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-primary">Movimientos Registrados</h6>
+            </div>
+            <div class="card-body">
+                {% if transacciones %}
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm">
+                        <thead>
+                            <tr>
+                                <th>Tipo</th>
+                                <th>Descripción</th>
+                                <th class="text-end">Monto</th>
+                                <th>Usuario</th>
+                                <th>Fecha/Hora</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for transaccion in transacciones %}
+                            <tr>
+                                <td>
+                                    {% if transaccion.tipo_movimiento == 'ingreso' %}
+                                    <span class="badge bg-success">Ingreso</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">Egreso</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ transaccion.descripcion }}</td>
+                                <td class="text-end">${{ transaccion.monto|floatformat:2 }}</td>
+                                <td>{{ transaccion.created_by.username }}</td>
+                                <td>{{ transaccion.created_at|date:"d/m/Y H:i" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="table-light">
+                            <tr>
+                                <th colspan="2" class="text-end">Subtotales:</th>
+                                <td class="text-end">
+                                    <span class="text-success">+ ${{ total_ingresos|floatformat:2 }}</span><br>
+                                    <span class="text-danger">- ${{ total_egresos|floatformat:2 }}</span>
+                                </td>
+                                <td colspan="2"></td>
+                            </tr>
+                            <tr>
+                                <th colspan="2" class="text-end">Fondo Inicial:</th>
+                                <td class="text-end">${{ caja.fondo_inicial|floatformat:2 }}</td>
+                                <td colspan="2"></td>
+                            </tr>
+                            <tr class="table-active">
+                                <th colspan="2" class="text-end">Saldo Final:</th>
+                                <td class="text-end fw-bold">${{ saldo_actual|floatformat:2 }}</td>
+                                <td colspan="2"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center my-5">
+                    <div class="mb-3">
+                        <i class="bi bi-receipt text-muted" style="font-size: 4rem;"></i>
+                    </div>
+                    <h5>No hay movimientos registrados</h5>
+                    <p class="text-muted">
+                        Esta caja no tiene transacciones registradas. El saldo final será igual al fondo inicial.
+                    </p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Confirm close
+        $("#cerrarCajaForm").submit(function(event) {
+            if (!confirm("¿Está seguro de cerrar esta caja? Esta acción no se puede deshacer.")) {
+                event.preventDefault();
+                return false;
+            }
+            return true;
+        });
+    });
+</script>
+{% endblock %} 

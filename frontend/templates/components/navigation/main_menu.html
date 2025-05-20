@@ -30,8 +30,8 @@ Componente para el menú principal de navegación (versión simplificada para lo
         </a>
     </li>
     <li class="nav-item">
-        <a class="nav-link {% if request.resolver_match.app_name == 'caja' %}active{% endif %}" href="#">
-            <i class="bi bi-cash me-1"></i> Caja
+        <a class="nav-link {% if request.resolver_match.app_name == 'caja' %}active{% endif %}" href="{% url 'caja:lista' %}">
+            <i class="bi bi-cash-register me-1"></i> Caja
         </a>
     </li>
     <li class="nav-item dropdown">
