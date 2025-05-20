@@ -1,0 +1,178 @@
+{% extends "layouts/base.html" %}
+{% load static %}
+
+{% block title %}
+    {% if is_edit %}Editar{% else %}Nuevo{% endif %} Rango de Descuento
+{% endblock %}
+
+{% block page_title %}
+    {% if is_edit %}Editar{% else %}Nuevo{% endif %} Rango de Descuento
+{% endblock %}
+
+{% block breadcrumbs_content %}
+    <li class="breadcrumb-item"><a href="{% url 'descuentos:lista' %}">Tabulador de Descuentos</a></li>
+    <li class="breadcrumb-item active">{% if is_edit %}Editar{% else %}Nuevo{% endif %} Rango</li>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">{% if is_edit %}Editar{% else %}Nuevo{% endif %} Rango de Descuento</h6>
+            </div>
+            
+            <div class="card-body">
+                <form method="post" class="needs-validation" novalidate>
+                    {% csrf_token %}
+                    
+                    <!-- Alertas de errores o mensajes de validación -->
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    
+                    {% if error_message %}
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            {{ error_message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endif %}
+                    
+                    <!-- Datos del rango de descuento -->
+                    <div class="mb-4">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="rango_min" class="form-label">Rango Mínimo ($) *</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" step="0.01" min="0" class="form-control" id="rango_min" name="rango_min" 
+                                           value="{{ descuento.rango_min|default:'' }}" required>
+                                </div>
+                                <div class="invalid-feedback">
+                                    El rango mínimo es obligatorio
+                                </div>
+                                <div class="form-text">Monto mínimo de compras para aplicar este descuento</div>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="rango_max" class="form-label">Rango Máximo ($) *</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" step="0.01" min="0" class="form-control" id="rango_max" name="rango_max" 
+                                           value="{{ descuento.rango_max|default:'' }}" required>
+                                </div>
+                                <div class="invalid-feedback">
+                                    El rango máximo es obligatorio
+                                </div>
+                                <div class="form-text">Monto máximo de compras para aplicar este descuento</div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="porcentaje" class="form-label">Porcentaje de Descuento (%) *</label>
+                                <div class="input-group">
+                                    <input type="number" step="0.01" min="0" max="100" class="form-control" id="porcentaje" name="porcentaje" 
+                                           value="{{ descuento.porcentaje|default:'' }}" required>
+                                    <span class="input-group-text">%</span>
+                                </div>
+                                <div class="invalid-feedback">
+                                    El porcentaje es obligatorio (debe estar entre 0 y 100)
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Validaciones -->
+                    <div class="alert alert-warning mb-4">
+                        <h6><i class="bi bi-exclamation-triangle me-2"></i>Importante</h6>
+                        <p class="mb-1">Verifica que este rango no se solape con otros existentes:</p>
+                        <ul class="mb-0">
+                            <li>El rango mínimo debe ser mayor que el rango máximo del nivel anterior</li>
+                            <li>El rango máximo debe ser menor que el rango mínimo del nivel siguiente</li>
+                        </ul>
+                    </div>
+                    
+                    <!-- Rangos existentes para referencia -->
+                    {% if rangos_existentes %}
+                        <div class="mb-4">
+                            <h6 class="text-gray-800">Rangos Actuales de Referencia:</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm small">
+                                    <thead>
+                                        <tr>
+                                            <th>Mínimo</th>
+                                            <th>Máximo</th>
+                                            <th>Porcentaje</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for rango in rangos_existentes %}
+                                        <tr {% if rango.id == descuento.id %}class="table-primary"{% endif %}>
+                                            <td>${{ rango.rango_min }}</td>
+                                            <td>${{ rango.rango_max }}</td>
+                                            <td>{{ rango.porcentaje }}%</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    {% endif %}
+                    
+                    <!-- Botones de acción -->
+                    <div class="d-flex justify-content-between mt-4">
+                        <a href="{% url 'descuentos:lista' %}" class="btn btn-light">Cancelar</a>
+                        <button type="submit" class="btn btn-primary">
+                            {% if is_edit %}
+                                Guardar Cambios
+                            {% else %}
+                                Crear Rango
+                            {% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Form validation
+    (function() {
+        'use strict'
+        
+        // Fetch all forms to which we want to apply validation styles
+        var forms = document.querySelectorAll('.needs-validation')
+        
+        // Loop over them and prevent submission
+        Array.prototype.slice.call(forms)
+            .forEach(function(form) {
+                form.addEventListener('submit', function(event) {
+                    if (!form.checkValidity()) {
+                        event.preventDefault()
+                        event.stopPropagation()
+                    }
+                    
+                    // Custom validation
+                    var min = parseFloat(document.getElementById('rango_min').value);
+                    var max = parseFloat(document.getElementById('rango_max').value);
+                    
+                    if (min >= max) {
+                        event.preventDefault();
+                        alert('El rango mínimo debe ser menor que el rango máximo.');
+                    }
+                    
+                    form.classList.add('was-validated')
+                }, false)
+            })
+    })()
+</script>
+{% endblock %} 

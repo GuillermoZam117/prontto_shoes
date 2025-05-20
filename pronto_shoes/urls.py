@@ -72,6 +72,8 @@ urlpatterns = [
     path('clientes/', include('clientes.urls')),
     # Proveedores application
     path('proveedores/', include('proveedores.urls')),
+    # Descuentos application
+    path('descuentos/', include('descuentos.urls')),
     path('api/', include(router.urls)),
     path('api/reportes/apartados_por_cliente/', ApartadosPorClienteReporteAPIView.as_view(), name='apartados-por-cliente-reporte'),
     path('api/reportes/pedidos_por_surtir/', PedidosPorSurtirReporteAPIView.as_view(), name='pedidos-por-surtir-reporte'),

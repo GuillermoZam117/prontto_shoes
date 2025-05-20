@@ -1,0 +1,206 @@
+{% extends "layouts/base.html" %}
+{% load static %}
+
+{% block title %}Detalle de Rango de Descuento{% endblock %}
+
+{% block page_title %}Detalle de Rango de Descuento{% endblock %}
+
+{% block breadcrumbs_content %}
+    <li class="breadcrumb-item"><a href="{% url 'descuentos:lista' %}">Tabulador de Descuentos</a></li>
+    <li class="breadcrumb-item active">Detalle de Rango</li>
+{% endblock %}
+
+{% block page_actions %}
+    <a href="{% url 'descuentos:editar' descuento.id %}" class="btn btn-primary">
+        <i class="bi bi-pencil me-1"></i> Editar
+    </a>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-7">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Información del Rango</h6>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-lg-4 font-weight-bold text-gray-800">Rango Mínimo:</div>
+                    <div class="col-lg-8">${{ descuento.rango_min }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-lg-4 font-weight-bold text-gray-800">Rango Máximo:</div>
+                    <div class="col-lg-8">${{ descuento.rango_max }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-lg-4 font-weight-bold text-gray-800">Porcentaje:</div>
+                    <div class="col-lg-8">{{ descuento.porcentaje }}%</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Representación Visual del Rango -->
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Representación Visual</h6>
+            </div>
+            <div class="card-body">
+                <div class="progress" style="height: 30px;">
+                    {% for rango in rangos_completos %}
+                        {% if rango.id == descuento.id %}
+                            <div class="progress-bar bg-primary" role="progressbar" 
+                                 style="width: {{ rango.porcentaje_grafico }}%" 
+                                 title="Este rango: {{ rango.rango_min }} - {{ rango.rango_max }}">
+                                {{ rango.porcentaje }}%
+                            </div>
+                        {% else %}
+                            <div class="progress-bar bg-secondary" role="progressbar" 
+                                 style="width: {{ rango.porcentaje_grafico }}%" 
+                                 title="{{ rango.rango_min }} - {{ rango.rango_max }}">
+                                {{ rango.porcentaje }}%
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                <div class="d-flex justify-content-between mt-2">
+                    <span class="small text-muted">$0</span>
+                    <span class="small text-muted">$50,000+</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Efectos del Descuento -->
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Efectos del Descuento</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Monto de Compra</th>
+                                <th>Descuento Aplicado</th>
+                                <th>Monto Final</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="text-end">${{ descuento.rango_min }}</td>
+                                <td class="text-end">${{ ejemplo_min_descuento|floatformat:2 }}</td>
+                                <td class="text-end">${{ ejemplo_min_final|floatformat:2 }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-end">${{ ejemplo_promedio }}</td>
+                                <td class="text-end">${{ ejemplo_promedio_descuento|floatformat:2 }}</td>
+                                <td class="text-end">${{ ejemplo_promedio_final|floatformat:2 }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-end">${{ descuento.rango_max }}</td>
+                                <td class="text-end">${{ ejemplo_max_descuento|floatformat:2 }}</td>
+                                <td class="text-end">${{ ejemplo_max_final|floatformat:2 }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-5">
+        <!-- Posición en el Tabulador -->
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Posición en el Tabulador</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm">
+                        <thead>
+                            <tr>
+                                <th>Posición</th>
+                                <th>Rango</th>
+                                <th>Porcentaje</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for rango in rangos_ordenados %}
+                            <tr {% if rango.id == descuento.id %}class="table-primary"{% endif %}>
+                                <td>{% if rango.id == descuento.id %}<strong>{{ forloop.counter }}</strong>{% else %}{{ forloop.counter }}{% endif %}</td>
+                                <td>${{ rango.rango_min }} - ${{ rango.rango_max }}</td>
+                                <td>{{ rango.porcentaje }}%</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Estadísticas -->
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Estadísticas</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <!-- Clientes en este rango -->
+                    <div class="col-md-6 mb-4">
+                        <div class="card border-left-primary h-100 py-2">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                            Clientes en este Rango
+                                        </div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                            {{ clientes_en_rango|default:"0" }}
+                                        </div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="bi bi-people fa-2x text-gray-300"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Ahorrado por Clientes -->
+                    <div class="col-md-6 mb-4">
+                        <div class="card border-left-success h-100 py-2">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                            Ahorrado por Clientes
+                                        </div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                            ${{ total_ahorrado|default:"0.00" }}
+                                        </div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="bi bi-cash-stack fa-2x text-gray-300"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Los clientes con compras acumuladas entre <strong>${{ descuento.rango_min }}</strong> y <strong>${{ descuento.rango_max }}</strong> reciben un descuento de <strong>{{ descuento.porcentaje }}%</strong> en todas sus compras.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        $('[data-bs-toggle="tooltip"]').tooltip();
+    });
+</script>
+{% endblock %} 
