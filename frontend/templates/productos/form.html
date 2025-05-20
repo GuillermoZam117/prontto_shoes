@@ -1,0 +1,115 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block breadcrumbs_content %}
+    <li class="breadcrumb-item"><a href="{% url 'productos:lista' %}">Productos</a></li>
+    <li class="breadcrumb-item active">{{ title }}</li>
+{% endblock %}
+
+{% block content %}
+    {% include "components/forms/model_form.html" with 
+        form=form 
+        submit_url=submit_url 
+        cancel_url=cancel_url
+        title=title
+        submit_text="Guardar Producto"
+        is_multipart=True
+        is_htmx=True
+    %}
+    
+    {% if producto and producto.id %}
+    <div class="mt-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Historial de Cambios de Precio</h5>
+            </div>
+            <div class="card-body">
+                {% if cambios_precio %}
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Precio Anterior</th>
+                                <th>Precio Nuevo</th>
+                                <th>Usuario</th>
+                                <th>Motivo</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cambio in cambios_precio %}
+                            <tr>
+                                <td>{{ cambio.fecha|date:"d/m/Y H:i" }}</td>
+                                <td>${{ cambio.precio_anterior }}</td>
+                                <td>${{ cambio.precio_nuevo }}</td>
+                                <td>{{ cambio.usuario }}</td>
+                                <td>{{ cambio.motivo }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-center py-3">No hay cambios de precio registrados.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if producto and producto.id %}
+    <div class="mt-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Disponibilidad por Tienda</h5>
+                <button type="button" class="btn btn-sm btn-outline-primary" 
+                        hx-get="{% url 'productos:actualizar_stock' producto.id %}"
+                        hx-target="#inventario-por-tienda">
+                    <i class="bi bi-arrow-clockwise"></i> Actualizar
+                </button>
+            </div>
+            <div class="card-body" id="inventario-por-tienda">
+                {% if inventario %}
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Tienda</th>
+                                <th>Stock Actual</th>
+                                <th>Stock Mínimo</th>
+                                <th>Estado</th>
+                                <th>Última Actualización</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in inventario %}
+                            <tr>
+                                <td>{{ item.tienda.nombre }}</td>
+                                <td>{{ item.cantidad }}</td>
+                                <td>{{ item.stock_minimo }}</td>
+                                <td>
+                                    {% if item.cantidad <= 0 %}
+                                    <span class="badge bg-danger">Sin Stock</span>
+                                    {% elif item.cantidad <= item.stock_minimo %}
+                                    <span class="badge bg-warning text-dark">Stock Bajo</span>
+                                    {% else %}
+                                    <span class="badge bg-success">Disponible</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ item.ultima_actualizacion|date:"d/m/Y H:i" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-center py-3">No hay información de inventario disponible.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+{% endblock %} 

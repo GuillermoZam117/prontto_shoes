@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Sistema POS Pronto Shoes">
+    <title>{% block title %}Pronto Shoes | Sistema POS{% endblock %}</title>
+    
+    <!-- Favicon -->
+    <link rel="shortcut icon" href="{% static 'img/favicon.ico' %}" type="image/x-icon">
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Select2 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+    
+    <!-- SweetAlert2 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
+    
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.6"></script>
+    
+    <!-- Alpine.js -->
+    <script defer src="https://unpkg.com/alpinejs@3.13.0/dist/cdn.min.js"></script>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Indicador de estado de sincronización -->
+    <div id="sync-status-indicator" class="position-fixed top-0 end-0 m-3">
+        {% include "components/sync/status_indicator.html" %}
+    </div>
+
+    <!-- Header -->
+    <header class="bg-dark text-white py-3">
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="h3 m-0">Pronto Shoes</h1>
+                <div>
+                    <!-- Información del usuario y tienda actual -->
+                    <span class="me-3">Tienda: <strong>{{ request.user.tienda.nombre }}</strong></span>
+                    <span>Usuario: <strong>{{ request.user.username }}</strong></span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navegación principal -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarMain">
+                {% include "components/navigation/main_menu.html" %}
+            </div>
+        </div>
+    </nav>
+
+    <!-- Breadcrumbs -->
+    <div class="bg-light">
+        <div class="container py-2">
+            {% block breadcrumbs %}
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb m-0">
+                        <li class="breadcrumb-item"><a href="{% url 'home' %}">Inicio</a></li>
+                        {% block breadcrumbs_content %}{% endblock %}
+                    </ol>
+                </nav>
+            {% endblock %}
+        </div>
+    </div>
+
+    <!-- Contenido principal -->
+    <main class="py-4">
+        <div class="container">
+            {% if messages %}
+                <div class="messages mb-3">
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="h4 m-0">{% block page_title %}{% endblock %}</h2>
+                <div>
+                    {% block page_actions %}{% endblock %}
+                </div>
+            </div>
+
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-white py-4 mt-auto">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6">
+                    <p>&copy; {% now "Y" %} Pronto Shoes. Todos los derechos reservados.</p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <p>Última sincronización: <span id="last-sync-time">{% now "d/m/Y H:i:s" %}</span></p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- jQuery (required for Select2) -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    
+    <!-- Select2 -->
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.all.min.js"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
+    <!-- Custom JavaScript -->
+    <script src="{% static 'js/main.js' %}"></script>
+    <script src="{% static 'js/sync.js' %}"></script>
+    
+    <script>
+        // Initialize Select2
+        $(document).ready(function() {
+            $('.select2').select2({
+                theme: 'bootstrap-5'
+            });
+        });
+        
+        // Initialize tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
+        });
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html> 

@@ -1,0 +1,305 @@
+{% comment %}
+Componente reutilizable para tablas de datos
+Parámetros:
+- columns: Lista de columnas (diccionario con 'name', 'field', 'sortable')
+- data: QuerySet o lista de objetos a mostrar
+- filters: Formulario de filtrado (opcional)
+- actions: Diccionario con acciones masivas (opcional)
+- pagination: Objeto de paginación (opcional)
+{% endcomment %}
+
+<div class="card mb-4">
+    {% if filters %}
+    <div class="card-header bg-light">
+        <form method="get" class="row g-3">
+            {{ filters.form.media }}
+            {{ filters.form.as_div }}
+            <div class="col-12">
+                <button type="submit" class="btn btn-primary">Filtrar</button>
+                <a href="?{{ clear_url }}" class="btn btn-outline-secondary">Limpiar</a>
+            </div>
+        </form>
+    </div>
+    {% endif %}
+    
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        {% if actions %}
+                        <th style="width: 1%">
+                            <div class="form-check">
+                                <input class="form-check-input select-all" type="checkbox" id="selectAll">
+                                <label class="form-check-label" for="selectAll"></label>
+                            </div>
+                        </th>
+                        {% endif %}
+                        
+                        {% for column in columns %}
+                        <th {% if column.width %}style="width: {{ column.width }}"{% endif %}>
+                            {% if column.sortable %}
+                            <a href="?sort={% if order_by == column.field %}-{% endif %}{{ column.field }}&{{ current_filters }}"
+                               class="text-white text-decoration-none d-flex align-items-center">
+                                {{ column.name }}
+                                {% if order_by == column.field %}
+                                <i class="bi bi-arrow-down-short ms-1"></i>
+                                {% elif order_by == '-'|add:column.field %}
+                                <i class="bi bi-arrow-up-short ms-1"></i>
+                                {% endif %}
+                            </a>
+                            {% else %}
+                            {{ column.name }}
+                            {% endif %}
+                        </th>
+                        {% endfor %}
+                        
+                        <th class="text-end">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if data %}
+                        {% for item in data %}
+                        <tr>
+                            {% if actions %}
+                            <td>
+                                <div class="form-check">
+                                    <input class="form-check-input select-item" type="checkbox" name="selected[]" value="{{ item.id }}" id="item-{{ item.id }}">
+                                    <label class="form-check-label" for="item-{{ item.id }}"></label>
+                                </div>
+                            </td>
+                            {% endif %}
+                            
+                            {% for column in columns %}
+                            <td>
+                                {% if column.template %}
+                                    {% include column.template with object=item %}
+                                {% else %}
+                                    {{ item|get_attribute:column.field }}
+                                {% endif %}
+                            </td>
+                            {% endfor %}
+                            
+                            <td class="text-end">
+                                {% if item.get_absolute_url %}
+                                <a href="{{ item.get_absolute_url }}" class="btn btn-sm btn-info" data-bs-toggle="tooltip" title="Ver detalle">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                {% endif %}
+                                
+                                {% if perms.app.change_model %}
+                                <a href="{% url 'edit_url_name' item.id %}" class="btn btn-sm btn-primary" data-bs-toggle="tooltip" title="Editar">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                {% endif %}
+                                
+                                {% if perms.app.delete_model %}
+                                <button type="button" class="btn btn-sm btn-danger delete-item" 
+                                        data-item-id="{{ item.id }}" 
+                                        data-item-name="{{ item }}"
+                                        data-bs-toggle="tooltip" title="Eliminar">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="{{ columns|length|add:1 }}{% if actions %}|add:1{% endif %}" class="text-center py-3">
+                                No se encontraron registros
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    {% if actions or pagination %}
+    <div class="card-footer bg-light d-flex justify-content-between align-items-center">
+        {% if actions %}
+        <div class="dropdown">
+            <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="bulkActionsDropdown" data-bs-toggle="dropdown">
+                Acciones en lote
+            </button>
+            <ul class="dropdown-menu" aria-labelledby="bulkActionsDropdown">
+                {% for action_key, action in actions.items %}
+                <li>
+                    <button type="button" class="dropdown-item bulk-action" 
+                            data-action="{{ action_key }}" 
+                            data-url="{{ action.url }}">
+                        {{ action.label }}
+                    </button>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% else %}
+        <div></div>
+        {% endif %}
+        
+        {% if pagination %}
+        <nav aria-label="Paginación">
+            <ul class="pagination mb-0">
+                {% if pagination.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1&{{ current_filters }}" aria-label="Primera">
+                        <span aria-hidden="true">&laquo;&laquo;</span>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ pagination.previous_page_number }}&{{ current_filters }}" aria-label="Anterior">
+                        <span aria-hidden="true">&laquo;</span>
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">&laquo;&laquo;</span>
+                </li>
+                <li class="page-item disabled">
+                    <span class="page-link">&laquo;</span>
+                </li>
+                {% endif %}
+                
+                {% for i in pagination.paginator.page_range %}
+                    {% if i == pagination.number %}
+                    <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+                    {% elif i > pagination.number|add:'-3' and i < pagination.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ i }}&{{ current_filters }}">{{ i }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if pagination.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ pagination.next_page_number }}&{{ current_filters }}" aria-label="Siguiente">
+                        <span aria-hidden="true">&raquo;</span>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ pagination.paginator.num_pages }}&{{ current_filters }}" aria-label="Última">
+                        <span aria-hidden="true">&raquo;&raquo;</span>
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">&raquo;</span>
+                </li>
+                <li class="page-item disabled">
+                    <span class="page-link">&raquo;&raquo;</span>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+{% block js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Seleccionar/deseleccionar todos
+    const selectAll = document.querySelector('.select-all');
+    if (selectAll) {
+        selectAll.addEventListener('change', function() {
+            document.querySelectorAll('.select-item').forEach(item => {
+                item.checked = selectAll.checked;
+            });
+        });
+    }
+    
+    // Acciones en lote
+    document.querySelectorAll('.bulk-action').forEach(button => {
+        button.addEventListener('click', function() {
+            const action = this.dataset.action;
+            const url = this.dataset.url;
+            const selectedItems = Array.from(document.querySelectorAll('.select-item:checked')).map(item => item.value);
+            
+            if (selectedItems.length === 0) {
+                Swal.fire({
+                    title: 'Error',
+                    text: 'Debe seleccionar al menos un elemento',
+                    icon: 'error'
+                });
+                return;
+            }
+            
+            Swal.fire({
+                title: '¿Está seguro?',
+                text: 'Se aplicará la acción a ' + selectedItems.length + ' elementos seleccionados',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, continuar',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = url;
+                    form.style.display = 'none';
+                    
+                    const csrfInput = document.createElement('input');
+                    csrfInput.type = 'hidden';
+                    csrfInput.name = 'csrfmiddlewaretoken';
+                    csrfInput.value = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                    form.appendChild(csrfInput);
+                    
+                    const actionInput = document.createElement('input');
+                    actionInput.type = 'hidden';
+                    actionInput.name = 'action';
+                    actionInput.value = action;
+                    form.appendChild(actionInput);
+                    
+                    selectedItems.forEach(itemId => {
+                        const itemInput = document.createElement('input');
+                        itemInput.type = 'hidden';
+                        itemInput.name = 'items[]';
+                        itemInput.value = itemId;
+                        form.appendChild(itemInput);
+                    });
+                    
+                    document.body.appendChild(form);
+                    form.submit();
+                }
+            });
+        });
+    });
+    
+    // Eliminar elemento
+    document.querySelectorAll('.delete-item').forEach(button => {
+        button.addEventListener('click', function() {
+            const itemId = this.dataset.itemId;
+            const itemName = this.dataset.itemName;
+            
+            Swal.fire({
+                title: '¿Está seguro?',
+                text: 'Se eliminará el elemento: ' + itemName,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, eliminar',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = '{% url "delete_url_name" 999 %}'.replace('999', itemId);
+                    form.style.display = 'none';
+                    
+                    const csrfInput = document.createElement('input');
+                    csrfInput.type = 'hidden';
+                    csrfInput.name = 'csrfmiddlewaretoken';
+                    csrfInput.value = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                    form.appendChild(csrfInput);
+                    
+                    document.body.appendChild(form);
+                    form.submit();
+                }
+            });
+        });
+    });
+});
+</script>
+{% endblock %} 

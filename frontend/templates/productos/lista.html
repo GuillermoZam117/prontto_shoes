@@ -1,0 +1,32 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Catálogo de Productos{% endblock %}
+
+{% block page_title %}Catálogo de Productos{% endblock %}
+
+{% block breadcrumbs_content %}
+    <li class="breadcrumb-item active">Productos</li>
+{% endblock %}
+
+{% block page_actions %}
+    {% if perms.productos.add_producto %}
+    <a href="{% url 'productos:crear' %}" class="btn btn-primary">
+        <i class="bi bi-plus-lg"></i> Nuevo Producto
+    </a>
+    {% endif %}
+    {% if perms.productos.import_producto %}
+    <a href="{% url 'productos:importar' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-file-earmark-excel"></i> Importar Catálogo
+    </a>
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+    {% include "components/tables/data_table.html" with 
+        columns=columns 
+        data=productos
+        filters=filter_form
+        pagination=page_obj
+        actions=bulk_actions
+    %}
+{% endblock %} 
