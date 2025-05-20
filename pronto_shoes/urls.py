@@ -62,6 +62,8 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     # Dashboard application
     path('dashboard/', include('dashboard.urls')),
+    # Productos application
+    path('productos/', include('productos.urls')),
     path('api/', include(router.urls)),
     path('api/reportes/apartados_por_cliente/', ApartadosPorClienteReporteAPIView.as_view(), name='apartados-por-cliente-reporte'),
     path('api/reportes/pedidos_por_surtir/', PedidosPorSurtirReporteAPIView.as_view(), name='pedidos-por-surtir-reporte'),

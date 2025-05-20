@@ -1,0 +1,197 @@
+{% extends "layouts/base.html" %}
+{% load static %}
+
+{% block title %}Importar Productos desde Excel{% endblock %}
+
+{% block page_title %}Importar Productos desde Excel{% endblock %}
+
+{% block breadcrumbs_content %}
+    <li class="breadcrumb-item"><a href="{% url 'productos:lista' %}">Productos</a></li>
+    <li class="breadcrumb-item active">Importar desde Excel</li>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Importar Catálogo de Productos</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-4">
+                    <div class="alert alert-info" role="alert">
+                        <h5 class="alert-heading">Instrucciones</h5>
+                        <p>Para importar productos desde un archivo Excel, sigue estos pasos:</p>
+                        <ol>
+                            <li>Descarga la <a href="#" class="alert-link">plantilla Excel</a> para asegurarte de que el formato sea correcto.</li>
+                            <li>Completa la plantilla con los datos de los productos.</li>
+                            <li>Asegúrate de que los catálogos, proveedores y tiendas ya estén registrados en el sistema.</li>
+                            <li>Sube el archivo usando el formulario de abajo.</li>
+                        </ol>
+                        <hr>
+                        <p class="mb-0">La plantilla incluye información detallada sobre los campos requeridos y sus formatos.</p>
+                    </div>
+                </div>
+
+                <form id="import-form" method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
+                    {% csrf_token %}
+                    
+                    <div class="mb-4">
+                        <label for="file" class="form-label">Archivo Excel (.xlsx, .xls)</label>
+                        <input type="file" class="form-control" id="file" name="file" accept=".xlsx, .xls" required>
+                        <div class="invalid-feedback">Por favor selecciona un archivo Excel válido</div>
+                    </div>
+                    
+                    <div class="form-check mb-4">
+                        <input class="form-check-input" type="checkbox" value="1" id="update_existing" name="update_existing" checked>
+                        <label class="form-check-label" for="update_existing">
+                            Actualizar productos existentes (si el código ya existe)
+                        </label>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'productos:lista' %}" class="btn btn-secondary">Cancelar</a>
+                        <button type="submit" class="btn btn-primary" id="submit-btn">
+                            <span id="loading-spinner" class="spinner-border spinner-border-sm d-none me-2" role="status" aria-hidden="true"></span>
+                            Importar Productos
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Results Section (initially hidden) -->
+        <div id="results-card" class="card shadow mb-4 d-none">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">Resultados de la Importación</h6>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="close-results">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="success-message" class="alert alert-success d-none" role="alert">
+                    <i class="bi bi-check-circle-fill me-2"></i> <span id="success-text"></span>
+                </div>
+                
+                <div id="error-message" class="alert alert-danger d-none" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i> <span id="error-text"></span>
+                </div>
+                
+                <div id="error-details" class="d-none">
+                    <h6>Detalles de los errores:</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Error</th>
+                                </tr>
+                            </thead>
+                            <tbody id="error-details-body">
+                                <!-- Error details will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Form handling
+        $('#import-form').on('submit', function(e) {
+            e.preventDefault();
+            
+            const form = this;
+            if (!form.checkValidity()) {
+                e.stopPropagation();
+                form.classList.add('was-validated');
+                return;
+            }
+            
+            // Show loading state
+            $('#submit-btn').prop('disabled', true);
+            $('#loading-spinner').removeClass('d-none');
+            
+            // Reset results
+            $('#results-card').addClass('d-none');
+            $('#success-message').addClass('d-none');
+            $('#error-message').addClass('d-none');
+            $('#error-details').addClass('d-none');
+            $('#error-details-body').empty();
+            
+            // Create form data
+            const formData = new FormData(form);
+            
+            // Send AJAX request
+            $.ajax({
+                url: '/api/productos/import_excel/',
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function(response) {
+                    // Show success message
+                    $('#success-text').text(response.message);
+                    $('#success-message').removeClass('d-none');
+                    $('#results-card').removeClass('d-none');
+                    
+                    // Reset form
+                    form.reset();
+                    form.classList.remove('was-validated');
+                },
+                error: function(xhr) {
+                    // Show error message
+                    let errorMessage = 'Error al procesar el archivo.';
+                    let errorDetails = {};
+                    
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        if (response.error) {
+                            errorMessage = response.error;
+                        }
+                        if (response.errors) {
+                            errorDetails = response.errors;
+                        }
+                    } catch (e) {
+                        console.error('Error parsing response:', e);
+                    }
+                    
+                    $('#error-text').text(errorMessage);
+                    $('#error-message').removeClass('d-none');
+                    
+                    // Show error details if available
+                    if (Object.keys(errorDetails).length > 0) {
+                        $('#error-details').removeClass('d-none');
+                        
+                        $.each(errorDetails, function(codigo, error) {
+                            $('#error-details-body').append(`
+                                <tr>
+                                    <td>${codigo}</td>
+                                    <td>${error}</td>
+                                </tr>
+                            `);
+                        });
+                    }
+                    
+                    $('#results-card').removeClass('d-none');
+                },
+                complete: function() {
+                    // Reset button state
+                    $('#submit-btn').prop('disabled', false);
+                    $('#loading-spinner').addClass('d-none');
+                }
+            });
+        });
+        
+        // Close results button
+        $('#close-results').on('click', function() {
+            $('#results-card').addClass('d-none');
+        });
+    });
+</script>
+{% endblock %} 

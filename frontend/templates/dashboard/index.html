@@ -135,7 +135,8 @@
                 {% endif %}
 
                 <div class="text-center mt-3">
-                    <a href="{% url 'administracion:logs' %}" class="btn btn-sm btn-outline-primary">Ver más actividades</a>
+                    <!-- URL will be enabled when administracion app URLs are configured -->
+                    <a href="#" class="btn btn-sm btn-outline-primary">Ver más actividades</a>
                 </div>
             </div>
         </div>
@@ -165,7 +166,7 @@
                             <tbody>
                                 {% for pedido in pedidos %}
                                 <tr>
-                                    <td><a href="{% url 'ventas:detalle_pedido' pedido.id %}">{{ pedido.folio }}</a></td>
+                                    <td><a href="#">{{ pedido.folio }}</a></td>
                                     <td>{{ pedido.cliente }}</td>
                                     <td>{{ pedido.fecha|date:"d/m/Y" }}</td>
                                     <td>${{ pedido.total }}</td>
@@ -190,7 +191,8 @@
                 {% endif %}
 
                 <div class="text-center mt-3">
-                    <a href="{% url 'ventas:pedidos' %}" class="btn btn-sm btn-outline-primary">Ver todos los pedidos</a>
+                    <!-- URL will be enabled when ventas app URLs are configured -->
+                    <a href="#" class="btn btn-sm btn-outline-primary">Ver todos los pedidos</a>
                 </div>
             </div>
         </div>
@@ -217,7 +219,7 @@
                             <tbody>
                                 {% for producto in productos_populares %}
                                 <tr>
-                                    <td><a href="{% url 'productos:detalle' producto.id %}">{{ producto.nombre }}</a></td>
+                                    <td><a href="#">{{ producto.nombre }}</a></td>
                                     <td>{{ producto.codigo }}</td>
                                     <td>{{ producto.categoria }}</td>
                                     <td>{{ producto.ventas }}</td>
@@ -231,7 +233,8 @@
                 {% endif %}
 
                 <div class="text-center mt-3">
-                    <a href="{% url 'reportes:ventas_producto' %}" class="btn btn-sm btn-outline-primary">Ver reporte completo</a>
+                    <!-- URL will be enabled when reportes app URLs are configured -->
+                    <a href="#" class="btn btn-sm btn-outline-primary">Ver reporte completo</a>
                 </div>
             </div>
         </div>

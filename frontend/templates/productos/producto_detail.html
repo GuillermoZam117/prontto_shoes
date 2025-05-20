@@ -1,0 +1,148 @@
+{% extends "layouts/base.html" %}
+{% load static %}
+
+{% block title %}{{ producto.nombre }} | Detalle de Producto{% endblock %}
+
+{% block page_title %}Detalle de Producto{% endblock %}
+
+{% block breadcrumbs_content %}
+    <li class="breadcrumb-item"><a href="{% url 'productos:lista' %}">Productos</a></li>
+    <li class="breadcrumb-item active">{{ producto.codigo }}</li>
+{% endblock %}
+
+{% block page_actions %}
+    <a href="{% url 'productos:editar' producto.id %}" class="btn btn-primary">
+        <i class="bi bi-pencil me-1"></i> Editar
+    </a>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Información del Producto</h6>
+            </div>
+            <div class="card-body">
+                <div class="row mb-4">
+                    <div class="col-md-6 mb-3">
+                        <h5 class="card-title mb-3">{{ producto.nombre }}</h5>
+                        <h6 class="text-muted">Código: {{ producto.codigo }}</h6>
+                        {% if producto.oferta %}
+                        <span class="badge bg-danger">OFERTA</span>
+                        {% endif %}
+                        <span class="badge {% if producto.temporada == 'Verano' %}bg-warning{% elif producto.temporada == 'Invierno' %}bg-info{% else %}bg-secondary{% endif %}">
+                            {{ producto.temporada }}
+                        </span>
+                    </div>
+                    
+                    <div class="col-md-6 text-md-end">
+                        <h5 class="text-primary">${{ producto.precio }}</h5>
+                        <p class="text-muted mb-0">Costo: ${{ producto.costo }}</p>
+                        <p class="text-success">Margen: {% widthratio producto.precio|add:"-"|add:producto.costo producto.costo 100 %}%</p>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-sm">
+                            <tr>
+                                <th>Marca:</th>
+                                <td>{{ producto.marca }}</td>
+                            </tr>
+                            <tr>
+                                <th>Modelo:</th>
+                                <td>{{ producto.modelo }}</td>
+                            </tr>
+                            <tr>
+                                <th>Color:</th>
+                                <td>{{ producto.color }}</td>
+                            </tr>
+                            <tr>
+                                <th>Propiedad:</th>
+                                <td>{{ producto.propiedad }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <table class="table table-sm">
+                            <tr>
+                                <th>Catálogo:</th>
+                                <td>{{ producto.catalogo.nombre }}</td>
+                            </tr>
+                            <tr>
+                                <th>Página:</th>
+                                <td>{{ producto.numero_pagina }}</td>
+                            </tr>
+                            <tr>
+                                <th>Proveedor:</th>
+                                <td>{{ producto.proveedor.nombre }}</td>
+                            </tr>
+                            <tr>
+                                <th>Admite Devolución:</th>
+                                <td>
+                                    {% if producto.admite_devolucion %}
+                                    <i class="bi bi-check-circle-fill text-success"></i>
+                                    {% else %}
+                                    <i class="bi bi-x-circle-fill text-danger"></i>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Inventario</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-4">
+                    <h5>Stock Actual</h5>
+                    <div class="progress mb-2">
+                        <div class="progress-bar 
+                            {% if producto.stock_actual < producto.stock_minimo %}bg-danger
+                            {% elif producto.stock_actual < producto.stock_minimo|add:"5" %}bg-warning
+                            {% else %}bg-success{% endif %}" 
+                            role="progressbar" 
+                            style="width: {% widthratio producto.stock_actual producto.stock_minimo|add:"20" 100 %}%" 
+                            aria-valuenow="{{ producto.stock_actual }}" 
+                            aria-valuemin="0" 
+                            aria-valuemax="{{ producto.stock_minimo|add:'20' }}">
+                            {{ producto.stock_actual }}
+                        </div>
+                    </div>
+                    <small class="text-muted">Stock mínimo: {{ producto.stock_minimo }}</small>
+                </div>
+                
+                <div>
+                    <h5>Disponibilidad por Tienda</h5>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Tienda Principal
+                            <span class="badge bg-primary rounded-pill">{{ producto.stock_actual }}</span>
+                        </li>
+                        <!-- Aquí se agregarían más tiendas cuando implementemos el módulo de tiendas -->
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Historial de Ventas</h6>
+            </div>
+            <div class="card-body">
+                <p class="text-center text-muted my-3">
+                    No hay datos de ventas disponibles
+                </p>
+                <!-- Aquí se agregará el historial de ventas cuando implementemos ese módulo -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 
