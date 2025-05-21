@@ -173,7 +173,7 @@
                             Cajas Abiertas
                         </div>
                         <div class="h5 mb-0 font-weight-bold text-gray-800">
-                            {{ cajas.filter.cerrada=False|length }}
+                            {{ cajas_abiertas_count }}
                         </div>
                     </div>
                     <div class="col-auto">
@@ -194,7 +194,7 @@
                             Ingresos del Día
                         </div>
                         <div class="h5 mb-0 font-weight-bold text-gray-800">
-                            ${{ cajas|length|default_if_none:0|add:"0" }}
+                            ${{ ingresos_dia|floatformat:2 }}
                         </div>
                     </div>
                     <div class="col-auto">
@@ -215,7 +215,7 @@
                             Saldo Total
                         </div>
                         <div class="h5 mb-0 font-weight-bold text-gray-800">
-                            ${{ cajas|length|default_if_none:0|add:"0" }}
+                            ${{ saldo_total|floatformat:2 }}
                         </div>
                     </div>
                     <div class="col-auto">

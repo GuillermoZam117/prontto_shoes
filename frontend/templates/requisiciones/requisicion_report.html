@@ -1,0 +1,350 @@
+{% extends "layouts/base.html" %}
+{% load static %}
+
+{% block title %}Reporte de Requisiciones{% endblock %}
+
+{% block page_title %}Reporte de Requisiciones{% endblock %}
+
+{% block breadcrumbs_content %}
+    <li class="breadcrumb-item"><a href="{% url 'requisiciones:lista' %}">Requisiciones</a></li>
+    <li class="breadcrumb-item active">Reporte</li>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .chart-container {
+        height: 300px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Filtros -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Filtros</h6>
+    </div>
+    <div class="card-body">
+        <form method="GET">
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Cliente</label>
+                    <select name="cliente" class="form-select">
+                        <option value="">Todos los clientes</option>
+                        {% for cliente in clientes %}
+                        <option value="{{ cliente.id }}" {% if cliente_seleccionado == cliente.id|stringformat:"i" %}selected{% endif %}>{{ cliente.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Estado</label>
+                    <select name="estado" class="form-select">
+                        <option value="">Todos los estados</option>
+                        <option value="pendiente" {% if estado_seleccionado == 'pendiente' %}selected{% endif %}>Pendiente</option>
+                        <option value="procesada" {% if estado_seleccionado == 'procesada' %}selected{% endif %}>Procesada</option>
+                        <option value="cancelada" {% if estado_seleccionado == 'cancelada' %}selected{% endif %}>Cancelada</option>
+                    </select>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Desde</label>
+                    <input type="date" class="form-control" name="fecha_desde" value="{{ fecha_desde }}">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Hasta</label>
+                    <input type="date" class="form-control" name="fecha_hasta" value="{{ fecha_hasta }}">
+                </div>
+                <div class="col-md-4 d-flex align-items-end mb-3">
+                    <button class="btn btn-primary me-2" type="submit">
+                        <i class="bi bi-search me-1"></i> Filtrar
+                    </button>
+                    <a href="{% url 'requisiciones:reporte' %}" class="btn btn-secondary">
+                        <i class="bi bi-arrow-repeat me-1"></i> Limpiar
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Resumen -->
+<div class="row mb-4">
+    <div class="col-xl-4 col-md-6 mb-4">
+        <div class="card border-left-primary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            Total de Requisiciones
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ total_requisiciones }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-file-earmark-text fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-4 col-md-6 mb-4">
+        <div class="card border-left-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Productos Solicitados
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ productos_solicitados }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-box-seam fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-4 col-md-6 mb-4">
+        <div class="card border-left-info shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            Período
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ fecha_desde }} - {{ fecha_hasta }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-calendar-range fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Gráficos -->
+<div class="row">
+    <!-- Estado de las Requisiciones -->
+    <div class="col-xl-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Estado de las Requisiciones</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="estadoChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Requisiciones por Cliente -->
+    <div class="col-xl-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Requisiciones por Cliente</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="clienteChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabla de Datos -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+        <h6 class="m-0 font-weight-bold text-primary">Listado Detallado</h6>
+        <button class="btn btn-sm btn-outline-primary" onclick="exportTableToExcel('reportTable', 'reporte_requisiciones')">
+            <i class="bi bi-file-excel me-1"></i> Exportar a Excel
+        </button>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover table-sm" id="reportTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Fecha</th>
+                        <th>Cliente</th>
+                        <th>Productos</th>
+                        <th>Estado</th>
+                        <th>Creado por</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for requisicion in requisiciones %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'requisiciones:detalle' requisicion.id %}">{{ requisicion.id }}</a>
+                        </td>
+                        <td>{{ requisicion.fecha|date:"d/m/Y H:i" }}</td>
+                        <td>{{ requisicion.cliente.nombre }}</td>
+                        <td>{{ requisicion.detalles.count }} productos</td>
+                        <td>
+                            {% if requisicion.estado == 'pendiente' %}
+                            <span class="badge bg-warning text-dark">Pendiente</span>
+                            {% elif requisicion.estado == 'procesada' %}
+                            <span class="badge bg-success">Procesada</span>
+                            {% else %}
+                            <span class="badge bg-danger">Cancelada</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ requisicion.created_by.username|default:"Sistema" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center">No hay datos para mostrar con los filtros seleccionados</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Chart data
+    const estadoLabels = [];
+    const estadoData = [];
+    const estadoColors = [];
+    
+    {% for estado in requisiciones_por_estado %}
+        estadoLabels.push('{{ estado.estado }}');
+        estadoData.push({{ estado.count }});
+        
+        // Set color based on status
+        if ('{{ estado.estado }}' === 'pendiente') {
+            estadoColors.push('#f6c23e'); // warning
+        } else if ('{{ estado.estado }}' === 'procesada') {
+            estadoColors.push('#1cc88a'); // success
+        } else {
+            estadoColors.push('#e74a3b'); // danger
+        }
+    {% endfor %}
+    
+    // Estado chart
+    const estadoCtx = document.getElementById('estadoChart').getContext('2d');
+    new Chart(estadoCtx, {
+        type: 'doughnut',
+        data: {
+            labels: estadoLabels.map(label => label.charAt(0).toUpperCase() + label.slice(1)),
+            datasets: [{
+                data: estadoData,
+                backgroundColor: estadoColors,
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+    
+    // Cliente Chart - Group requisiciones by client
+    const clientData = {};
+    {% for requisicion in requisiciones %}
+        if (!clientData['{{ requisicion.cliente.nombre }}']) {
+            clientData['{{ requisicion.cliente.nombre }}'] = 1;
+        } else {
+            clientData['{{ requisicion.cliente.nombre }}']++;
+        }
+    {% endfor %}
+    
+    const clientLabels = Object.keys(clientData);
+    const clientCounts = Object.values(clientData);
+    
+    // Only show top 8 clients if there are more
+    let displayLabels = clientLabels;
+    let displayCounts = clientCounts;
+    
+    if (clientLabels.length > 8) {
+        displayLabels = clientLabels.slice(0, 7);
+        displayCounts = clientCounts.slice(0, 7);
+        
+        // Add "Otros" category
+        const otherSum = clientCounts.slice(7).reduce((a, b) => a + b, 0);
+        displayLabels.push('Otros');
+        displayCounts.push(otherSum);
+    }
+    
+    // Cliente chart
+    const clienteCtx = document.getElementById('clienteChart').getContext('2d');
+    new Chart(clienteCtx, {
+        type: 'bar',
+        data: {
+            labels: displayLabels,
+            datasets: [{
+                label: 'Requisiciones',
+                data: displayCounts,
+                backgroundColor: '#4e73df',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+    
+    // Excel export function
+    function exportTableToExcel(tableID, filename = '') {
+        const dataType = 'application/vnd.ms-excel';
+        const tableSelect = document.getElementById(tableID);
+        const tableHTML = tableSelect.outerHTML.replace(/ /g, '%20');
+        
+        // Create download link element
+        const downloadLink = document.createElement("a");
+        
+        document.body.appendChild(downloadLink);
+        
+        if (navigator.msSaveOrOpenBlob) {
+            const blob = new Blob(['\ufeff', tableHTML], {
+                type: dataType
+            });
+            navigator.msSaveOrOpenBlob(blob, filename + '.xls');
+        } else {
+            // Create a link to the file
+            downloadLink.href = 'data:' + dataType + ', ' + tableHTML;
+            
+            // Setting the file name
+            downloadLink.download = filename + '.xls';
+            
+            //triggering the function
+            downloadLink.click();
+        }
+    }
+</script>
+{% endblock %} 

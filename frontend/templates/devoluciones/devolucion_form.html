@@ -1,0 +1,236 @@
+{% extends "layouts/base.html" %}
+{% load static %}
+
+{% block title %}
+    {% if devolucion %}Editar{% else %}Nueva{% endif %} Devolución
+{% endblock %}
+
+{% block page_title %}
+    {% if devolucion %}Editar Devolución #{{ devolucion.id }}{% else %}Nueva Devolución{% endif %}
+{% endblock %}
+
+{% block breadcrumbs_content %}
+    <li class="breadcrumb-item"><a href="{% url 'devoluciones:lista' %}">Devoluciones</a></li>
+    <li class="breadcrumb-item active">{% if devolucion %}Editar #{{ devolucion.id }}{% else %}Nueva{% endif %}</li>
+{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+<style>
+    .select2-container {
+        width: 100% !important;
+    }
+    .hidden {
+        display: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">
+            {% if devolucion %}Editar Devolución{% else %}Registrar Nueva Devolución{% endif %}
+        </h6>
+    </div>
+    <div class="card-body">
+        <form method="POST" id="devolucionForm">
+            {% csrf_token %}
+            
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="cliente" class="form-label">Cliente *</label>
+                        <select name="cliente" id="cliente" class="form-select" required {% if devolucion %}disabled{% endif %}>
+                            <option value="">Seleccionar cliente...</option>
+                            {% for cliente in clientes %}
+                                <option value="{{ cliente.id }}" {% if devolucion and devolucion.cliente.id == cliente.id %}selected{% endif %}{% if cliente_id and cliente_id == cliente.id|stringformat:"i" %}selected{% endif %}>
+                                    {{ cliente.nombre }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        {% if devolucion %}
+                        <input type="hidden" name="cliente" value="{{ devolucion.cliente.id }}">
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="pedido" class="form-label">Pedido Original (opcional)</label>
+                        <select name="pedido" id="pedido" class="form-select">
+                            <option value="">Seleccionar pedido...</option>
+                            {% for pedido in pedidos %}
+                                <option value="{{ pedido.id }}" {% if pedido_id and pedido_id == pedido.id|stringformat:"i" %}selected{% endif %}>
+                                    #{{ pedido.id }} - {{ pedido.fecha|date:"d/m/Y" }} - ${{ pedido.total|floatformat:2 }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="detalle_pedido" class="form-label">Detalle de Producto en Pedido</label>
+                        <select name="detalle_pedido" id="detalle_pedido" class="form-select">
+                            <option value="">Seleccionar producto de pedido...</option>
+                            {% for detalle in detalle_pedidos %}
+                                <option value="{{ detalle.id }}" data-producto="{{ detalle.producto.id }}">
+                                    {{ detalle.producto.codigo }} - {{ detalle.producto.marca }} {{ detalle.producto.modelo }} 
+                                    ({{ detalle.producto.color }}) - ${{ detalle.precio_unitario|floatformat:2 }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <small class="form-text text-muted">Si selecciona un pedido, puede elegir el producto específico.</small>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="producto" class="form-label">Producto *</label>
+                        <select name="producto" id="producto" class="form-select" required>
+                            <option value="">Seleccionar producto...</option>
+                            {% for producto in productos %}
+                                <option value="{{ producto.id }}" {% if devolucion and devolucion.producto.id == producto.id %}selected{% endif %}>
+                                    {{ producto.codigo }} - {{ producto.marca }} {{ producto.modelo }} ({{ producto.color }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">Tipo de Devolución *</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="tipo" id="tipo_defecto" value="defecto" {% if devolucion and devolucion.tipo == 'defecto' %}checked{% endif %} checked>
+                            <label class="form-check-label" for="tipo_defecto">
+                                Defecto (genera saldo a favor)
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="tipo" id="tipo_cambio" value="cambio" {% if devolucion and devolucion.tipo == 'cambio' %}checked{% endif %}>
+                            <label class="form-check-label" for="tipo_cambio">
+                                Cambio (no genera saldo a favor)
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="afecta_inventario" id="afecta_inventario" {% if devolucion and devolucion.afecta_inventario %}checked{% endif %}>
+                        <label class="form-check-label" for="afecta_inventario">
+                            Afecta Inventario (aumenta stock)
+                        </label>
+                    </div>
+                    <small class="form-text text-muted">Marque esta opción si el producto devuelto se reincorpora al inventario.</small>
+                </div>
+            </div>
+            
+            <div class="mb-4">
+                <label for="motivo" class="form-label">Motivo de la Devolución</label>
+                <textarea name="motivo" id="motivo" rows="3" class="form-control">{{ devolucion.motivo|default:"" }}</textarea>
+            </div>
+            
+            <hr>
+            
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'devoluciones:lista' %}" class="btn btn-secondary">
+                    <i class="bi bi-x-circle"></i> Cancelar
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-save"></i> {% if devolucion %}Actualizar{% else %}Guardar{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+    $(document).ready(function() {
+        // Initialize Select2
+        $('#cliente').select2({
+            theme: 'bootstrap-5'
+        });
+        
+        $('#pedido').select2({
+            theme: 'bootstrap-5'
+        });
+        
+        $('#detalle_pedido').select2({
+            theme: 'bootstrap-5'
+        });
+        
+        $('#producto').select2({
+            theme: 'bootstrap-5'
+        });
+        
+        // Handle cliente change
+        $('#cliente').change(function() {
+            const clienteId = $(this).val();
+            
+            if (clienteId) {
+                // Clear pedido select
+                $('#pedido').empty().append('<option value="">Seleccionar pedido...</option>');
+                $('#detalle_pedido').empty().append('<option value="">Seleccionar producto de pedido...</option>');
+                
+                // Redirect to same page with cliente parameter
+                window.location.href = '{% url "devoluciones:nueva" %}?cliente=' + clienteId;
+            }
+        });
+        
+        // Handle pedido change
+        $('#pedido').change(function() {
+            const pedidoId = $(this).val();
+            
+            if (pedidoId) {
+                // Redirect to same page with cliente and pedido parameters
+                const clienteId = $('#cliente').val();
+                window.location.href = '{% url "devoluciones:nueva" %}?cliente=' + clienteId + '&pedido=' + pedidoId;
+            } else {
+                // Clear detalle_pedido select
+                $('#detalle_pedido').empty().append('<option value="">Seleccionar producto de pedido...</option>');
+            }
+        });
+        
+        // Handle detalle_pedido change
+        $('#detalle_pedido').change(function() {
+            const detalleId = $(this).val();
+            
+            if (detalleId) {
+                // Set producto value based on detalle_pedido selection
+                const productoId = $(this).find(':selected').data('producto');
+                $('#producto').val(productoId).trigger('change');
+            }
+        });
+        
+        // Form validation
+        $('#devolucionForm').submit(function(e) {
+            let formValid = true;
+            
+            // Check if cliente is selected
+            if (!$('#cliente').val()) {
+                alert('Debe seleccionar un cliente');
+                formValid = false;
+            }
+            
+            // Check if producto is selected
+            if (!$('#producto').val()) {
+                alert('Debe seleccionar un producto');
+                formValid = false;
+            }
+            
+            return formValid;
+        });
+    });
+</script>
+{% endblock %} 

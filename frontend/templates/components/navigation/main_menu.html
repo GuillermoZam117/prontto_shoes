@@ -34,6 +34,16 @@ Componente para el menú principal de navegación (versión simplificada para lo
             <i class="bi bi-cash-register me-1"></i> Caja
         </a>
     </li>
+    <li class="nav-item">
+        <a class="nav-link {% if request.resolver_match.app_name == 'devoluciones' %}active{% endif %}" href="{% url 'devoluciones:lista' %}">
+            <i class="bi bi-arrow-return-left me-1"></i> Devoluciones
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if request.resolver_match.app_name == 'requisiciones' %}active{% endif %}" href="{% url 'requisiciones:lista' %}">
+            <i class="bi bi-list-check me-1"></i> Requisiciones
+        </a>
+    </li>
     <li class="nav-item dropdown">
         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
             <i class="bi bi-graph-up me-1"></i> Reportes

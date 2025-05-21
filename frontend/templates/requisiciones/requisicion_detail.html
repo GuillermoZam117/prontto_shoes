@@ -1,0 +1,172 @@
+{% extends "layouts/base.html" %}
+{% load static %}
+
+{% block title %}Detalle de Requisición{% endblock %}
+
+{% block page_title %}Detalle de Requisición #{{ requisicion.id }}{% endblock %}
+
+{% block breadcrumbs_content %}
+    <li class="breadcrumb-item"><a href="{% url 'requisiciones:lista' %}">Requisiciones</a></li>
+    <li class="breadcrumb-item active">Detalle #{{ requisicion.id }}</li>
+{% endblock %}
+
+{% block page_actions %}
+    {% if requisicion.estado == 'pendiente' %}
+    <a href="{% url 'requisiciones:editar' requisicion.id %}" class="btn btn-primary me-2">
+        <i class="bi bi-pencil me-1"></i> Editar
+    </a>
+    {% endif %}
+    <a href="{% url 'requisiciones:lista' %}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left me-1"></i> Volver
+    </a>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Información General -->
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-primary">Información General</h6>
+                <span class="badge {% if requisicion.estado == 'pendiente' %}bg-warning text-dark{% elif requisicion.estado == 'procesada' %}bg-success{% else %}bg-danger{% endif %}">
+                    {{ requisicion.get_estado_display }}
+                </span>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <tr>
+                            <th style="width: 40%">ID:</th>
+                            <td>{{ requisicion.id }}</td>
+                        </tr>
+                        <tr>
+                            <th>Cliente:</th>
+                            <td>
+                                <a href="{% url 'clientes:detalle' requisicion.cliente.id %}">
+                                    {{ requisicion.cliente.nombre }}
+                                </a>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Fecha de Creación:</th>
+                            <td>{{ requisicion.fecha|date:"d/m/Y H:i" }}</td>
+                        </tr>
+                        <tr>
+                            <th>Creado por:</th>
+                            <td>{{ requisicion.created_by.username|default:"Sistema" }}</td>
+                        </tr>
+                        <tr>
+                            <th>Estado:</th>
+                            <td>
+                                {% if requisicion.estado == 'pendiente' %}
+                                <span class="badge bg-warning text-dark">Pendiente</span>
+                                {% elif requisicion.estado == 'procesada' %}
+                                <span class="badge bg-success">Procesada</span>
+                                {% else %}
+                                <span class="badge bg-danger">Cancelada</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Acciones rápidas -->
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Acciones</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    {% if requisicion.estado == 'pendiente' %}
+                    <form method="POST" action="#" class="d-inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="process">
+                        <button class="btn btn-success btn-block" type="submit">
+                            <i class="bi bi-check-circle me-1"></i> Marcar como Procesada
+                        </button>
+                    </form>
+                    
+                    <form method="POST" action="#" class="d-inline mt-2">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="cancel">
+                        <button class="btn btn-danger btn-block" type="submit">
+                            <i class="bi bi-x-circle me-1"></i> Cancelar Requisición
+                        </button>
+                    </form>
+                    {% endif %}
+                    
+                    {% if requisicion.estado == 'procesada' or requisicion.estado == 'cancelada' %}
+                    <div class="alert alert-info mb-0">
+                        <i class="bi bi-info-circle"></i>
+                        Esta requisición ya ha sido {{ requisicion.get_estado_display|lower }}. No se pueden realizar más acciones.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Detalles de productos -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Productos Solicitados</h6>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover table-sm">
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Producto</th>
+                        <th>Marca</th>
+                        <th>Color</th>
+                        <th>Cantidad</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for detalle in requisicion.detalles.all %}
+                    <tr>
+                        <td>{{ detalle.producto.codigo }}</td>
+                        <td>
+                            <a href="{% url 'productos:detalle' detalle.producto.id %}">
+                                {{ detalle.producto.modelo }}
+                            </a>
+                        </td>
+                        <td>{{ detalle.producto.marca }}</td>
+                        <td>{{ detalle.producto.color }}</td>
+                        <td class="text-center">{{ detalle.cantidad }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center">No hay productos en esta requisición</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="table-light">
+                        <td colspan="4" class="text-end fw-bold">Total de Productos:</td>
+                        <td class="text-center">{{ requisicion.detalles.count }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Initialize tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+          return new bootstrap.Tooltip(tooltipTriggerEl)
+        });
+    });
+</script>
+{% endblock %} 

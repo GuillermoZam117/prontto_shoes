@@ -37,12 +37,20 @@ def caja_list(request):
     # Get tiendas for filter dropdown
     tiendas = Tienda.objects.all()
     
+    # Calculate statistics
+    cajas_abiertas_count = cajas.filter(cerrada=False).count()
+    ingresos_dia = cajas.aggregate(total=Sum('ingresos'))['total'] or 0
+    saldo_total = cajas.aggregate(total=Sum('saldo_final'))['total'] or 0
+    
     context = {
         'cajas': cajas,
         'tiendas': tiendas,
         'fecha': fecha,
         'tienda_seleccionada': tienda_id,
         'ver_historial': ver_historial,
+        'cajas_abiertas_count': cajas_abiertas_count,
+        'ingresos_dia': ingresos_dia,
+        'saldo_total': saldo_total,
     }
     
     return render(request, 'caja/caja_list.html', context)

@@ -1,0 +1,228 @@
+{% extends "layouts/base.html" %}
+{% load static %}
+
+{% block title %}
+    {% if requisicion %}Editar{% else %}Nueva{% endif %} Requisición
+{% endblock %}
+
+{% block page_title %}
+    {% if requisicion %}Editar Requisición #{{ requisicion.id }}{% else %}Nueva Requisición{% endif %}
+{% endblock %}
+
+{% block breadcrumbs_content %}
+    <li class="breadcrumb-item"><a href="{% url 'requisiciones:lista' %}">Requisiciones</a></li>
+    <li class="breadcrumb-item active">{% if requisicion %}Editar #{{ requisicion.id }}{% else %}Nueva{% endif %}</li>
+{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+<style>
+    .select2-container {
+        width: 100% !important;
+    }
+    .product-row {
+        margin-bottom: 10px;
+        padding: 10px;
+        border-radius: 5px;
+        background-color: #f8f9fa;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">
+            {% if requisicion %}Editar Requisición{% else %}Crear Nueva Requisición{% endif %}
+        </h6>
+    </div>
+    <div class="card-body">
+        <form method="POST" id="requisicionForm">
+            {% csrf_token %}
+            
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="cliente" class="form-label">Cliente *</label>
+                        <select name="cliente" id="cliente" class="form-select" required {% if requisicion %}disabled{% endif %}>
+                            <option value="">Seleccionar cliente...</option>
+                            {% for cliente in clientes %}
+                                <option value="{{ cliente.id }}" {% if requisicion and requisicion.cliente.id == cliente.id %}selected{% endif %}>
+                                    {{ cliente.nombre }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        {% if requisicion %}
+                        <input type="hidden" name="cliente" value="{{ requisicion.cliente.id }}">
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <h5 class="mb-3">Productos</h5>
+            
+            <div id="productos-container">
+                {% if requisicion %}
+                    {% for detalle in requisicion.detalles.all %}
+                        <div class="row product-row" data-index="{{ forloop.counter0 }}">
+                            <div class="col-md-6 mb-2">
+                                <label class="form-label">Producto *</label>
+                                <select name="producto[]" class="form-select producto-select" required>
+                                    <option value="">Seleccionar producto...</option>
+                                    {% for producto in productos %}
+                                        <option value="{{ producto.id }}" {% if detalle.producto.id == producto.id %}selected{% endif %}>
+                                            {{ producto.codigo }} - {{ producto.marca }} {{ producto.modelo }} ({{ producto.color }})
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <label class="form-label">Cantidad *</label>
+                                <input type="number" name="cantidad[]" class="form-control" min="1" value="{{ detalle.cantidad }}" required>
+                            </div>
+                            <div class="col-md-3 d-flex align-items-end mb-2">
+                                <button type="button" class="btn btn-danger btn-sm remove-product">
+                                    <i class="bi bi-trash"></i> Eliminar
+                                </button>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="row product-row" data-index="0">
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label">Producto *</label>
+                            <select name="producto[]" class="form-select producto-select" required>
+                                <option value="">Seleccionar producto...</option>
+                                {% for producto in productos %}
+                                    <option value="{{ producto.id }}">
+                                        {{ producto.codigo }} - {{ producto.marca }} {{ producto.modelo }} ({{ producto.color }})
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <label class="form-label">Cantidad *</label>
+                            <input type="number" name="cantidad[]" class="form-control" min="1" value="1" required>
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end mb-2">
+                            <button type="button" class="btn btn-danger btn-sm remove-product">
+                                <i class="bi bi-trash"></i> Eliminar
+                            </button>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+            
+            <div class="mb-4">
+                <button type="button" id="add-product" class="btn btn-outline-primary">
+                    <i class="bi bi-plus-circle"></i> Agregar Producto
+                </button>
+            </div>
+            
+            <hr>
+            
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'requisiciones:lista' %}" class="btn btn-secondary">
+                    <i class="bi bi-x-circle"></i> Cancelar
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-save"></i> {% if requisicion %}Actualizar{% else %}Guardar{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+    $(document).ready(function() {
+        // Initialize Select2 for all select boxes
+        $('.producto-select').select2({
+            theme: 'bootstrap-5'
+        });
+        $('#cliente').select2({
+            theme: 'bootstrap-5'
+        });
+        
+        // Add product row
+        let productRowCount = $('.product-row').length;
+        
+        $('#add-product').click(function() {
+            const template = `
+                <div class="row product-row" data-index="${productRowCount}">
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label">Producto *</label>
+                        <select name="producto[]" class="form-select producto-select-new" required>
+                            <option value="">Seleccionar producto...</option>
+                            {% for producto in productos %}
+                                <option value="{{ producto.id }}">
+                                    {{ producto.codigo }} - {{ producto.marca }} {{ producto.modelo }} ({{ producto.color }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <label class="form-label">Cantidad *</label>
+                        <input type="number" name="cantidad[]" class="form-control" min="1" value="1" required>
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end mb-2">
+                        <button type="button" class="btn btn-danger btn-sm remove-product">
+                            <i class="bi bi-trash"></i> Eliminar
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            $('#productos-container').append(template);
+            $('.producto-select-new').select2({
+                theme: 'bootstrap-5'
+            }).removeClass('producto-select-new').addClass('producto-select');
+            
+            productRowCount++;
+        });
+        
+        // Remove product row
+        $(document).on('click', '.remove-product', function() {
+            $(this).closest('.product-row').remove();
+            
+            // Prevent removing the last product row
+            if ($('.product-row').length === 0) {
+                $('#add-product').click();
+            }
+        });
+        
+        // Form validation
+        $('#requisicionForm').submit(function(e) {
+            let formValid = true;
+            
+            // Check if client is selected
+            if (!$('#cliente').val()) {
+                alert('Debe seleccionar un cliente');
+                formValid = false;
+            }
+            
+            // Check if at least one product is properly filled
+            let hasValidProducts = false;
+            $('.product-row').each(function() {
+                const producto = $(this).find('select[name="producto[]"]').val();
+                const cantidad = $(this).find('input[name="cantidad[]"]').val();
+                
+                if (producto && cantidad && parseInt(cantidad) > 0) {
+                    hasValidProducts = true;
+                    return false; // Break the loop
+                }
+            });
+            
+            if (!hasValidProducts) {
+                alert('Debe agregar al menos un producto con cantidad válida');
+                formValid = false;
+            }
+            
+            return formValid;
+        });
+    });
+</script>
+{% endblock %} 

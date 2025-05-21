@@ -1,0 +1,286 @@
+{% extends "layouts/base.html" %}
+{% load static %}
+
+{% block title %}Devoluciones{% endblock %}
+
+{% block page_title %}Devoluciones{% endblock %}
+
+{% block breadcrumbs_content %}
+    <li class="breadcrumb-item active">Devoluciones</li>
+{% endblock %}
+
+{% block page_actions %}
+    <a href="{% url 'devoluciones:nueva' %}" class="btn btn-primary me-2">
+        <i class="bi bi-plus-circle me-1"></i> Nueva Devolución
+    </a>
+    <a href="{% url 'devoluciones:reporte' %}" class="btn btn-info">
+        <i class="bi bi-bar-chart-line me-1"></i> Reportes
+    </a>
+{% endblock %}
+
+{% block content %}
+<div class="card shadow mb-4">
+    <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+        <h6 class="m-0 font-weight-bold text-primary">Lista de Devoluciones</h6>
+        
+        <div class="d-flex">
+            <form class="form-inline me-2" method="GET">
+                {% if cliente_seleccionado %}
+                <input type="hidden" name="cliente" value="{{ cliente_seleccionado }}">
+                {% endif %}
+                {% if estado_seleccionado %}
+                <input type="hidden" name="estado" value="{{ estado_seleccionado }}">
+                {% endif %}
+                {% if tipo_seleccionado %}
+                <input type="hidden" name="tipo" value="{{ tipo_seleccionado }}">
+                {% endif %}
+                <div class="input-group">
+                    <input type="date" class="form-control" name="fecha_desde" value="{{ fecha_desde }}">
+                    <span class="input-group-text">a</span>
+                    <input type="date" class="form-control" name="fecha_hasta" value="{{ fecha_hasta }}">
+                    <button class="btn btn-outline-primary" type="submit">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </form>
+            
+            <div class="dropdown">
+                <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="filterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-funnel me-1"></i> Filtros
+                </button>
+                <div class="dropdown-menu dropdown-menu-end p-3" style="width: 300px;">
+                    <form method="GET">
+                        {% if fecha_desde %}
+                        <input type="hidden" name="fecha_desde" value="{{ fecha_desde }}">
+                        {% endif %}
+                        {% if fecha_hasta %}
+                        <input type="hidden" name="fecha_hasta" value="{{ fecha_hasta }}">
+                        {% endif %}
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Cliente</label>
+                            <select name="cliente" class="form-select">
+                                <option value="">Todos los clientes</option>
+                                {% for cliente in clientes %}
+                                <option value="{{ cliente.id }}" {% if cliente_seleccionado == cliente.id|stringformat:"i" %}selected{% endif %}>{{ cliente.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Estado</label>
+                            <select name="estado" class="form-select">
+                                <option value="">Todos los estados</option>
+                                <option value="pendiente" {% if estado_seleccionado == 'pendiente' %}selected{% endif %}>Pendiente</option>
+                                <option value="validada" {% if estado_seleccionado == 'validada' %}selected{% endif %}>Validada</option>
+                                <option value="rechazada" {% if estado_seleccionado == 'rechazada' %}selected{% endif %}>Rechazada</option>
+                                <option value="completada" {% if estado_seleccionado == 'completada' %}selected{% endif %}>Completada</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Tipo</label>
+                            <select name="tipo" class="form-select">
+                                <option value="">Todos los tipos</option>
+                                <option value="defecto" {% if tipo_seleccionado == 'defecto' %}selected{% endif %}>Defecto</option>
+                                <option value="cambio" {% if tipo_seleccionado == 'cambio' %}selected{% endif %}>Cambio</option>
+                            </select>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'devoluciones:lista' %}" class="btn btn-sm btn-outline-secondary">Limpiar</a>
+                            <button type="submit" class="btn btn-sm btn-primary">Aplicar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card-body">
+        {% if devoluciones %}
+            <div class="table-responsive">
+                <table class="table table-hover table-sm">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Fecha</th>
+                            <th>Cliente</th>
+                            <th>Producto</th>
+                            <th>Tipo</th>
+                            <th>Precio Devolución</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for devolucion in devoluciones %}
+                        <tr>
+                            <td>{{ devolucion.id }}</td>
+                            <td>{{ devolucion.fecha|date:"d/m/Y H:i" }}</td>
+                            <td>
+                                <a href="{% url 'clientes:detalle' devolucion.cliente.id %}">{{ devolucion.cliente.nombre }}</a>
+                            </td>
+                            <td>
+                                <a href="{% url 'productos:detalle' devolucion.producto.id %}">
+                                    {{ devolucion.producto.marca }} {{ devolucion.producto.modelo }} - {{ devolucion.producto.color }}
+                                </a>
+                            </td>
+                            <td>
+                                {% if devolucion.tipo == 'defecto' %}
+                                <span class="badge bg-danger">Defecto</span>
+                                {% else %}
+                                <span class="badge bg-info">Cambio</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">${{ devolucion.precio_devolucion|floatformat:2 }}</td>
+                            <td>
+                                {% if devolucion.estado == 'pendiente' %}
+                                <span class="badge bg-warning text-dark">Pendiente</span>
+                                {% elif devolucion.estado == 'validada' %}
+                                <span class="badge bg-success">Validada</span>
+                                {% elif devolucion.estado == 'rechazada' %}
+                                <span class="badge bg-danger">Rechazada</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Completada</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'devoluciones:detalle' devolucion.id %}" class="btn btn-sm btn-info" data-bs-toggle="tooltip" title="Ver Detalles">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                {% if devolucion.estado == 'pendiente' %}
+                                <a href="{% url 'devoluciones:editar' devolucion.id %}" class="btn btn-sm btn-primary" data-bs-toggle="tooltip" title="Editar">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'devoluciones:validar' devolucion.id %}" class="btn btn-sm btn-success" data-bs-toggle="tooltip" title="Validar">
+                                    <i class="bi bi-check2"></i>
+                                </a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center my-5">
+                <div class="mb-3">
+                    <i class="bi bi-arrow-return-left text-muted" style="font-size: 4rem;"></i>
+                </div>
+                <h5>No hay devoluciones para mostrar</h5>
+                <p class="text-muted">
+                    {% if cliente_seleccionado or estado_seleccionado or tipo_seleccionado or fecha_desde or fecha_hasta %}
+                    No se encontraron devoluciones que coincidan con los filtros seleccionados.
+                    <a href="{% url 'devoluciones:lista' %}">Ver todas las devoluciones</a>
+                    {% else %}
+                    No hay devoluciones registradas actualmente.
+                    <a href="{% url 'devoluciones:nueva' %}" class="btn btn-primary btn-sm mt-2">
+                        <i class="bi bi-plus-circle me-1"></i> Registrar Primera Devolución
+                    </a>
+                    {% endif %}
+                </p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row">
+    <!-- Devoluciones Pendientes -->
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-warning shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            Pendientes
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ total_pendientes }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-hourglass-split fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Devoluciones Validadas -->
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Validadas
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ total_validadas }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-check-circle fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Devoluciones Completadas -->
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-secondary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-secondary text-uppercase mb-1">
+                            Completadas
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ total_completadas }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-check-all fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Saldo Generado -->
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-info shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            Saldo Generado
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            ${{ saldo_generado|floatformat:2 }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-cash-coin fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Initialize tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+          return new bootstrap.Tooltip(tooltipTriggerEl)
+        });
+    });
+</script>
+{% endblock %} 
