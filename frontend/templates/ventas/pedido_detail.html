@@ -141,13 +141,13 @@
                                 <tr>
                                     <td colspan="3"></td>
                                     <th>Subtotal:</th>
-                                    <td class="text-end">${{ pedido.total|floatformat:2 }}</td>
+                                    <td class="text-end">${{ subtotal_pedido|floatformat:2 }}</td>
                                 </tr>
-                                {% if pedido.descuento_aplicado > 0 %}
+                                {% if pedido.descuento_aplicado > 0 and monto_descuento_calculado > 0 %}
                                 <tr>
                                     <td colspan="3"></td>
-                                    <th>Descuento ({{ pedido.descuento_aplicado }}%):</th>
-                                    <td class="text-end">-${{ pedido.total|multiply:pedido.descuento_aplicado|divide:100|floatformat:2 }}</td>
+                                    <th>Descuento ({{ pedido.descuento_aplicado|floatformat:2 }}%):</th>
+                                    <td class="text-end">-${{ monto_descuento_calculado|floatformat:2 }}</td>
                                 </tr>
                                 {% endif %}
                                 <tr class="table-active">

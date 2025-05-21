@@ -1,106 +1,32 @@
 {% extends "layouts/base.html" %}
 {% load static %}
+{% load crispy_forms_tags %}
 
-{% block title %}{% if is_edit %}Editar Cliente{% else %}Nuevo Cliente{% endif %}{% endblock %}
+{% block title %}{{ titulo|default:"Gestionar Cliente" }}{% endblock %}
 
-{% block page_title %}{% if is_edit %}Editar Cliente: {{ cliente.nombre }}{% else %}Nuevo Cliente{% endif %}{% endblock %}
+{% block page_title %}{{ titulo|default:"Gestionar Cliente" }}{% endblock %}
 
 {% block breadcrumbs_content %}
     <li class="breadcrumb-item"><a href="{% url 'clientes:lista' %}">Clientes</a></li>
-    <li class="breadcrumb-item active">{% if is_edit %}Editar Cliente{% else %}Nuevo Cliente{% endif %}</li>
+    <li class="breadcrumb-item active">{{ titulo|default:"Gestionar Cliente" }}</li>
 {% endblock %}
 
 {% block content %}
 <div class="card shadow mb-4">
     <div class="card-header py-3">
-        <h6 class="m-0 font-weight-bold text-primary">{% if is_edit %}Editar Cliente{% else %}Registrar Nuevo Cliente{% endif %}</h6>
+        <h6 class="m-0 font-weight-bold text-primary">{{ titulo|default:"Gestionar Cliente" }}</h6>
     </div>
     <div class="card-body">
-        <form method="post" id="clienteForm">
+        <form method="post"> {# Removed id="clienteForm" as crispy will handle form structure #}
             {% csrf_token %}
-            
-            <div class="row mb-3">
-                <!-- Nombre -->
-                <div class="col-md-6">
-                    <label for="nombre" class="form-label">Nombre <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" id="nombre" name="nombre" 
-                           value="{% if cliente %}{{ cliente.nombre }}{% endif %}" required>
-                </div>
-                
-                <!-- Contacto -->
-                <div class="col-md-6">
-                    <label for="contacto" class="form-label">Contacto</label>
-                    <input type="text" class="form-control" id="contacto" name="contacto" 
-                           value="{% if cliente %}{{ cliente.contacto }}{% endif %}">
-                </div>
-            </div>
-
-            <div class="row mb-3">
-                <!-- Tienda -->
-                <div class="col-md-6">
-                    <label for="tienda" class="form-label">Tienda <span class="text-danger">*</span></label>
-                    <select class="form-select" id="tienda" name="tienda" required>
-                        <option value="">Seleccionar tienda...</option>
-                        {% for tienda in tiendas %}
-                        <option value="{{ tienda.id }}" {% if cliente and cliente.tienda.id == tienda.id %}selected{% endif %}>
-                            {{ tienda.nombre }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                
-                <!-- Saldo a Favor -->
-                <div class="col-md-6">
-                    <label for="saldo_a_favor" class="form-label">Saldo a Favor ($)</label>
-                    <input type="number" class="form-control" id="saldo_a_favor" name="saldo_a_favor" 
-                           value="{% if cliente %}{{ cliente.saldo_a_favor }}{% else %}0.00{% endif %}" step="0.01" min="0">
-                </div>
-            </div>
-
-            <div class="row mb-3">
-                <!-- Monto Acumulado -->
-                <div class="col-md-6">
-                    <label for="monto_acumulado" class="form-label">Monto Acumulado ($)</label>
-                    <input type="number" class="form-control" id="monto_acumulado" name="monto_acumulado" 
-                           value="{% if cliente %}{{ cliente.monto_acumulado }}{% else %}0.00{% endif %}" step="0.01" min="0">
-                    <div class="form-text">Total de compras acumuladas para cálculo de descuentos</div>
-                </div>
-                
-                <!-- Puntos Lealtad -->
-                <div class="col-md-6">
-                    <label for="puntos_lealtad" class="form-label">Puntos de Lealtad</label>
-                    <input type="number" class="form-control" id="puntos_lealtad" name="puntos_lealtad" 
-                           value="{% if cliente %}{{ cliente.puntos_lealtad }}{% else %}0{% endif %}" step="1" min="0">
-                </div>
-            </div>
-
-            <div class="row mb-3">
-                <!-- Días Máx. Devolución -->
-                <div class="col-md-6">
-                    <label for="max_return_days" class="form-label">Días Máximos para Devolución</label>
-                    <input type="number" class="form-control" id="max_return_days" name="max_return_days" 
-                           value="{% if cliente %}{{ cliente.max_return_days }}{% else %}15{% endif %}" step="1" min="0">
-                </div>
-                
-                <div class="col-md-6">
-                    <!-- Empty space for layout balance -->
-                </div>
-            </div>
-            
-            <!-- Observaciones -->
-            <div class="mb-3">
-                <label for="observaciones" class="form-label">Observaciones</label>
-                <textarea class="form-control" id="observaciones" name="observaciones" rows="3">{% if cliente %}{{ cliente.observaciones }}{% endif %}</textarea>
-            </div>
-
+            {{ form|crispy }}
             <hr>
-            
-            <div class="d-flex justify-content-between">
-                <a href="{% url 'clientes:lista' %}" class="btn btn-secondary">
+            <div class="d-flex justify-content-end mt-3">
+                <a href="{% url 'clientes:lista' %}" class="btn btn-secondary me-2">
                     <i class="bi bi-arrow-left me-1"></i> Cancelar
                 </a>
                 <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-save me-1"></i> {% if is_edit %}Actualizar{% else %}Guardar{% endif %}
+                    <i class="bi bi-save me-1"></i> {% if form.instance.pk %}Actualizar{% else %}Guardar{% endif %} Cliente
                 </button>
             </div>
         </form>
@@ -111,27 +37,23 @@
 {% block extra_js %}
 <script>
     $(document).ready(function() {
-        // Form validation
-        $("#clienteForm").submit(function(event) {
-            // Basic validation can be added here
-            
-            var nombre = $("#nombre").val().trim();
-            var tienda = $("#tienda").val();
-            
-            if (nombre === '') {
-                alert("Por favor ingrese el nombre del cliente.");
-                event.preventDefault();
-                return false;
-            }
-            
-            if (tienda === '') {
-                alert("Por favor seleccione una tienda.");
-                event.preventDefault();
-                return false;
-            }
-            
-            return true;
-        });
+        // Initialize Select2 if crispy forms doesn't do it automatically for the 'select2' class
+        // Django form fields usually have IDs like "id_fieldname"
+        if ($('#id_tienda').length) {
+             $('#id_tienda').select2({
+                theme: 'bootstrap-5',
+                width: '100%'
+            });
+        }
+        if ($('#id_user').length) {
+             $('#id_user').select2({
+                theme: 'bootstrap-5',
+                width: '100%',
+                placeholder: 'Seleccionar usuario (opcional)',
+                allowClear: true
+            });
+        }
+        // The basic JS validation is removed as Django Forms + Crispy Forms will handle validation.
     });
 </script>
-{% endblock %} 
+{% endblock %}

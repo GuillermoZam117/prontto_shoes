@@ -4,7 +4,8 @@ from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Producto, Proveedor, Tienda, Catalogo
 from .serializers import ProductoSerializer, CatalogoSerializer
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes, OpenApiExample
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
+from drf_spectacular.types import OpenApiTypes
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db import transaction
@@ -12,8 +13,10 @@ from inventario.models import Inventario # Import Inventario model
 from django.db.models import F, Sum, OuterRef, Subquery
 from django.db import models
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from rest_framework import filters
 from rest_framework.parsers import MultiPartParser, FormParser
+from .forms import ProductoForm, ProductoImportForm
 from django.db.models import Q
 import tempfile
 import os
@@ -86,14 +89,30 @@ class ProductoViewSet(viewsets.ModelViewSet):
 
         # Get products from active catalogs and annotate with inventory quantity
         # Using Subquery to get inventory quantity efficiently
-        inventory_subquery = Inventario.objects.filter(
-            producto=OuterRef('pk'),
-            tienda=self.request.user.cliente.tienda # Assuming user is linked to a client and client to a store
-        ).values('cantidad_actual')[:1]
+        inventory_subquery = None
+        # Attempt to get the client's store if the user has a client profile
+        if hasattr(self.request.user, 'cliente_profile') and self.request.user.cliente_profile and self.request.user.cliente_profile.tienda:
+            tienda_cliente = self.request.user.cliente_profile.tienda
+            inventory_subquery = Inventario.objects.filter(
+                producto=OuterRef('pk'),
+                tienda=tienda_cliente
+            ).values('cantidad_actual')[:1]
+        else:
+            # Fallback: if no specific store, sum inventory from all stores or handle as per business logic
+            # For now, let's sum all inventory for the product across all stores.
+            # This might need adjustment based on precise requirements for users without a specific client store.
+            inventory_subquery = Inventario.objects.filter(
+                producto=OuterRef('pk')
+            ).values('producto').annotate(total_stock=Sum('cantidad_actual')).values('total_stock')
 
-        queryset = Producto.objects.filter(catalogo__in=active_catalogs).annotate(
-            cantidad_disponible=Subquery(inventory_subquery, output_field=models.IntegerField())
-        )
+
+        if inventory_subquery:
+            queryset = Producto.objects.filter(catalogo__in=active_catalogs).annotate(
+                cantidad_disponible=Subquery(inventory_subquery, output_field=models.IntegerField())
+            )
+        else: # Should not happen if logic above is correct, but as a safeguard
+            queryset = Producto.objects.filter(catalogo__in=active_catalogs)
+
 
         # Handle pagination
         page = self.paginate_queryset(queryset)
@@ -194,21 +213,57 @@ def producto_detail(request, pk):
 
 @login_required
 def producto_create(request):
-    # This is a placeholder - we'll implement form handling later
-    return render(request, 'productos/producto_form.html')
+    if request.method == 'POST':
+        form = ProductoForm(request.POST, request.FILES)
+        if form.is_valid():
+            producto = form.save(commit=False)
+            producto.created_by = request.user
+            producto.save()
+            messages.success(request, f"Producto '{producto.codigo} - {producto.marca} {producto.modelo}' creado exitosamente.")
+            return redirect('productos:lista')
+        else:
+            messages.error(request, "Por favor corrige los errores en el formulario.")
+    else:
+        form = ProductoForm()
+    
+    context = {
+        'form': form,
+        'titulo': 'Crear Nuevo Producto'
+    }
+    return render(request, 'productos/producto_form.html', context)
 
 @login_required
 def producto_edit(request, pk):
     producto = get_object_or_404(Producto, pk=pk)
-    # This is a placeholder - we'll implement form handling later
+    if request.method == 'POST':
+        form = ProductoForm(request.POST, request.FILES, instance=producto)
+        if form.is_valid():
+            producto_actualizado = form.save(commit=False)
+            producto_actualizado.updated_by = request.user
+            producto_actualizado.save()
+            form.save_m2m() # Para guardar relaciones ManyToMany si las hubiera en el futuro
+            messages.success(request, f"Producto '{producto_actualizado.codigo} - {producto_actualizado.marca} {producto_actualizado.modelo}' actualizado exitosamente.")
+            return redirect('productos:detalle', pk=producto_actualizado.pk)
+        else:
+            messages.error(request, "Por favor corrige los errores en el formulario.")
+    else:
+        form = ProductoForm(instance=producto)
+    
     context = {
-        'producto': producto,
+        'form': form,
+        'producto': producto, # Para mostrar info adicional si es necesario en la plantilla
+        'titulo': f'Editar Producto: {producto.codigo}'
     }
     return render(request, 'productos/producto_form.html', context)
 
 @login_required
 def producto_import(request):
-    # This is a placeholder - we'll implement file upload form later
-    return render(request, 'productos/producto_import.html')
+    # La plantilla producto_import.html maneja la subida del formulario vía AJAX
+    # directamente al endpoint de la API /api/productos/import_excel/.
+    # Esta vista de Django solo necesita renderizar la plantilla.
+    context = {
+        'titulo': 'Importar Productos desde Excel'
+    }
+    return render(request, 'productos/producto_import.html', context)
 
 # Create your views here.

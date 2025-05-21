@@ -51,6 +51,8 @@ INSTALLED_APPS = [
     'administracion',
     'dashboard',
     'drf_spectacular',
+    'crispy_forms',
+    'crispy_bootstrap5',
 ]
 
 MIDDLEWARE = [
@@ -174,3 +176,7 @@ SPECTACULAR_SETTINGS = {
 # Authentication settings
 LOGIN_REDIRECT_URL = '/dashboard/'  # Redirect to dashboard after login
 LOGOUT_REDIRECT_URL = '/login/'  # Redirect to login page after logout
+
+# Crispy Forms settings
+CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
+CRISPY_TEMPLATE_PACK = "bootstrap5"

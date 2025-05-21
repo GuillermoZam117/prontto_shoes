@@ -5,7 +5,8 @@ from .models import Cliente, Anticipo, DescuentoCliente
 from .serializers import ClienteSerializer, AnticipoSerializer, DescuentoClienteSerializer
 from django_filters.rest_framework import DjangoFilterBackend
 # Mejora Swagger:
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes, OpenApiExample
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
+from drf_spectacular.types import OpenApiTypes
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.utils.dateparse import parse_date
@@ -13,12 +14,14 @@ from ventas.models import Pedido
 from caja.models import TransaccionCaja, Caja
 from django.db import transaction
 from datetime import date
+from decimal import Decimal # Import Decimal
 from django.contrib.auth.decorators import login_required
 from tiendas.models import Tienda
 from django.db.models import Q, Sum, Avg
 from django.utils import timezone
 from django.contrib import messages
 from rest_framework.exceptions import ValidationError
+from .forms import ClienteForm, AnticipoForm, DescuentoClienteForm # Import DescuentoClienteForm
 
 # Frontend views
 @login_required
@@ -101,104 +104,47 @@ def cliente_detail(request, pk):
 @login_required
 def cliente_create(request):
     """Vista para crear un nuevo cliente"""
-    tiendas = Tienda.objects.all()
-    
     if request.method == 'POST':
-        try:
-            # Get form data
-            nombre = request.POST.get('nombre', '').strip()
-            contacto = request.POST.get('contacto', '').strip()
-            tienda_id = request.POST.get('tienda')
-            saldo_a_favor = request.POST.get('saldo_a_favor', 0)
-            monto_acumulado = request.POST.get('monto_acumulado', 0)
-            puntos_lealtad = request.POST.get('puntos_lealtad', 0)
-            max_return_days = request.POST.get('max_return_days', 15)
-            observaciones = request.POST.get('observaciones', '').strip()
-            
-            # Validate required fields
-            if not nombre:
-                messages.error(request, "El nombre del cliente es obligatorio.")
-                return redirect('clientes:nuevo')
-            
-            if not tienda_id:
-                messages.error(request, "Debe seleccionar una tienda.")
-                return redirect('clientes:nuevo')
-            
-            # Create cliente
-            cliente = Cliente.objects.create(
-                nombre=nombre,
-                contacto=contacto,
-                tienda_id=tienda_id,
-                saldo_a_favor=saldo_a_favor,
-                monto_acumulado=monto_acumulado,
-                puntos_lealtad=puntos_lealtad,
-                max_return_days=max_return_days,
-                observaciones=observaciones,
-                created_by=request.user
-            )
-            
-            messages.success(request, f"Cliente '{nombre}' creado exitosamente.")
+        form = ClienteForm(request.POST)
+        if form.is_valid():
+            cliente = form.save(commit=False)
+            cliente.created_by = request.user
+            cliente.save()
+            messages.success(request, f"Cliente '{cliente.nombre}' creado exitosamente.")
             return redirect('clientes:detalle', pk=cliente.pk)
-        
-        except Exception as e:
-            messages.error(request, f"Error al crear el cliente: {str(e)}")
+        else:
+            messages.error(request, "Por favor corrige los errores en el formulario.")
+    else:
+        form = ClienteForm()
     
     context = {
-        'tiendas': tiendas,
+        'form': form,
+        'titulo': 'Crear Nuevo Cliente'
     }
-    
     return render(request, 'clientes/cliente_form.html', context)
 
 @login_required
 def cliente_edit(request, pk):
     """Vista para editar un cliente existente"""
     cliente = get_object_or_404(Cliente, pk=pk)
-    tiendas = Tienda.objects.all()
-    
     if request.method == 'POST':
-        try:
-            # Get form data
-            nombre = request.POST.get('nombre', '').strip()
-            contacto = request.POST.get('contacto', '').strip()
-            tienda_id = request.POST.get('tienda')
-            saldo_a_favor = request.POST.get('saldo_a_favor', 0)
-            monto_acumulado = request.POST.get('monto_acumulado', 0)
-            puntos_lealtad = request.POST.get('puntos_lealtad', 0)
-            max_return_days = request.POST.get('max_return_days', 15)
-            observaciones = request.POST.get('observaciones', '').strip()
-            
-            # Validate required fields
-            if not nombre:
-                messages.error(request, "El nombre del cliente es obligatorio.")
-                return redirect('clientes:editar', pk=cliente.pk)
-            
-            if not tienda_id:
-                messages.error(request, "Debe seleccionar una tienda.")
-                return redirect('clientes:editar', pk=cliente.pk)
-            
-            # Update cliente
-            cliente.nombre = nombre
-            cliente.contacto = contacto
-            cliente.tienda_id = tienda_id
-            cliente.saldo_a_favor = saldo_a_favor
-            cliente.monto_acumulado = monto_acumulado
-            cliente.puntos_lealtad = puntos_lealtad
-            cliente.max_return_days = max_return_days
-            cliente.observaciones = observaciones
-            cliente.save()
-            
-            messages.success(request, f"Cliente '{nombre}' actualizado exitosamente.")
-            return redirect('clientes:detalle', pk=cliente.pk)
-        
-        except Exception as e:
-            messages.error(request, f"Error al actualizar el cliente: {str(e)}")
+        form = ClienteForm(request.POST, instance=cliente)
+        if form.is_valid():
+            cliente_actualizado = form.save(commit=False)
+            cliente_actualizado.updated_by = request.user
+            cliente_actualizado.save()
+            messages.success(request, f"Cliente '{cliente_actualizado.nombre}' actualizado exitosamente.")
+            return redirect('clientes:detalle', pk=cliente_actualizado.pk)
+        else:
+            messages.error(request, "Por favor corrige los errores en el formulario.")
+    else:
+        form = ClienteForm(instance=cliente)
     
     context = {
-        'cliente': cliente,
-        'tiendas': tiendas,
-        'is_edit': True,
+        'form': form,
+        'cliente': cliente, # Para mostrar info adicional si es necesario
+        'titulo': f'Editar Cliente: {cliente.nombre}'
     }
-    
     return render(request, 'clientes/cliente_form.html', context)
 
 @login_required
@@ -244,77 +190,78 @@ def anticipo_list(request):
 @login_required
 def anticipo_create(request):
     """Vista para crear un nuevo anticipo"""
-    clientes = Cliente.objects.all()
-    
     if request.method == 'POST':
-        try:
-            with transaction.atomic():
-                # Get form data
-                cliente_id = request.POST.get('cliente')
-                monto = request.POST.get('monto', 0)
-                fecha = request.POST.get('fecha', date.today().isoformat())
-                observaciones = request.POST.get('observaciones', '').strip()
-                
-                # Validate data
-                if not cliente_id or not monto:
-                    messages.error(request, "Cliente y monto son obligatorios.")
-                    return redirect('clientes:nuevo_anticipo')
-                
-                # Convert to proper types
-                monto = float(monto)
-                fecha_obj = parse_date(fecha) if fecha else date.today()
-                
-                # Get client
-                cliente = get_object_or_404(Cliente, pk=cliente_id)
-                
-                # Create advance
-                anticipo = Anticipo.objects.create(
-                    cliente=cliente,
-                    monto=monto,
-                    fecha=fecha_obj,
-                    observaciones=observaciones,
-                    created_by=request.user
-                )
-                
-                # Update client balance
-                cliente.saldo_a_favor += monto
-                cliente.save()
-                
-                # Register cash transaction
-                user = request.user
-                if not hasattr(user, 'tienda') or user.tienda is None:
-                    raise ValidationError("Usuario no asociado a una tienda.")
-                
-                try:
-                    # Find the open cash register for the user's store and today's date
-                    caja_abierta = Caja.objects.get(tienda=user.tienda, fecha=date.today(), cerrada=False)
-                except Caja.DoesNotExist:
-                    raise ValidationError("No hay una caja abierta para registrar el anticipo.")
-                
-                # Create cash transaction
-                TransaccionCaja.objects.create(
-                    caja=caja_abierta,
-                    tipo_movimiento='ingreso',
-                    monto=monto,
-                    descripcion=f'Anticipo Cliente #{cliente.id} - {cliente.nombre}',
-                    anticipo=anticipo,
-                    created_by=user
-                )
-                
-                messages.success(request, f"Anticipo de ${monto} registrado correctamente.")
-                return redirect('clientes:anticipos')
-                
-        except Exception as e:
-            messages.error(request, f"Error al registrar el anticipo: {str(e)}")
-    
-    # Pre-select client from query parameter
-    selected_client = request.GET.get('cliente', '')
+        form = AnticipoForm(request.POST)
+        if form.is_valid():
+            try:
+                with transaction.atomic():
+                    anticipo = form.save(commit=False)
+                    anticipo.created_by = request.user
+                    anticipo.save()
+
+                    cliente_obj = anticipo.cliente 
+                    # Asegurarse de que saldo_a_favor no sea None antes de sumar
+                    cliente_obj.saldo_a_favor = (cliente_obj.saldo_a_favor or Decimal(0)) + anticipo.monto
+                    cliente_obj.save()
+
+                    user = request.user
+                    user_tienda = None
+
+                    # Intentar obtener la tienda del usuario. Esta lógica puede necesitar ajuste
+                    # dependiendo de cómo se estructuren los perfiles de usuario o modelos de empleado.
+                    if hasattr(user, 'tienda') and user.tienda: # Asume que el user tiene un atributo 'tienda'
+                        user_tienda = user.tienda
+                    # Ejemplo de cómo podría ser con un perfil:
+                    # elif hasattr(user, 'perfil_empleado') and user.perfil_empleado.tienda_actual:
+                    #     user_tienda = user.perfil_empleado.tienda_actual
+                    
+                    if not user_tienda:
+                        # Fallback: usar la tienda del cliente para la transacción de caja
+                        user_tienda = cliente_obj.tienda 
+                        if user_tienda:
+                            messages.info(request, f"Transacción de caja se registrará en la tienda del cliente ('{user_tienda.nombre}') ya que la tienda del usuario no está definida explícitamente.")
+                        else:
+                            # Si ni el usuario ni el cliente tienen una tienda definida, no se puede registrar en caja.
+                            messages.error(request, "Anticipo guardado, pero no se pudo determinar la tienda para la transacción de caja (ni del usuario ni del cliente).")
+                    
+                    if user_tienda:
+                        try:
+                            caja_abierta = Caja.objects.get(tienda=user_tienda, fecha=date.today(), cerrada=False)
+                            TransaccionCaja.objects.create(
+                                caja=caja_abierta,
+                                tipo_movimiento='ingreso',
+                                monto=anticipo.monto,
+                                descripcion=f'Anticipo Cliente #{cliente_obj.id} - {cliente_obj.nombre}',
+                                anticipo=anticipo,
+                                created_by=user
+                            )
+                            messages.success(request, f"Anticipo de ${anticipo.monto} para {cliente_obj.nombre} y transacción de caja registrados en tienda '{user_tienda.nombre}'.")
+                        except Caja.DoesNotExist:
+                            messages.warning(request, f"Anticipo para {cliente_obj.nombre} guardado, pero no se encontró una caja abierta en la tienda '{user_tienda.nombre}' para registrar la transacción.")
+                        except Exception as e_caja:
+                            messages.error(request, f"Anticipo para {cliente_obj.nombre} guardado, pero ocurrió un error al registrar la transacción de caja: {str(e_caja)}")
+                    # Si user_tienda sigue siendo None después de los fallbacks, el mensaje de error ya se habrá emitido (o el de info si se usó la del cliente).
+                    
+                    return redirect('clientes:anticipos')
+            except Exception as e:
+                messages.error(request, f"Error general al registrar el anticipo: {str(e)}")
+        else:
+            messages.error(request, "Por favor corrige los errores en el formulario.")
+    else:
+        initial_data = {}
+        selected_client_id = request.GET.get('cliente')
+        if selected_client_id:
+            try:
+                Cliente.objects.get(pk=selected_client_id) # Validate client exists
+                initial_data['cliente'] = selected_client_id
+            except Cliente.DoesNotExist:
+                messages.warning(request, f"El cliente con ID {selected_client_id} no existe.")
+        form = AnticipoForm(initial=initial_data)
     
     context = {
-        'clientes': clientes,
-        'selected_client': selected_client,
+        'form': form,
+        'titulo': 'Registrar Nuevo Anticipo'
     }
-    
     return render(request, 'clientes/anticipo_form.html', context)
 
 @login_required
@@ -354,64 +301,59 @@ def descuento_list(request):
 
 @login_required
 def descuento_create(request):
-    """Vista para crear un nuevo descuento"""
-    clientes = Cliente.objects.all()
-    
+    """Vista para crear o actualizar un descuento para un cliente y mes."""
     if request.method == 'POST':
-        try:
-            # Get form data
-            cliente_id = request.POST.get('cliente')
-            mes_vigente = request.POST.get('mes_vigente')
-            porcentaje = request.POST.get('porcentaje', 0)
-            monto_acumulado_mes_anterior = request.POST.get('monto_acumulado_mes_anterior', 0)
-            observaciones = request.POST.get('observaciones', '').strip()
-            
-            # Validate data
-            if not cliente_id or not mes_vigente:
-                messages.error(request, "Cliente y mes vigente son obligatorios.")
-                return redirect('clientes:nuevo_descuento')
-            
-            # Get client
-            cliente = get_object_or_404(Cliente, pk=cliente_id)
-            
-            # Check if discount already exists for this client and month
-            existing_discount = DescuentoCliente.objects.filter(
-                cliente=cliente,
-                mes_vigente=mes_vigente
-            ).first()
-            
-            if existing_discount:
-                messages.warning(request, f"Ya existe un descuento para el cliente {cliente.nombre} en el mes {mes_vigente}. Se actualizará el existente.")
-                # Update existing discount
-                existing_discount.porcentaje = porcentaje
-                existing_discount.monto_acumulado_mes_anterior = monto_acumulado_mes_anterior
-                existing_discount.observaciones = observaciones
-                existing_discount.save()
-            else:
-                # Create new discount
-                DescuentoCliente.objects.create(
+        form = DescuentoClienteForm(request.POST)
+        if form.is_valid():
+            try:
+                cliente = form.cleaned_data['cliente']
+                mes_vigente = form.cleaned_data['mes_vigente']
+
+                defaults = {
+                    'porcentaje': form.cleaned_data['porcentaje'],
+                    'monto_acumulado_mes_anterior': form.cleaned_data['monto_acumulado_mes_anterior'],
+                    'updated_by': request.user
+                }
+                
+                # Use a transaction to ensure atomicity if needed, though update_or_create is generally atomic for its operation.
+                # with transaction.atomic():
+                obj, created = DescuentoCliente.objects.update_or_create(
                     cliente=cliente,
                     mes_vigente=mes_vigente,
-                    porcentaje=porcentaje,
-                    monto_acumulado_mes_anterior=monto_acumulado_mes_anterior,
-                    observaciones=observaciones,
-                    created_by=request.user
+                    defaults=defaults
                 )
-            
-            messages.success(request, f"Descuento del {porcentaje}% registrado correctamente para {cliente.nombre}.")
-            return redirect('clientes:descuentos')
-            
-        except Exception as e:
-            messages.error(request, f"Error al registrar el descuento: {str(e)}")
-    
-    # Pre-select client from query parameter
-    selected_client = request.GET.get('cliente', '')
+
+                if created:
+                    obj.created_by = request.user
+                    obj.save(update_fields=['created_by']) # Save only the created_by field if it's a new object
+                    messages.success(request, f"Descuento del {obj.porcentaje}% creado para {cliente.nombre} en {mes_vigente}.")
+                else:
+                    # obj already has updated_by from defaults and was saved by update_or_create
+                    messages.success(request, f"Descuento para {cliente.nombre} en {mes_vigente} actualizado a {obj.porcentaje}%.")
+                return redirect('clientes:descuentos')
+            except Exception as e:
+                messages.error(request, f"Error al registrar el descuento: {str(e)}")
+        else:
+            messages.error(request, "Por favor corrige los errores en el formulario.")
+    else:
+        initial_data = {}
+        selected_client_id = request.GET.get('cliente')
+        if selected_client_id:
+            try:
+                Cliente.objects.get(pk=selected_client_id)
+                initial_data['cliente'] = selected_client_id
+            except Cliente.DoesNotExist:
+                messages.warning(request, f"El cliente con ID {selected_client_id} no existe.")
+        
+        current_month_year = timezone.now().strftime('%Y-%m')
+        initial_data['mes_vigente'] = current_month_year # Pre-fill current month
+
+        form = DescuentoClienteForm(initial=initial_data)
     
     context = {
-        'clientes': clientes,
-        'selected_client': selected_client,
+        'form': form,
+        'titulo': 'Registrar/Actualizar Descuento de Cliente'
     }
-    
     return render(request, 'clientes/descuento_form.html', context)
 
 # API viewsets
@@ -471,7 +413,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
             fecha_fin = parse_date(fecha_fin)
         except Exception:
             return Response({"error": "Formato de fecha inválido."}, status=400)
-        if not fecha_inicio or not fecha_fin:
+        if not fecha_inicio or not fecha_fin: # Redundant check, but safe
             return Response({"error": "Formato de fecha inválido."}, status=400)
         # IDs de clientes con pedidos en el rango
         clientes_con_pedidos = Pedido.objects.filter(

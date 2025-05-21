@@ -4,7 +4,8 @@ from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Pedido, DetallePedido
 from .serializers import PedidoSerializer, DetallePedidoSerializer
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
+from drf_spectacular.utils import extend_schema, OpenApiParameter
+from drf_spectacular.types import OpenApiTypes
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from clientes.models import Cliente, DescuentoCliente
@@ -99,9 +100,22 @@ def pedido_detail_view(request, pk):
     )
     detalles = DetallePedido.objects.filter(pedido=pedido).select_related('producto')
     
+    subtotal_pedido = sum(d.subtotal for d in detalles)
+    monto_descuento = 0
+    if pedido.descuento_aplicado > 0:
+        # El descuento se aplica sobre el subtotal_pedido
+        monto_descuento = (subtotal_pedido * pedido.descuento_aplicado) / 100
+        
+    # El pedido.total ya debería ser subtotal_pedido - monto_descuento (calculado en el serializer)
+    # Verificamos por si acaso o para mayor claridad.
+    total_calculado_verificacion = subtotal_pedido - monto_descuento
+
     context = {
         'pedido': pedido,
         'detalles': detalles,
+        'subtotal_pedido': subtotal_pedido,
+        'monto_descuento_calculado': monto_descuento,
+        'total_final_verificacion': total_calculado_verificacion, # Para debug o verificación
     }
     return render(request, 'ventas/pedido_detail.html', context)
 
