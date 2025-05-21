@@ -50,9 +50,11 @@ INSTALLED_APPS = [
     'descuentos',
     'administracion',
     'dashboard',
+    'sincronizacion.apps.SincronizacionConfig',
     'drf_spectacular',
     'crispy_forms',
     'crispy_bootstrap5',
+    'channels',
 ]
 
 MIDDLEWARE = [
@@ -180,3 +182,22 @@ LOGOUT_REDIRECT_URL = '/login/'  # Redirect to login page after logout
 # Crispy Forms settings
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 CRISPY_TEMPLATE_PACK = "bootstrap5"
+
+# Channels configuration
+ASGI_APPLICATION = 'pronto_shoes.routing.application'
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+        # For production, use Redis instead:
+        # 'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        # 'CONFIG': {
+        #     "hosts": [('127.0.0.1', 6379)],
+        # },
+    },
+}
+
+# Directorio para almacenamiento persistente de caché
+SINCRONIZACION_CACHE_DIR = BASE_DIR / 'cache' / 'sincronizacion'
+
+# Clave secreta para firma de mensajes de sincronización
+SINCRONIZACION_SECRET_KEY = SECRET_KEY + '_sync'

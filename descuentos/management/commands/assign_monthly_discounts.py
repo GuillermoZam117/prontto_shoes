@@ -22,11 +22,13 @@ class Command(BaseCommand):
         current_month_str = today.strftime('%Y-%m')
 
         # Calculate total sales for each client in the previous month
+        # Only count sales with 'venta' type, 'surtido' status, and pagado=True
         client_sales = Pedido.objects.filter(
             fecha__date__gte=first_day_of_previous_month,
             fecha__date__lte=last_day_of_previous_month,
             tipo='venta', # Only consider sales, not preventative orders
-            estado='surtido'  # Only consider completed orders
+            estado='surtido',  # Only consider completed orders
+            pagado=True  # Only consider paid orders for discounts
         ).values('cliente').annotate(total_ventas=Sum('total'))
 
         tabulador = list(TabuladorDescuento.objects.all().order_by('rango_min'))

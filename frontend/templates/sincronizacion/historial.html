@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Historial de Sincronización{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Historial de Sincronización</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'sincronizacion_dashboard' %}">Sincronización</a></li>
+        <li class="breadcrumb-item active">Historial</li>
+    </ol>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-history me-1"></i>
+            Sincronizaciones Realizadas
+        </div>
+        <div class="card-body">
+            <table id="historial-table" class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>Fecha Inicio</th>
+                        <th>Fecha Fin</th>
+                        <th>Tienda</th>
+                        <th>Estado</th>
+                        <th>Operaciones</th>
+                        <th>Éxito</th>
+                        <th>Error</th>
+                        <th>Conflicto</th>
+                        <th>Duración</th>
+                        <th>Usuario</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for registro in registros %}
+                    <tr>
+                        <td>{{ registro.fecha_inicio|date:"d/m/Y H:i" }}</td>
+                        <td>
+                            {% if registro.fecha_fin %}
+                                {{ registro.fecha_fin|date:"d/m/Y H:i" }}
+                            {% else %}
+                                <span class="badge bg-warning text-dark">En proceso</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ registro.tienda.nombre }}</td>
+                        <td>
+                            {% if registro.estado == 'completado' %}
+                                <span class="badge bg-success">Completado</span>
+                            {% elif registro.estado == 'en_proceso' %}
+                                <span class="badge bg-primary">En Proceso</span>
+                            {% else %}
+                                <span class="badge bg-danger">Error</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ registro.operaciones_totales }}</td>
+                        <td>{{ registro.operaciones_exitosas }}</td>
+                        <td>{{ registro.operaciones_fallidas }}</td>
+                        <td>{{ registro.operaciones_con_conflicto }}</td>
+                        <td>
+                            {% if registro.calcular_duracion %}
+                                {{ registro.calcular_duracion|floatformat:2 }} min
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if registro.iniciado_por %}
+                                {{ registro.iniciado_por.username }}
+                            {% else %}
+                                Automático
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" class="text-center">No hay registros de sincronización</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Inicializar DataTable para mejor visualización
+        $('#historial-table').DataTable({
+            order: [[0, 'desc']], // Ordenar por fecha de inicio descendente
+            language: {
+                url: "//cdn.datatables.net/plug-ins/1.10.25/i18n/Spanish.json"
+            }
+        });
+    });
+</script>
+{% endblock %}

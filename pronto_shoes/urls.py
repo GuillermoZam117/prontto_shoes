@@ -29,6 +29,7 @@ from devoluciones.views import DevolucionViewSet, DevolucionesReporteAPIView
 from requisiciones.views import RequisicionViewSet, DetalleRequisicionViewSet, RequisicionesReporteAPIView
 from descuentos.views import TabuladorDescuentoViewSet, DescuentosReporteAPIView
 from administracion.views import LogAuditoriaViewSet, LogsAuditoriaReporteAPIView
+from sincronizacion.views import ColaSincronizacionViewSet, ConfiguracionSincronizacionViewSet, RegistroSincronizacionViewSet, ContentTypeViewSet
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 from django.contrib.auth import views as auth_views
 
@@ -55,6 +56,10 @@ router.register(r'requisiciones', RequisicionViewSet)
 router.register(r'detalles_requisicion', DetalleRequisicionViewSet)
 router.register(r'tabulador_descuento', TabuladorDescuentoViewSet)
 router.register(r'logs_auditoria', LogAuditoriaViewSet)
+router.register(r'sincronizacion/cola', ColaSincronizacionViewSet)
+router.register(r'sincronizacion/configuracion', ConfiguracionSincronizacionViewSet)
+router.register(r'sincronizacion/registros', RegistroSincronizacionViewSet)
+router.register(r'sincronizacion/content-types', ContentTypeViewSet)
 
 urlpatterns = [
     # Redirect root to login page
@@ -77,9 +82,10 @@ urlpatterns = [
     # Caja application
     path('caja/', include('caja.urls')),
     # Devoluciones application
-    path('devoluciones/', include('devoluciones.urls')),
-    # Requisiciones application
+    path('devoluciones/', include('devoluciones.urls')),    # Requisiciones application
     path('requisiciones/', include('requisiciones.urls')),
+    # Sincronizacion application
+    path('sincronizacion/', include('sincronizacion.urls')),
     path('api/', include(router.urls)),
     path('api/reportes/apartados_por_cliente/', ApartadosPorClienteReporteAPIView.as_view(), name='apartados-por-cliente-reporte'),
     path('api/reportes/pedidos_por_surtir/', PedidosPorSurtirReporteAPIView.as_view(), name='pedidos-por-surtir-reporte'),

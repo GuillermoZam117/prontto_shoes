@@ -1,0 +1,294 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Auditoría de Sincronización{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/sincronizacion.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="h3 mb-0">Auditoría de Sincronización</h1>
+            <p class="text-muted">Registro de operaciones de sincronización para auditoría de seguridad</p>
+        </div>
+        <div class="col-auto">
+            <button type="button" class="btn btn-outline-secondary" id="btn-refresh">
+                <i class="fas fa-redo me-1"></i> Actualizar
+            </button>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Filtros</h5>
+            <form id="filter-form" class="row g-3">
+                <div class="col-md-3">
+                    <label for="filter-accion" class="form-label">Acción</label>
+                    <select class="form-select" id="filter-accion">
+                        <option value="">Todas</option>
+                        <option value="sincronizar">Sincronizar</option>
+                        <option value="configurar">Configurar</option>
+                        <option value="resolver_conflicto">Resolver Conflicto</option>
+                        <option value="iniciar_sincronizacion">Iniciar Sincronización</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="filter-exitoso" class="form-label">Resultado</label>
+                    <select class="form-select" id="filter-exitoso">
+                        <option value="">Todos</option>
+                        <option value="true">Exitoso</option>
+                        <option value="false">Fallido</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="filter-fecha-desde" class="form-label">Desde</label>
+                    <input type="date" class="form-control" id="filter-fecha-desde">
+                </div>
+                <div class="col-md-3">
+                    <label for="filter-fecha-hasta" class="form-label">Hasta</label>
+                    <input type="date" class="form-control" id="filter-fecha-hasta">
+                </div>
+                <div class="col-12 text-end">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-filter me-1"></i> Filtrar
+                    </button>
+                    <button type="button" id="btn-clear-filters" class="btn btn-outline-secondary">
+                        <i class="fas fa-eraser me-1"></i> Limpiar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabla de registros -->
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover" id="tabla-auditoria">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Acción</th>
+                            <th>Usuario</th>
+                            <th>Tienda</th>
+                            <th>Objeto</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for registro in registros %}
+                        <tr>
+                            <td>{{ registro.fecha|date:"d/m/Y H:i:s" }}</td>
+                            <td>{{ registro.accion }}</td>
+                            <td>{{ registro.usuario.username|default:"Sistema" }}</td>
+                            <td>{{ registro.tienda.nombre }}</td>
+                            <td>
+                                {% if registro.content_type %}
+                                {{ registro.content_type.app_label }}.{{ registro.content_type.model }} #{{ registro.object_id }}
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if registro.exitoso %}
+                                <span class="badge bg-success">Exitoso</span>
+                                {% else %}
+                                <span class="badge bg-danger">Fallido</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <button type="button" class="btn btn-sm btn-outline-info btn-detalle" data-id="{{ registro.id }}">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-4">No hay registros de auditoría disponibles.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Paginación -->
+            {% if registros.has_other_pages %}
+            <nav aria-label="Paginación de registros" class="mt-3">
+                <ul class="pagination justify-content-center">
+                    {% if registros.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ registros.previous_page_number }}" aria-label="Anterior">
+                            <span aria-hidden="true">&laquo;</span>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">&laquo;</span>
+                    </li>
+                    {% endif %}
+
+                    {% for i in registros.paginator.page_range %}
+                    {% if registros.number == i %}
+                    <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+                    {% else %}
+                    <li class="page-item"><a class="page-link" href="?page={{ i }}">{{ i }}</a></li>
+                    {% endif %}
+                    {% endfor %}
+
+                    {% if registros.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ registros.next_page_number }}" aria-label="Siguiente">
+                            <span aria-hidden="true">&raquo;</span>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">&raquo;</span>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal detalle registro -->
+<div class="modal fade" id="modal-detalle" tabindex="-1" aria-labelledby="modal-detalle-label" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modal-detalle-label">Detalle de Registro</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body" id="detalle-container">
+                <!-- Se llenará dinámicamente -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Configurar botones de detalle
+        document.querySelectorAll('.btn-detalle').forEach(btn => {
+            btn.addEventListener('click', e => {
+                const id = e.currentTarget.dataset.id;
+                mostrarDetalle(id);
+            });
+        });
+        
+        // Configurar formulario de filtros
+        document.getElementById('filter-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            aplicarFiltros();
+        });
+        
+        document.getElementById('btn-clear-filters').addEventListener('click', function() {
+            document.getElementById('filter-accion').value = '';
+            document.getElementById('filter-exitoso').value = '';
+            document.getElementById('filter-fecha-desde').value = '';
+            document.getElementById('filter-fecha-hasta').value = '';
+            aplicarFiltros();
+        });
+        
+        document.getElementById('btn-refresh').addEventListener('click', function() {
+            window.location.reload();
+        });
+    });
+    
+    function aplicarFiltros() {
+        // Construir URL con parámetros
+        const accion = document.getElementById('filter-accion').value;
+        const exitoso = document.getElementById('filter-exitoso').value;
+        const fechaDesde = document.getElementById('filter-fecha-desde').value;
+        const fechaHasta = document.getElementById('filter-fecha-hasta').value;
+        
+        let url = '?';
+        if (accion) url += `accion=${accion}&`;
+        if (exitoso) url += `exitoso=${exitoso}&`;
+        if (fechaDesde) url += `fecha_desde=${fechaDesde}&`;
+        if (fechaHasta) url += `fecha_hasta=${fechaHasta}&`;
+        
+        // Redirigir
+        window.location.href = url;
+    }
+    
+    function mostrarDetalle(id) {
+        // En un escenario real, cargaríamos los detalles con AJAX
+        // Aquí simulamos la carga de datos
+        const modal = new bootstrap.Modal(document.getElementById('modal-detalle'));
+        
+        // Buscar registro en la tabla
+        const fila = document.querySelector(`button[data-id="${id}"]`).closest('tr');
+        if (!fila) return;
+        
+        const fecha = fila.cells[0].textContent;
+        const accion = fila.cells[1].textContent;
+        const usuario = fila.cells[2].textContent;
+        const tienda = fila.cells[3].textContent;
+        const objeto = fila.cells[4].textContent;
+        const exitoso = fila.cells[5].querySelector('.badge').classList.contains('bg-success');
+        
+        // Llenar modal
+        const detalleContainer = document.getElementById('detalle-container');
+        
+        detalleContainer.innerHTML = `
+            <div class="mb-3">
+                <div class="d-flex justify-content-between">
+                    <span class="badge ${exitoso ? 'bg-success' : 'bg-danger'} rounded-pill">
+                        ${exitoso ? 'Exitoso' : 'Fallido'}
+                    </span>
+                    <small class="text-muted">${fecha}</small>
+                </div>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Acción:</label>
+                    <div>${accion}</div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Usuario:</label>
+                    <div>${usuario}</div>
+                </div>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Tienda:</label>
+                    <div>${tienda}</div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Objeto Afectado:</label>
+                    <div>${objeto}</div>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label fw-bold">Detalles:</label>
+                <pre class="bg-light p-3 rounded">
+{
+    "action": "${accion}",
+    "timestamp": "${fecha}",
+    "status": "${exitoso ? 'success' : 'error'}",
+    "details": "Detalles adicionales estarían aquí en un caso real"
+}
+                </pre>
+            </div>
+        `;
+        
+        modal.show();
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,438 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Gestión Offline{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/sincronizacion.css' %}">
+<style>
+    .status-indicator {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        margin-right: 8px;
+    }
+    .status-online {
+        background-color: #10b981;
+    }
+    .status-offline {
+        background-color: #ef4444;
+    }
+    .cache-progress {
+        height: 8px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="h3 mb-0">Gestión de Modo Offline</h1>
+            <p class="text-muted">Configuración y gestión para operaciones sin conexión</p>
+        </div>
+        <div class="col-auto">
+            <button type="button" class="btn btn-outline-secondary" id="btn-refresh">
+                <i class="fas fa-redo me-1"></i> Verificar Estado
+            </button>
+        </div>
+    </div>
+
+    <!-- Estado de conexión -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Estado de Conexión</h5>
+            
+            <div class="alert {% if modo_offline %}alert-danger{% else %}alert-success{% endif %} d-flex align-items-center" role="alert">
+                <div class="status-indicator {% if modo_offline %}status-offline{% else %}status-online{% endif %}"></div>
+                <div>
+                    {% if modo_offline %}
+                    <strong>Modo Offline</strong> - Trabajando sin conexión al servidor central
+                    {% else %}
+                    <strong>Modo Online</strong> - Conectado al servidor central
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="mt-3">
+                {% if modo_offline %}
+                <p>El sistema está operando actualmente en modo offline. Las operaciones se guardarán localmente y se sincronizarán cuando se restablezca la conexión.</p>
+                <button type="button" class="btn btn-primary" id="btn-check-connection">
+                    <i class="fas fa-sync-alt me-1"></i> Intentar Reconexión
+                </button>
+                {% else %}
+                <p>El sistema está operando normalmente con conexión al servidor central. Las operaciones se sincronizan en tiempo real.</p>
+                <button type="button" class="btn btn-warning" id="btn-simulate-offline">
+                    <i class="fas fa-plug me-1"></i> Simular Modo Offline
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Modelos críticos -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Modelos Críticos para Operaciones Offline</h5>
+            <p class="text-muted">Estos modelos se almacenan en caché para permitir operaciones sin conexión</p>
+            
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Modelo</th>
+                            <th>Estado de Caché</th>
+                            <th>Progreso</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for modelo in modelos_criticos %}
+                        <tr>
+                            <td>{{ modelo.nombre }}</td>
+                            <td>
+                                {% if modelo.cached_count > 0 %}
+                                <span class="badge bg-success">Cacheado</span>
+                                {% else %}
+                                <span class="badge bg-danger">No Cacheado</span>
+                                {% endif %}
+                                <small class="text-muted ms-2">{{ modelo.cached_count }} / {{ modelo.total_count }} registros</small>
+                            </td>
+                            <td>
+                                <div class="progress cache-progress">
+                                    {% with progress=modelo.cached_count|divisibleby:modelo.total_count|floatformat:0 %}
+                                    <div class="progress-bar" role="progressbar" style="width: {% if modelo.total_count > 0 %}{{ modelo.cached_count|multiply:100|divide:modelo.total_count|floatformat:0 }}{% else %}0{% endif %}%"></div>
+                                    {% endwith %}
+                                </div>
+                            </td>
+                            <td>
+                                <button type="button" class="btn btn-sm btn-primary btn-cache" data-modelo="{{ modelo.nombre }}">
+                                    <i class="fas fa-download me-1"></i> Cachear
+                                </button>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center">No hay modelos críticos configurados para operaciones offline.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="mt-3">
+                <button type="button" class="btn btn-success" id="btn-cache-all">
+                    <i class="fas fa-download me-1"></i> Cachear Todos los Modelos
+                </button>
+                <button type="button" class="btn btn-outline-danger" id="btn-clear-cache">
+                    <i class="fas fa-trash me-1"></i> Limpiar Caché
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cola de pendientes offline -->
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h5 class="card-title">Operaciones Pendientes Offline</h5>
+            <p class="text-muted">Estas operaciones se sincronizarán cuando se restablezca la conexión</p>
+            
+            <div class="table-responsive">
+                <table class="table" id="tabla-pendientes">
+                    <thead>
+                        <tr>
+                            <th>Tipo</th>
+                            <th>Modelo</th>
+                            <th>Fecha</th>
+                            <th>Prioridad</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Se llenará dinámicamente con JavaScript -->
+                        <tr>
+                            <td colspan="5" class="text-center py-4">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Cargando...</span>
+                                </div>
+                                <p class="mb-0 mt-2">Cargando operaciones pendientes...</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="mt-3">
+                <button type="button" class="btn btn-primary" id="btn-sync-now" {% if modo_offline %}disabled{% endif %}>
+                    <i class="fas fa-cloud-upload-alt me-1"></i> Sincronizar Ahora
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Configurar botones
+        document.getElementById('btn-refresh').addEventListener('click', function() {
+            window.location.reload();
+        });
+        
+        document.getElementById('btn-check-connection').addEventListener('click', function() {
+            checkConnection();
+        });
+        
+        document.getElementById('btn-simulate-offline').addEventListener('click', function() {
+            simulateOfflineMode();
+        });
+        
+        document.getElementById('btn-cache-all').addEventListener('click', function() {
+            cacheAllModels();
+        });
+        
+        document.getElementById('btn-clear-cache').addEventListener('click', function() {
+            clearCache();
+        });
+        
+        document.getElementById('btn-sync-now').addEventListener('click', function() {
+            syncNow();
+        });
+        
+        document.querySelectorAll('.btn-cache').forEach(btn => {
+            btn.addEventListener('click', e => {
+                const modelo = e.currentTarget.dataset.modelo;
+                cacheModel(modelo);
+            });
+        });
+        
+        // Cargar operaciones pendientes
+        cargarOperacionesPendientes();
+    });
+    
+    function checkConnection() {
+        // En un escenario real, esto sería una llamada AJAX
+        const spinner = '<div class="spinner-border spinner-border-sm text-light" role="status"><span class="visually-hidden">Verificando...</span></div>';
+        const btnCheck = document.getElementById('btn-check-connection');
+        btnCheck.innerHTML = spinner + ' Verificando...';
+        btnCheck.disabled = true;
+        
+        setTimeout(() => {
+            window.location.reload();
+        }, 2000);
+    }
+    
+    function simulateOfflineMode() {
+        // En un escenario real, esto sería una llamada AJAX
+        fetch('/sincronizacion/api/offline/simulate/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert('Error al simular modo offline: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al simular modo offline');
+        });
+    }
+    
+    function cacheModel(modelo) {
+        // En un escenario real, esto sería una llamada AJAX
+        const btn = document.querySelector(`.btn-cache[data-modelo="${modelo}"]`);
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<div class="spinner-border spinner-border-sm text-light" role="status"></div> Cacheando...';
+        btn.disabled = true;
+        
+        setTimeout(() => {
+            btn.innerHTML = '<i class="fas fa-check me-1"></i> Completado';
+            btn.classList.remove('btn-primary');
+            btn.classList.add('btn-success');
+            
+            // Actualizar progreso (simulación)
+            const fila = btn.closest('tr');
+            const progressBar = fila.querySelector('.progress-bar');
+            progressBar.style.width = '100%';
+            
+            const statusBadge = fila.querySelector('.badge');
+            statusBadge.classList.remove('bg-danger');
+            statusBadge.classList.add('bg-success');
+            statusBadge.textContent = 'Cacheado';
+            
+            // En un escenario real, actualizaríamos los contadores también
+        }, 1500);
+    }
+    
+    function cacheAllModels() {
+        // En un escenario real, esto sería una llamada AJAX
+        const btn = document.getElementById('btn-cache-all');
+        btn.innerHTML = '<div class="spinner-border spinner-border-sm text-light" role="status"></div> Cacheando...';
+        btn.disabled = true;
+        
+        // Simular cacheo de todos los modelos
+        document.querySelectorAll('.btn-cache').forEach((btn, index) => {
+            setTimeout(() => {
+                const modelo = btn.dataset.modelo;
+                cacheModel(modelo);
+            }, index * 500);
+        });
+        
+        setTimeout(() => {
+            btn.innerHTML = '<i class="fas fa-check me-1"></i> Todos los modelos cacheados';
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-outline-success');
+        }, document.querySelectorAll('.btn-cache').length * 500 + 1000);
+    }
+    
+    function clearCache() {
+        // En un escenario real, esto sería una llamada AJAX
+        if (!confirm('¿Está seguro que desea limpiar toda la caché? Esta acción no se puede deshacer.')) {
+            return;
+        }
+        
+        const btn = document.getElementById('btn-clear-cache');
+        btn.innerHTML = '<div class="spinner-border spinner-border-sm text-light" role="status"></div> Limpiando...';
+        btn.disabled = true;
+        
+        setTimeout(() => {
+            // Resetear UI
+            document.querySelectorAll('.progress-bar').forEach(bar => {
+                bar.style.width = '0%';
+            });
+            
+            document.querySelectorAll('.badge').forEach(badge => {
+                badge.classList.remove('bg-success');
+                badge.classList.add('bg-danger');
+                badge.textContent = 'No Cacheado';
+            });
+            
+            document.querySelectorAll('.btn-cache').forEach(btn => {
+                btn.innerHTML = '<i class="fas fa-download me-1"></i> Cachear';
+                btn.classList.remove('btn-success');
+                btn.classList.add('btn-primary');
+                btn.disabled = false;
+            });
+            
+            btn.innerHTML = '<i class="fas fa-trash me-1"></i> Limpiar Caché';
+            btn.disabled = false;
+            
+            document.getElementById('btn-cache-all').innerHTML = '<i class="fas fa-download me-1"></i> Cachear Todos los Modelos';
+            document.getElementById('btn-cache-all').classList.remove('btn-outline-success');
+            document.getElementById('btn-cache-all').classList.add('btn-success');
+            document.getElementById('btn-cache-all').disabled = false;
+            
+            alert('Caché limpiada correctamente');
+        }, 2000);
+    }
+    
+    function cargarOperacionesPendientes() {
+        // En un escenario real, esto sería una llamada AJAX
+        fetch('/sincronizacion/api/cola-sincronizacion/?estado=pendiente')
+            .then(response => response.json())
+            .then(data => {
+                actualizarTablaPendientes(data);
+            })
+            .catch(error => {
+                console.error('Error al cargar operaciones pendientes:', error);
+                document.querySelector('#tabla-pendientes tbody').innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center py-4">
+                            <div class="alert alert-danger mb-0">
+                                Error al cargar las operaciones pendientes.
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+    }
+    
+    function actualizarTablaPendientes(operaciones) {
+        const tbody = document.querySelector('#tabla-pendientes tbody');
+        
+        if (operaciones.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="text-center py-4">
+                        No hay operaciones pendientes.
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        tbody.innerHTML = '';
+        
+        operaciones.forEach(op => {
+            const fecha = new Date(op.fecha_creacion);
+            const fechaFormateada = fecha.toLocaleDateString() + ' ' + fecha.toLocaleTimeString();
+            
+            const fila = document.createElement('tr');
+            fila.innerHTML = `
+                <td>${op.tipo_operacion}</td>
+                <td>${op.content_type.app_label}.${op.content_type.model}</td>
+                <td>${fechaFormateada}</td>
+                <td>
+                    <span class="badge ${op.prioridad <= 3 ? 'bg-danger' : op.prioridad <= 7 ? 'bg-warning text-dark' : 'bg-info text-dark'}">
+                        ${op.prioridad}
+                    </span>
+                </td>
+                <td>
+                    <span class="badge bg-warning text-dark">
+                        ${op.estado}
+                    </span>
+                </td>
+            `;
+            
+            tbody.appendChild(fila);
+        });
+    }
+    
+    function syncNow() {
+        // En un escenario real, esto sería una llamada AJAX
+        const btn = document.getElementById('btn-sync-now');
+        btn.innerHTML = '<div class="spinner-border spinner-border-sm text-light" role="status"></div> Sincronizando...';
+        btn.disabled = true;
+        
+        fetch('/sincronizacion/api/cola-sincronizacion/procesar_pendientes/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            btn.innerHTML = '<i class="fas fa-check me-1"></i> Sincronización Completada';
+            
+            setTimeout(() => {
+                cargarOperacionesPendientes();
+                btn.innerHTML = '<i class="fas fa-cloud-upload-alt me-1"></i> Sincronizar Ahora';
+                btn.disabled = false;
+            }, 2000);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            btn.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i> Error al Sincronizar';
+            
+            setTimeout(() => {
+                btn.innerHTML = '<i class="fas fa-cloud-upload-alt me-1"></i> Sincronizar Ahora';
+                btn.disabled = false;
+            }, 2000);
+        });
+    }
+    
+    function getCsrfToken() {
+        return document.querySelector('[name=csrfmiddlewaretoken]').value;
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,846 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Cola de Sincronización{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/sincronizacion.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="h3 mb-0">Cola de Sincronización</h1>
+            <p class="text-muted">Gestión de operaciones pendientes de sincronización</p>
+        </div>
+        <div class="col-auto">
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-primary" id="btn-sync-now">
+                    <i class="fas fa-sync-alt me-1"></i> Sincronizar Ahora
+                </button>
+                <button type="button" class="btn btn-outline-secondary" id="btn-refresh">
+                    <i class="fas fa-redo me-1"></i> Actualizar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resumen y filtros -->
+    <div class="row mb-4">
+        <!-- Resumen -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Resumen</h5>
+                    <div class="row g-3 text-center">
+                        <div class="col-6 col-md-3 col-lg-6">
+                            <div class="bg-light rounded p-3">
+                                <h3 class="mb-0" id="total-pendientes">0</h3>
+                                <small class="text-muted">Pendientes</small>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3 col-lg-6">
+                            <div class="bg-light rounded p-3">
+                                <h3 class="mb-0" id="total-en-proceso">0</h3>
+                                <small class="text-muted">En Proceso</small>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3 col-lg-6">
+                            <div class="bg-light rounded p-3">
+                                <h3 class="mb-0" id="total-conflictos">0</h3>
+                                <small class="text-muted">Conflictos</small>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3 col-lg-6">
+                            <div class="bg-light rounded p-3">
+                                <h3 class="mb-0" id="total-errores">0</h3>
+                                <small class="text-muted">Errores</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Filtros</h5>
+                    <form id="filter-form" class="row g-3">
+                        <div class="col-md-4">
+                            <label for="filter-estado" class="form-label">Estado</label>
+                            <select class="form-select" id="filter-estado">
+                                <option value="">Todos</option>
+                                <option value="pendiente">Pendiente</option>
+                                <option value="en_proceso">En Proceso</option>
+                                <option value="completado">Completado</option>
+                                <option value="error">Error</option>
+                                <option value="conflicto">Conflicto</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="filter-operacion" class="form-label">Operación</label>
+                            <select class="form-select" id="filter-operacion">
+                                <option value="">Todas</option>
+                                <option value="crear">Crear</option>
+                                <option value="actualizar">Actualizar</option>
+                                <option value="eliminar">Eliminar</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="filter-modelo" class="form-label">Modelo</label>
+                            <select class="form-select" id="filter-modelo">
+                                <option value="">Todos</option>
+                                <!-- Se llenará dinámicamente -->
+                            </select>
+                        </div>
+                        <div class="col-12 text-end">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-filter me-1"></i> Filtrar
+                            </button>
+                            <button type="button" id="btn-clear-filters" class="btn btn-outline-secondary">
+                                <i class="fas fa-eraser me-1"></i> Limpiar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de operaciones -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover" id="tabla-operaciones">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Estado</th>
+                            <th>Tipo</th>
+                            <th>Modelo</th>
+                            <th>Objeto</th>
+                            <th>Tienda Origen</th>
+                            <th>Fecha</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Se llenará dinámicamente -->
+                        <tr>
+                            <td colspan="8" class="text-center py-4">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Cargando...</span>
+                                </div>
+                                <p class="mb-0 mt-2">Cargando operaciones...</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Paginación -->
+            <nav aria-label="Paginación de operaciones" id="paginacion-container" class="mt-3">
+                <ul class="pagination justify-content-center">
+                    <!-- Se llenará dinámicamente -->
+                </ul>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Opciones de acciones masivas -->
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h5 class="card-title">Acciones masivas</h5>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <select class="form-select" id="action-select">
+                        <option value="">Seleccionar acción...</option>
+                        <option value="procesar">Procesar seleccionados</option>
+                        <option value="reintentar">Reintentar errores</option>
+                        <option value="marcar-completado">Marcar como completados</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <button type="button" class="btn btn-primary" id="btn-apply-action" disabled>
+                        Aplicar acción
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal detalle operación -->
+<div class="modal fade" id="modal-detalle" tabindex="-1" aria-labelledby="modal-detalle-label" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modal-detalle-label">Detalle de Operación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <span class="badge rounded-pill" id="detalle-estado"></span>
+                            <span class="badge bg-secondary rounded-pill" id="detalle-tipo"></span>
+                        </div>
+                        <small class="text-muted" id="detalle-fecha"></small>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">ID:</label>
+                            <div id="detalle-id"></div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Modelo:</label>
+                            <div id="detalle-modelo"></div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Objeto ID:</label>
+                            <div id="detalle-objeto-id"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Tienda Origen:</label>
+                            <div id="detalle-tienda-origen"></div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Tienda Destino:</label>
+                            <div id="detalle-tienda-destino"></div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Intentos:</label>
+                            <div id="detalle-intentos"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Datos:</label>
+                    <pre class="bg-light p-3 rounded" id="detalle-datos" style="max-height: 200px; overflow-y: auto;"></pre>
+                </div>
+
+                <div class="mb-3" id="error-container">
+                    <label class="form-label fw-bold">Error:</label>
+                    <div class="alert alert-danger" id="detalle-error"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn btn-primary" id="btn-procesar-detalle">Procesar</button>
+                <button type="button" class="btn btn-warning" id="btn-resolver-detalle">Resolver Conflicto</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal confirmar sincronización -->
+<div class="modal fade" id="modal-confirmar-sync" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmar Sincronización</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Está seguro que desea iniciar una sincronización completa?</p>
+                <p>Se procesarán todas las operaciones pendientes en la cola de sincronización.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="btn-confirm-sync">Iniciar Sincronización</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/sincronizacion-cola.js' %}"></script>
+<script>
+    // Estado para los datos cargados
+    let operaciones = [];
+    let paginaActual = 1;
+    const itemsPorPagina = 10;
+    let totalPaginas = 1;
+    
+    // Estado para selección
+    let seleccionados = new Set();
+    
+    // Estado de websocket
+    let ws = null;
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        // Inicializar la página
+        cargarModelos();
+        cargarOperaciones();
+        setupEventListeners();
+        iniciarWebSocket();
+        
+        // Actualizar cada 30 segundos
+        setInterval(actualizarResumen, 30000);
+    });
+    
+    function iniciarWebSocket() {
+        // Conectar a WebSocket para actualizaciones en tiempo real
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+        const wsUrl = `${wsProtocol}${window.location.host}/ws/sincronizacion/`;
+        
+        ws = new WebSocket(wsUrl);
+        
+        ws.onopen = function(e) {
+            console.log('WebSocket conectado');
+        };
+        
+        ws.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+            
+            if (data.type === 'queue_update') {
+                actualizarResumenConDatos(data.data.resumen);
+            }
+        };
+        
+        ws.onclose = function(e) {
+            console.log('WebSocket desconectado, reconectando en 5 segundos...');
+            setTimeout(iniciarWebSocket, 5000);
+        };
+    }
+    
+    function setupEventListeners() {
+        // Filtros
+        document.getElementById('filter-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            cargarOperaciones();
+        });
+        
+        document.getElementById('btn-clear-filters').addEventListener('click', function() {
+            document.getElementById('filter-estado').value = '';
+            document.getElementById('filter-operacion').value = '';
+            document.getElementById('filter-modelo').value = '';
+            cargarOperaciones();
+        });
+        
+        // Refresh
+        document.getElementById('btn-refresh').addEventListener('click', function() {
+            cargarOperaciones();
+        });
+        
+        // Sync now
+        document.getElementById('btn-sync-now').addEventListener('click', function() {
+            const modal = new bootstrap.Modal(document.getElementById('modal-confirmar-sync'));
+            modal.show();
+        });
+        
+        document.getElementById('btn-confirm-sync').addEventListener('click', function() {
+            iniciarSincronizacion();
+            bootstrap.Modal.getInstance(document.getElementById('modal-confirmar-sync')).hide();
+        });
+        
+        // Acción masiva
+        document.getElementById('action-select').addEventListener('change', function() {
+            document.getElementById('btn-apply-action').disabled = !this.value;
+        });
+        
+        document.getElementById('btn-apply-action').addEventListener('click', function() {
+            aplicarAccionMasiva();
+        });
+        
+        // Botones de modal detalle
+        document.getElementById('btn-procesar-detalle').addEventListener('click', function() {
+            const operacionId = this.dataset.operacionId;
+            procesarOperacion(operacionId);
+            bootstrap.Modal.getInstance(document.getElementById('modal-detalle')).hide();
+        });
+        
+        document.getElementById('btn-resolver-detalle').addEventListener('click', function() {
+            const operacionId = this.dataset.operacionId;
+            window.location.href = `/sincronizacion/conflicto/${operacionId}/`;
+        });
+    }
+    
+    function cargarModelos() {
+        // Cargar modelos sincronizables para el filtro
+        fetch('/sincronizacion/api/content-types/sincronizables/')
+            .then(response => response.json())
+            .then(data => {
+                const select = document.getElementById('filter-modelo');
+                select.innerHTML = '<option value="">Todos</option>';
+                
+                data.forEach(modelo => {
+                    const option = document.createElement('option');
+                    option.value = `${modelo.app_label}.${modelo.model}`;
+                    option.textContent = `${modelo.app_label}.${modelo.model}`;
+                    select.appendChild(option);
+                });
+            })
+            .catch(error => console.error('Error al cargar modelos:', error));
+    }
+    
+    function cargarOperaciones() {
+        // Mostrar spinner
+        document.querySelector('#tabla-operaciones tbody').innerHTML = `
+            <tr>
+                <td colspan="8" class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Cargando...</span>
+                    </div>
+                    <p class="mb-0 mt-2">Cargando operaciones...</p>
+                </td>
+            </tr>
+        `;
+        
+        // Construir URL con filtros
+        const filtroEstado = document.getElementById('filter-estado').value;
+        const filtroOperacion = document.getElementById('filter-operacion').value;
+        const filtroModelo = document.getElementById('filter-modelo').value;
+        
+        let url = '/sincronizacion/api/cola-sincronizacion/?';
+        
+        if (filtroEstado) url += `estado=${filtroEstado}&`;
+        if (filtroOperacion) url += `tipo_operacion=${filtroOperacion}&`;
+        if (filtroModelo) {
+            const [appLabel, model] = filtroModelo.split('.');
+            url += `modelo=${appLabel}.${model}&`;
+        }
+        
+        // Cargar operaciones
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                operaciones = data;
+                totalPaginas = Math.ceil(operaciones.length / itemsPorPagina);
+                renderizarTabla();
+                actualizarResumen();
+            })
+            .catch(error => {
+                console.error('Error al cargar operaciones:', error);
+                document.querySelector('#tabla-operaciones tbody').innerHTML = `
+                    <tr>
+                        <td colspan="8" class="text-center py-4">
+                            <div class="alert alert-danger">
+                                Error al cargar las operaciones. Intente nuevamente.
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+    }
+    
+    function renderizarTabla() {
+        // Calcular límites para paginación
+        const inicio = (paginaActual - 1) * itemsPorPagina;
+        const fin = Math.min(inicio + itemsPorPagina, operaciones.length);
+        const operacionesPagina = operaciones.slice(inicio, fin);
+        
+        // Limpiar selección
+        seleccionados.clear();
+        
+        // Renderizar tabla
+        const tbody = document.querySelector('#tabla-operaciones tbody');
+        
+        if (operaciones.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="text-center py-4">
+                        No hay operaciones que coincidan con los filtros.
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        tbody.innerHTML = '';
+        
+        operacionesPagina.forEach(op => {
+            const fila = document.createElement('tr');
+            
+            // Clases y atributos para la fila
+            fila.dataset.id = op.id;
+            
+            // Estado con color
+            let estadoClass = 'bg-secondary';
+            if (op.estado === 'pendiente') estadoClass = 'bg-warning text-dark';
+            if (op.estado === 'completado') estadoClass = 'bg-success';
+            if (op.estado === 'error') estadoClass = 'bg-danger';
+            if (op.estado === 'conflicto') estadoClass = 'bg-danger';
+            if (op.estado === 'en_proceso') estadoClass = 'bg-info text-dark';
+            
+            // Formato de fecha
+            const fecha = new Date(op.fecha_creacion);
+            const fechaFormateada = fecha.toLocaleDateString() + ' ' + fecha.toLocaleTimeString();
+            
+            // Contenido
+            fila.innerHTML = `
+                <td>
+                    <div class="form-check">
+                        <input class="form-check-input selector-operacion" type="checkbox" value="${op.id}" id="check-${op.id}">
+                        <label class="form-check-label" for="check-${op.id}">
+                            ${op.id.substring(0, 8)}...
+                        </label>
+                    </div>
+                </td>
+                <td><span class="badge ${estadoClass}">${op.estado}</span></td>
+                <td>${op.tipo_operacion}</td>
+                <td>${op.content_type.app_label}.${op.content_type.model}</td>
+                <td>${op.object_id}</td>
+                <td>${op.tienda_origen.nombre}</td>
+                <td>${fechaFormateada}</td>
+                <td>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn btn-outline-primary btn-detalle" data-id="${op.id}">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        ${op.estado === 'pendiente' || op.estado === 'error' ? `
+                            <button type="button" class="btn btn-outline-success btn-procesar" data-id="${op.id}">
+                                <i class="fas fa-play"></i>
+                            </button>
+                        ` : ''}
+                        ${op.tiene_conflicto ? `
+                            <button type="button" class="btn btn-outline-warning btn-resolver" data-id="${op.id}">
+                                <i class="fas fa-wrench"></i>
+                            </button>
+                        ` : ''}
+                    </div>
+                </td>
+            `;
+            
+            tbody.appendChild(fila);
+        });
+        
+        // Configurar eventos para los botones
+        document.querySelectorAll('.btn-detalle').forEach(btn => {
+            btn.addEventListener('click', e => {
+                mostrarDetalle(e.currentTarget.dataset.id);
+            });
+        });
+        
+        document.querySelectorAll('.btn-procesar').forEach(btn => {
+            btn.addEventListener('click', e => {
+                procesarOperacion(e.currentTarget.dataset.id);
+            });
+        });
+        
+        document.querySelectorAll('.btn-resolver').forEach(btn => {
+            btn.addEventListener('click', e => {
+                window.location.href = `/sincronizacion/conflicto/${e.currentTarget.dataset.id}/`;
+            });
+        });
+        
+        document.querySelectorAll('.selector-operacion').forEach(checkbox => {
+            checkbox.addEventListener('change', e => {
+                if (e.target.checked) {
+                    seleccionados.add(e.target.value);
+                } else {
+                    seleccionados.delete(e.target.value);
+                }
+            });
+        });
+        
+        // Renderizar paginación
+        renderizarPaginacion();
+    }
+    
+    function renderizarPaginacion() {
+        const paginacion = document.querySelector('#paginacion-container ul');
+        paginacion.innerHTML = '';
+        
+        // Anterior
+        const liAnterior = document.createElement('li');
+        liAnterior.className = `page-item ${paginaActual === 1 ? 'disabled' : ''}`;
+        liAnterior.innerHTML = `
+            <a class="page-link" href="#" aria-label="Anterior">
+                <span aria-hidden="true">&laquo;</span>
+            </a>
+        `;
+        liAnterior.addEventListener('click', e => {
+            e.preventDefault();
+            if (paginaActual > 1) {
+                paginaActual--;
+                renderizarTabla();
+            }
+        });
+        paginacion.appendChild(liAnterior);
+        
+        // Páginas
+        for (let i = 1; i <= totalPaginas; i++) {
+            const li = document.createElement('li');
+            li.className = `page-item ${i === paginaActual ? 'active' : ''}`;
+            li.innerHTML = `<a class="page-link" href="#">${i}</a>`;
+            li.addEventListener('click', e => {
+                e.preventDefault();
+                paginaActual = i;
+                renderizarTabla();
+            });
+            paginacion.appendChild(li);
+        }
+        
+        // Siguiente
+        const liSiguiente = document.createElement('li');
+        liSiguiente.className = `page-item ${paginaActual === totalPaginas ? 'disabled' : ''}`;
+        liSiguiente.innerHTML = `
+            <a class="page-link" href="#" aria-label="Siguiente">
+                <span aria-hidden="true">&raquo;</span>
+            </a>
+        `;
+        liSiguiente.addEventListener('click', e => {
+            e.preventDefault();
+            if (paginaActual < totalPaginas) {
+                paginaActual++;
+                renderizarTabla();
+            }
+        });
+        paginacion.appendChild(liSiguiente);
+    }
+    
+    function actualizarResumen() {
+        fetch('/sincronizacion/api/cola-sincronizacion/estadisticas/')
+            .then(response => response.json())
+            .then(data => {
+                actualizarResumenConDatos(data.por_estado);
+            })
+            .catch(error => console.error('Error al cargar estadísticas:', error));
+    }
+    
+    function actualizarResumenConDatos(datos) {
+        // Actualizar contadores
+        document.getElementById('total-pendientes').textContent = datos.pendiente || 0;
+        document.getElementById('total-en-proceso').textContent = datos.en_proceso || 0;
+        document.getElementById('total-conflictos').textContent = datos.conflicto || 0;
+        document.getElementById('total-errores').textContent = datos.error || 0;
+    }
+    
+    function mostrarDetalle(operacionId) {
+        // Buscar la operación
+        const operacion = operaciones.find(op => op.id === operacionId);
+        
+        if (!operacion) {
+            alert('Operación no encontrada');
+            return;
+        }
+        
+        // Llenar el modal
+        document.getElementById('detalle-id').textContent = operacion.id;
+        document.getElementById('detalle-modelo').textContent = `${operacion.content_type.app_label}.${operacion.content_type.model}`;
+        document.getElementById('detalle-objeto-id').textContent = operacion.object_id;
+        document.getElementById('detalle-tienda-origen').textContent = operacion.tienda_origen.nombre;
+        document.getElementById('detalle-tienda-destino').textContent = operacion.tienda_destino ? operacion.tienda_destino.nombre : 'Servidor Central';
+        document.getElementById('detalle-intentos').textContent = operacion.intentos;
+        
+        // Estado con color
+        let estadoClass = 'bg-secondary';
+        if (operacion.estado === 'pendiente') estadoClass = 'bg-warning text-dark';
+        if (operacion.estado === 'completado') estadoClass = 'bg-success';
+        if (operacion.estado === 'error') estadoClass = 'bg-danger';
+        if (operacion.estado === 'conflicto') estadoClass = 'bg-danger';
+        if (operacion.estado === 'en_proceso') estadoClass = 'bg-info text-dark';
+        
+        document.getElementById('detalle-estado').className = `badge ${estadoClass}`;
+        document.getElementById('detalle-estado').textContent = operacion.estado;
+        
+        document.getElementById('detalle-tipo').textContent = operacion.tipo_operacion;
+        
+        // Fecha
+        const fecha = new Date(operacion.fecha_creacion);
+        document.getElementById('detalle-fecha').textContent = fecha.toLocaleDateString() + ' ' + fecha.toLocaleTimeString();
+        
+        // Datos
+        document.getElementById('detalle-datos').textContent = JSON.stringify(operacion.datos, null, 2);
+        
+        // Error
+        if (operacion.error_mensaje) {
+            document.getElementById('error-container').style.display = 'block';
+            document.getElementById('detalle-error').textContent = operacion.error_mensaje;
+        } else {
+            document.getElementById('error-container').style.display = 'none';
+        }
+        
+        // Configurar botones
+        const btnProcesar = document.getElementById('btn-procesar-detalle');
+        btnProcesar.dataset.operacionId = operacion.id;
+        btnProcesar.style.display = (operacion.estado === 'pendiente' || operacion.estado === 'error') ? 'inline-block' : 'none';
+        
+        const btnResolver = document.getElementById('btn-resolver-detalle');
+        btnResolver.dataset.operacionId = operacion.id;
+        btnResolver.style.display = operacion.tiene_conflicto ? 'inline-block' : 'none';
+        
+        // Mostrar modal
+        const modal = new bootstrap.Modal(document.getElementById('modal-detalle'));
+        modal.show();
+    }
+    
+    function procesarOperacion(operacionId) {
+        fetch(`/sincronizacion/api/cola-sincronizacion/${operacionId}/procesar/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.resultado) {
+                mostrarToast('Operación procesada correctamente', 'success');
+            } else {
+                mostrarToast(`Error: ${data.detail}`, 'danger');
+            }
+            cargarOperaciones();
+        })
+        .catch(error => {
+            console.error('Error al procesar operación:', error);
+            mostrarToast('Error al procesar la operación', 'danger');
+        });
+    }
+    
+    function iniciarSincronizacion() {
+        // Obtener configuración actual
+        fetch('/sincronizacion/api/configuracion-sincronizacion/')
+            .then(response => response.json())
+            .then(data => {
+                if (data.length > 0) {
+                    const configId = data[0].id;
+                    
+                    // Iniciar sincronización
+                    fetch(`/sincronizacion/api/configuracion-sincronizacion/${configId}/sincronizar_ahora/`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCsrfToken()
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.registro_id) {
+                            mostrarToast('Sincronización iniciada correctamente', 'success');
+                            cargarOperaciones();
+                        } else {
+                            mostrarToast('Error al iniciar sincronización', 'danger');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error al iniciar sincronización:', error);
+                        mostrarToast('Error al iniciar sincronización', 'danger');
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error al obtener configuración:', error);
+                mostrarToast('Error al obtener configuración', 'danger');
+            });
+    }
+    
+    function aplicarAccionMasiva() {
+        const accion = document.getElementById('action-select').value;
+        
+        if (!accion || seleccionados.size === 0) {
+            mostrarToast('Seleccione una acción y al menos una operación', 'warning');
+            return;
+        }
+        
+        // Procesar según acción
+        if (accion === 'procesar') {
+            procesarSeleccionados();
+        } else if (accion === 'reintentar') {
+            reintentarErrores();
+        } else if (accion === 'marcar-completado') {
+            marcarCompletados();
+        }
+    }
+    
+    function procesarSeleccionados() {
+        // Convertir Set a array
+        const ids = Array.from(seleccionados);
+        
+        // Procesar secuencialmente para evitar problemas
+        const procesarSiguiente = (index) => {
+            if (index >= ids.length) {
+                mostrarToast(`Se procesaron ${ids.length} operaciones`, 'success');
+                cargarOperaciones();
+                return;
+            }
+            
+            procesarOperacion(ids[index]);
+            setTimeout(() => procesarSiguiente(index + 1), 500);
+        };
+        
+        procesarSiguiente(0);
+    }
+    
+    function reintentarErrores() {
+        // Convertir Set a array
+        const ids = Array.from(seleccionados);
+        
+        // Reintentar errores
+        const reintentarSiguiente = (index) => {
+            if (index >= ids.length) {
+                mostrarToast(`Se reintentaron ${ids.length} operaciones`, 'success');
+                cargarOperaciones();
+                return;
+            }
+            
+            // Verificar si es un error antes de procesar
+            const operacion = operaciones.find(op => op.id === ids[index]);
+            if (operacion && operacion.estado === 'error') {
+                procesarOperacion(ids[index]);
+            }
+            
+            setTimeout(() => reintentarSiguiente(index + 1), 500);
+        };
+        
+        reintentarSiguiente(0);
+    }
+    
+    function marcarCompletados() {
+        // Implementación pendiente
+        mostrarToast('Función no implementada', 'warning');
+    }
+    
+    function mostrarToast(mensaje, tipo) {
+        // Si existe una función global de toast, usarla
+        if (typeof window.mostrarToast === 'function') {
+            window.mostrarToast(mensaje, tipo);
+            return;
+        }
+        
+        // Implementación básica
+        const toast = document.createElement('div');
+        toast.className = `toast align-items-center text-white bg-${tipo} border-0`;
+        toast.setAttribute('role', 'alert');
+        toast.setAttribute('aria-live', 'assertive');
+        toast.setAttribute('aria-atomic', 'true');
+        
+        toast.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body">
+                    ${mensaje}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Cerrar"></button>
+            </div>
+        `;
+        
+        const toastContainer = document.querySelector('.toast-container');
+        if (!toastContainer) {
+            const container = document.createElement('div');
+            container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+            document.body.appendChild(container);
+            container.appendChild(toast);
+        } else {
+            toastContainer.appendChild(toast);
+        }
+        
+        const bsToast = new bootstrap.Toast(toast, { delay: 5000 });
+        bsToast.show();
+    }
+    
+    function getCsrfToken() {
+        return document.querySelector('[name=csrfmiddlewaretoken]').value;
+    }
+</script>
+{% endblock %}

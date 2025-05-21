@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Configuración de Sincronización{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Configuración de Sincronización</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'sincronizacion_dashboard' %}">Sincronización</a></li>
+        <li class="breadcrumb-item active">Configuración</li>
+    </ol>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-cogs me-1"></i>
+            Tienda: {{ config.tienda.nombre }}
+        </div>
+        <div class="card-body">
+            <form id="config-sync-form" method="post">
+                {% csrf_token %}
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="sincronizacion-automatica" 
+                                   name="sincronizacion_automatica" {% if config.sincronizacion_automatica %}checked{% endif %}>
+                            <label class="form-check-label" for="sincronizacion-automatica">Sincronización Automática</label>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="intervalo-minutos" class="form-label">Intervalo (minutos)</label>
+                        <input type="number" class="form-control" id="intervalo-minutos" name="intervalo_minutos"
+                               min="1" max="1440" value="{{ config.intervalo_minutos }}">
+                    </div>
+                </div>
+                
+                <h5>Prioridades por Tipo de Dato</h5>
+                <p class="small text-muted">Menor número indica mayor prioridad en la cola de sincronización</p>
+                
+                <div class="row mb-3">
+                    <div class="col-md-3 mb-3">
+                        <label for="prioridad-productos">Productos</label>
+                        <input type="number" class="form-control" id="prioridad-productos" name="prioridad_productos" 
+                               min="1" max="100" value="{{ config.prioridades|get_item:'productos.Producto'|default:5 }}">
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label for="prioridad-inventario">Inventario</label>
+                        <input type="number" class="form-control" id="prioridad-inventario" name="prioridad_inventario" 
+                               min="1" max="100" value="{{ config.prioridades|get_item:'inventario.Inventario'|default:1 }}">
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label for="prioridad-ventas">Ventas</label>
+                        <input type="number" class="form-control" id="prioridad-ventas" name="prioridad_ventas" 
+                               min="1" max="100" value="{{ config.prioridades|get_item:'ventas.Pedido'|default:2 }}">
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label for="prioridad-clientes">Clientes</label>
+                        <input type="number" class="form-control" id="prioridad-clientes" name="prioridad_clientes" 
+                               min="1" max="100" value="{{ config.prioridades|get_item:'clientes.Cliente'|default:3 }}">
+                    </div>
+                </div>
+                
+                <h5>Estrategia de Resolución de Conflictos</h5>
+                <p class="small text-muted">Define qué datos prevalecen en caso de conflicto</p>
+                
+                <div class="row mb-3">
+                    <div class="col-md-3 mb-3">
+                        <label for="estrategia-productos">Productos</label>
+                        <select class="form-select" id="estrategia-productos" name="estrategia_productos">
+                            <option value="central" {% if config.estrategias_conflicto|get_item:'productos.Producto' == 'central' %}selected{% endif %}>Servidor Central</option>
+                            <option value="local" {% if config.estrategias_conflicto|get_item:'productos.Producto' == 'local' %}selected{% endif %}>Tienda Local</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label for="estrategia-inventario">Inventario</label>
+                        <select class="form-select" id="estrategia-inventario" name="estrategia_inventario">
+                            <option value="central" {% if config.estrategias_conflicto|get_item:'inventario.Inventario' == 'central' %}selected{% endif %}>Servidor Central</option>
+                            <option value="local" {% if config.estrategias_conflicto|get_item:'inventario.Inventario' == 'local' %}selected{% endif %}>Tienda Local</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label for="estrategia-ventas">Ventas</label>
+                        <select class="form-select" id="estrategia-ventas" name="estrategia_ventas">
+                            <option value="central" {% if config.estrategias_conflicto|get_item:'ventas.Pedido' == 'central' %}selected{% endif %}>Servidor Central</option>
+                            <option value="local" {% if config.estrategias_conflicto|get_item:'ventas.Pedido' == 'local' %}selected{% endif %}>Tienda Local</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label for="estrategia-clientes">Clientes</label>
+                        <select class="form-select" id="estrategia-clientes" name="estrategia_clientes">
+                            <option value="central" {% if config.estrategias_conflicto|get_item:'clientes.Cliente' == 'central' %}selected{% endif %}>Servidor Central</option>
+                            <option value="local" {% if config.estrategias_conflicto|get_item:'clientes.Cliente' == 'local' %}selected{% endif %}>Tienda Local</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                    <a href="{% url 'sincronizacion_dashboard' %}" class="btn btn-secondary me-2">Cancelar</a>
+                    <button class="btn btn-primary" type="submit">Guardar Configuración</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-sync me-1"></i>
+            Sincronización Manual
+        </div>
+        <div class="card-body">
+            <p>Puede iniciar manualmente una sincronización completa para esta tienda:</p>
+            
+            <form id="sync-now-form" method="post" action="{% url 'sincronizar_ahora' %}">
+                {% csrf_token %}
+                <div class="d-grid gap-2 d-md-flex justify-content-md-start">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-sync-alt me-1"></i> Sincronizar Ahora
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // AJAX form submission for configuration
+        document.getElementById('config-sync-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const form = this;
+            const formData = new FormData(form);
+            
+            // Collect priorities
+            const prioridades = {
+                'productos.Producto': formData.get('prioridad_productos'),
+                'inventario.Inventario': formData.get('prioridad_inventario'),
+                'ventas.Pedido': formData.get('prioridad_ventas'),
+                'clientes.Cliente': formData.get('prioridad_clientes')
+            };
+            
+            // Collect strategies
+            const estrategias = {
+                'productos.Producto': formData.get('estrategia_productos'),
+                'inventario.Inventario': formData.get('estrategia_inventario'),
+                'ventas.Pedido': formData.get('estrategia_ventas'),
+                'clientes.Cliente': formData.get('estrategia_clientes')
+            };
+            
+            // Create the payload
+            const payload = {
+                sincronizacion_automatica: formData.get('sincronizacion_automatica') === 'on',
+                intervalo_minutos: formData.get('intervalo_minutos'),
+                prioridades: prioridades,
+                estrategias_conflicto: estrategias
+            };
+            
+            // Submit via AJAX
+            fetch('{% url "api:configuracionsincronizacion-detail" config.id %}', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Error al guardar la configuración');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Show success message
+                alert('Configuración guardada correctamente');
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error al guardar la configuración: ' + error.message);
+            });
+        });
+    });
+</script>
+{% endblock %}

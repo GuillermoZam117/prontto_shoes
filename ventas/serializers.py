@@ -22,6 +22,57 @@ class PedidoSerializer(serializers.ModelSerializer):
         model = Pedido
         fields = '__all__'
         read_only_fields = ('estado', 'total', 'descuento_aplicado') # estado, total, and descuento_aplicado will be calculated
+        
+    def validate(self, attrs):
+        """
+        Validate the order to prevent duplicate orders and implement essential business rules
+        """
+        cliente = attrs.get('cliente')
+        fecha_pedido = attrs.get('fecha')
+        tipo_pedido = attrs.get('tipo', 'venta')
+        
+        # Check for duplicate orders (same client, same day, same type)
+        if cliente and fecha_pedido:
+            # Extract just the date part for comparison
+            fecha_solo_dia = fecha_pedido.date() if hasattr(fecha_pedido, 'date') else fecha_pedido
+            
+            # Check for existing orders from the same client on the same day with the same type
+            existing_orders = Pedido.objects.filter(
+                cliente=cliente,
+                fecha__date=fecha_solo_dia,
+                tipo=tipo_pedido,
+                estado__in=['pendiente', 'surtido']  # Only check active orders
+            )
+            
+            if self.instance:  # If this is an update
+                existing_orders = existing_orders.exclude(pk=self.instance.pk)
+                
+            if existing_orders.exists():
+                first_order = existing_orders.first()
+                if first_order:
+                    order_id = first_order.pk
+                    raise ValidationError({
+                        'cliente': f"Ya existe un pedido del tipo '{tipo_pedido}' para este cliente en esta fecha. "
+                                f"Pedido existente: #{order_id}"
+                    })
+                else:
+                    raise ValidationError({
+                        'cliente': f"Ya existe un pedido del tipo '{tipo_pedido}' para este cliente en esta fecha."
+                    })
+        
+        # Check for non-returnable products requiring advance payment
+        detalles_data = attrs.get('detalles', [])
+        pagado = attrs.get('pagado', False)
+        
+        if tipo_pedido == 'venta' and not pagado:
+            for detalle in detalles_data:
+                producto = detalle.get('producto')
+                if producto and hasattr(producto, 'no_returnable') and producto.no_returnable:
+                    raise ValidationError({
+                        'pagado': "Este pedido contiene productos no retornables y requiere pago por adelantado."
+                    })
+                    
+        return attrs
 
     def create(self, validated_data):
         with transaction.atomic():
@@ -43,9 +94,8 @@ class PedidoSerializer(serializers.ModelSerializer):
                 try:
                     producto_instance = Producto.objects.get(id=producto.id)
                 except Producto.DoesNotExist:
-                    raise ValidationError(f"Producto con ID {producto.id} no encontrado.")
-
-                # Check inventory availability before creating order item, only for 'venta' type orders
+                    raise ValidationError(f"Producto con ID {producto.id} no encontrado.")                # Check inventory availability before creating order item, only for 'venta' type orders
+                inventario_tienda = None  # Initialize to None to avoid 'possibly unbound' error
                 if tipo_pedido == 'venta':
                     try:
                         inventario_tienda = Inventario.objects.select_for_update().get(
@@ -55,15 +105,15 @@ class PedidoSerializer(serializers.ModelSerializer):
                         if inventario_tienda.cantidad_actual < cantidad:
                             raise ValidationError(f"Cantidad insuficiente en inventario para producto {producto_instance.codigo}. Disponible: {inventario_tienda.cantidad_actual}, Solicitada: {cantidad}")
                     except Inventario.DoesNotExist:
-                         raise ValidationError(f"Producto {producto_instance.codigo} no encontrado en el inventario de la tienda {tienda.nombre}.")
-
+                        raise ValidationError(f"Producto {producto_instance.codigo} no encontrado en el inventario de la tienda {tienda.nombre}.")
+                
                 # Calculate subtotal and add to total
                 # Assuming precio_unitario is provided in the details or fetched from product
                 # For simplicity, using price from product model; adjust if price comes from input
                 precio_unitario = producto_instance.precio # Using product's current price
                 subtotal = precio_unitario * cantidad
                 total_pedido += subtotal
-
+                
                 DetallePedido.objects.create(
                     pedido=pedido,
                     producto=producto_instance,
@@ -71,25 +121,29 @@ class PedidoSerializer(serializers.ModelSerializer):
                     precio_unitario=precio_unitario,
                     subtotal=subtotal
                 )
-
-                # Decrement inventory after creating order item, only for 'venta' type orders
-                if tipo_pedido == 'venta':
+                  # Decrement inventory after creating order item, only for 'venta' type orders
+                if tipo_pedido == 'venta' and inventario_tienda is not None:
                     inventario_tienda.cantidad_actual = F('cantidad_actual') - cantidad
                     inventario_tienda.save()
-
-            # Apply discounts based on the client, only for 'venta' type orders
+                    
+            # Apply discounts based on the client, only for 'venta' type orders and if payment is received
             descuento_aplicado = Decimal('0.00')
             total_con_descuento = total_pedido # Initialize with total before discount
             if cliente and tipo_pedido == 'venta':
                 today = date.today()
                 current_month = today.strftime('%Y-%m')
-                try:
-                    # Find the applicable discount for the current month
-                    descuento_cliente = DescuentoCliente.objects.get(cliente=cliente, mes_vigente=current_month)
-                    descuento_aplicado = descuento_cliente.porcentaje
-                except DescuentoCliente.DoesNotExist:
-                    # No specific discount for this client this month
-                    pass # descuento_aplicado remains 0
+                # Check if payment is received - use the 'pagado' field if included in validated_data
+                pago_recibido = validated_data.get('pagado', False)
+                
+                # Only apply discount if order is paid
+                if pago_recibido:
+                    try:
+                        # Find the applicable discount for the current month
+                        descuento_cliente = DescuentoCliente.objects.get(cliente=cliente, mes_vigente=current_month)
+                        descuento_aplicado = descuento_cliente.porcentaje
+                    except DescuentoCliente.DoesNotExist:
+                        # No specific discount for this client this month
+                        pass # descuento_aplicado remains 0
                 
                 pedido.descuento_aplicado = descuento_aplicado
             
@@ -134,10 +188,9 @@ class PedidoSerializer(serializers.ModelSerializer):
                      raise ValidationError(f"No hay una caja abierta para la tienda {tienda.nombre} en la fecha actual para registrar la venta.")
                 
                 TransaccionCaja.objects.create(
-                    caja=caja_abierta,
-                    tipo_movimiento='ingreso',
+                    caja=caja_abierta,                    tipo_movimiento='ingreso',
                     monto=total_con_descuento,
-                    descripcion=f'Venta Pedido #{pedido.id}',
+                    descripcion=f'Venta Pedido #{pedido.pk}',
                     pedido=pedido, # Link to the sale order
                     created_by=user # Assuming user is the cashier/admin
                 )
