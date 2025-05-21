@@ -52,11 +52,10 @@
                 </div>
             </div>
         </div>
-        
-        <div class="col-xl-3 col-md-6">
+          <div class="col-xl-3 col-md-6">
             <div class="card bg-warning text-white mb-4">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center"
+                    <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <h5 class="mb-0">Conflictos</h5>
                             <div class="small" id="operaciones-conflicto">0 pendientes</div>
@@ -342,14 +341,20 @@
         // Confirmar resolución de conflicto
         document.getElementById('confirmar-resolucion').addEventListener('click', function() {
             // En producción: enviaría la resolución a la API
-            alert('Conflicto resuelto exitosamente');
-            const modal = bootstrap.Modal.getInstance(document.getElementById('conflicto-modal'));
+            alert('Conflicto resuelto exitosamente');            const modal = bootstrap.Modal.getInstance(document.getElementById('conflicto-modal'));
             modal.hide();
-        });{% block extra_js %}
+        });
+    });
+</script>
+{% endblock %}
+
+{% block extra_js %}
 <script src="{% static 'js/sincronizacion-websocket.js' %}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Configurar WebSocket para actualizaciones en tiempo real
+        const sincronizacionWS = new SincronizacionWebSocket();
+        
         sincronizacionWS.onConnect(function() {
             // Actualizar UI para mostrar conexión
             document.getElementById('estado-conexion-card').classList.remove('bg-danger');

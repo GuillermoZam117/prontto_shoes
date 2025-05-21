@@ -14,6 +14,7 @@ class SincronizacionConfig(AppConfig):
             from sincronizacion.cache_manager import cache_manager, refrescar_cache_automatica
             import threading
             import time
+            import os
             
             # Iniciar thread para actualización de caché en segundo plano
             def cache_updater():
@@ -22,7 +23,8 @@ class SincronizacionConfig(AppConfig):
                 refrescar_cache_automatica()
             
             # Solo iniciar en el proceso principal (evitar múltiples threads en entorno dev)
-            if not self.apps.is_installed('django.contrib.admin'):
+            # Verificar si estamos en un thread principal del servidor usando la variable RUN_MAIN
+            if os.environ.get('RUN_MAIN', None) == 'true':
                 threading.Thread(target=cache_updater, daemon=True).start()
                 
         except ImportError:
