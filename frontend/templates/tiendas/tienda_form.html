@@ -1,0 +1,87 @@
+{% extends "layouts/base.html" %}
+{% load static %}
+
+{% block title %}
+    {% if is_edit %}
+        Editar {{ tienda.nombre }}
+    {% else %}
+        Nueva Tienda
+    {% endif %}
+    | Pronto Shoes
+{% endblock %}
+
+{% block page_title %}
+    {% if is_edit %}
+        Editar Tienda
+    {% else %}
+        Nueva Tienda
+    {% endif %}
+{% endblock %}
+
+{% block breadcrumbs_content %}
+    <li class="breadcrumb-item"><a href="{% url 'tiendas:lista' %}">Tiendas</a></li>
+    {% if is_edit %}
+        <li class="breadcrumb-item"><a href="{% url 'tiendas:detalle' tienda.id %}">{{ tienda.nombre }}</a></li>
+        <li class="breadcrumb-item active">Editar</li>
+    {% else %}
+        <li class="breadcrumb-item active">Nueva</li>
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    {% if is_edit %}
+                        Editar información de tienda
+                    {% else %}
+                        Registrar nueva tienda
+                    {% endif %}
+                </h6>
+            </div>
+            <div class="card-body">
+                <form method="post" action="">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="nombre" class="form-label">Nombre <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="nombre" name="nombre" required 
+                               value="{% if tienda %}{{ tienda.nombre }}{% endif %}">
+                        <div class="form-text">Nombre de la tienda (debe ser único)</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="direccion" class="form-label">Dirección <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="direccion" name="direccion" required 
+                               value="{% if tienda %}{{ tienda.direccion }}{% endif %}">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="contacto" class="form-label">Contacto</label>
+                        <input type="text" class="form-control" id="contacto" name="contacto"
+                               value="{% if tienda %}{{ tienda.contacto }}{% endif %}">
+                        <div class="form-text">Nombre o teléfono de contacto principal de la tienda</div>
+                    </div>
+                    
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="activa" name="activa"
+                               {% if tienda.activa %}checked{% elif not tienda %}checked{% endif %}>
+                        <label class="form-check-label" for="activa">Tienda activa</label>
+                        <div class="form-text">Si está desmarcado, la tienda no podrá realizar operaciones</div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-end">
+                        <a href="{% if tienda %}{% url 'tiendas:detalle' tienda.id %}{% else %}{% url 'tiendas:lista' %}{% endif %}" 
+                           class="btn btn-secondary me-2">Cancelar</a>
+                        <button type="submit" class="btn btn-primary">
+                            {% if is_edit %}Guardar Cambios{% else %}Crear Tienda{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

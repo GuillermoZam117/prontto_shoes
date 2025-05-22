@@ -1,10 +1,10 @@
-"""
+﻿'''
 Gestor de caché para operaciones offline.
 
 Este módulo se encarga de gestionar la caché local para permitir operaciones
 offline, asegurando que los datos críticos estén disponibles incluso cuando
 no hay conexión con el servidor central.
-"""
+'''
 import logging
 import os
 import json
@@ -34,7 +34,7 @@ CACHE_DIR = getattr(settings, 'SINCRONIZACION_CACHE_DIR',
 
 
 class CacheManager:
-    """
+    '''
     Gestor de caché para operaciones offline.
     
     Proporciona funcionalidades para:
@@ -42,20 +42,20 @@ class CacheManager:
     - Actualizar la caché automáticamente
     - Gestionar prioridades de cacheo
     - Persistir datos clave para funcionamiento offline
-    """
+    '''
     
     def __init__(self):
-        """Inicializa el gestor de caché"""
+        '''Inicializa el gestor de caché'''
         self.ensure_cache_dir()
     
     def ensure_cache_dir(self):
-        """Asegura que el directorio de caché exista"""
+        '''Asegura que el directorio de caché exista'''
         os.makedirs(CACHE_DIR, exist_ok=True)
     
     def get_cache_key(self, model_class, object_id=None):
-        """
+        '''
         Genera una clave de caché para un modelo o instancia específica
-        """
+        '''
         app_label = model_class._meta.app_label
         model_name = model_class._meta.model_name
         
@@ -65,9 +65,9 @@ class CacheManager:
             return f"{CACHE_PREFIX}{app_label}.{model_name}"
     
     def cache_model_instance(self, instance, ttl=DEFAULT_CACHE_TTL):
-        """
+        '''
         Almacena una instancia de modelo en la caché
-        """
+        '''
         try:
             # Obtener configuración del modelo
             config = obtener_config_modelo(instance)
@@ -93,9 +93,9 @@ class CacheManager:
             return False
     
     def cache_model_queryset(self, model_class, queryset=None, ttl=DEFAULT_CACHE_TTL):
-        """
+        '''
         Almacena un conjunto de instancias de un modelo en la caché
-        """
+        '''
         if queryset is None:
             queryset = model_class.objects.all()
         
@@ -136,9 +136,9 @@ class CacheManager:
         return len(cached_ids)
     
     def get_cached_instance(self, model_class, object_id):
-        """
+        '''
         Obtiene una instancia cacheada de un modelo
-        """
+        '''
         cache_key = self.get_cache_key(model_class, object_id)
         
         # Intentar obtener de la caché en memoria
@@ -151,9 +151,9 @@ class CacheManager:
         return datos
     
     def get_cached_queryset(self, model_class):
-        """
+        '''
         Obtiene todas las instancias cacheadas de un modelo
-        """
+        '''
         list_cache_key = self.get_cache_key(model_class)
         
         # Obtener lista de IDs cacheados
@@ -173,9 +173,9 @@ class CacheManager:
         return instances
     
     def invalidate_cache(self, model_class, object_id=None):
-        """
+        '''
         Invalida la caché para un modelo o instancia específica
-        """
+        '''
         if object_id:
             # Invalidar una instancia específica
             cache_key = self.get_cache_key(model_class, object_id)
@@ -194,9 +194,9 @@ class CacheManager:
             cache.delete(list_cache_key)
     
     def persist_to_disk(self, cache_key, datos):
-        """
+        '''
         Almacena los datos en disco para persistencia
-        """
+        '''
         try:
             # Crear path seguro para archivo
             safe_key = cache_key.replace('.', '_').replace('/', '_')
@@ -213,9 +213,9 @@ class CacheManager:
             return False
     
     def load_from_disk(self, cache_key):
-        """
+        '''
         Carga datos desde almacenamiento persistente
-        """
+        '''
         try:
             # Obtener path del archivo
             safe_key = cache_key.replace('.', '_').replace('/', '_')
@@ -239,9 +239,9 @@ class CacheManager:
             return None
     
     def remove_from_disk(self, cache_key):
-        """
+        '''
         Elimina datos del almacenamiento persistente
-        """
+        '''
         try:
             safe_key = cache_key.replace('.', '_').replace('/', '_')
             file_path = os.path.join(CACHE_DIR, f"{safe_key}.json")
@@ -256,9 +256,9 @@ class CacheManager:
             return False
     
     def get_persisted_ids(self, model_class):
-        """
+        '''
         Obtiene los IDs de las instancias persistidas en disco
-        """
+        '''
         try:
             app_label = model_class._meta.app_label
             model_name = model_class._meta.model_name
@@ -278,9 +278,9 @@ class CacheManager:
             return []
     
     def es_modelo_critico(self, model_class):
-        """
+        '''
         Determina si un modelo es crítico para operaciones offline
-        """
+        '''
         # Modelos considerados críticos para funcionamiento offline
         MODELOS_CRITICOS = [
             'productos.Producto',
@@ -290,13 +290,27 @@ class CacheManager:
             'descuentos.TabuladorDescuento',
         ]
         
-        model_str = f"{model_class._meta.app_label}.{model_class._meta.model_name}"
+        # Check if model_class is already a string
+        if isinstance(model_class, str):
+            model_str = model_class
+        else:
+            # Handle case when model_class is a Django model class
+            try:
+                model_str = f"{model_class._meta.app_label}.{model_class._meta.model_name}"
+            except AttributeError:
+                # Handle case when model_class might be an instance or something else
+                try:
+                    model_str = f"{model_class.__class__._meta.app_label}.{model_class.__class__._meta.model_name}"
+                except AttributeError:
+                    logger.error(f"No se pudo determinar el modelo para {model_class}")
+                    return False
+            
         return model_str in MODELOS_CRITICOS
     
     def actualizar_cache_completa(self):
-        """
+        '''
         Actualiza la caché completa para modelos críticos
-        """
+        '''
         for model_str in MODELOS_SINCRONIZABLES:
             if not self.es_modelo_critico(model_str):
                 continue
@@ -317,9 +331,9 @@ cache_manager = CacheManager()
 
 
 def refrescar_cache_automatica():
-    """
+    '''
     Actualiza automáticamente la caché para modelos críticos
-    """
+    '''
     try:
         logger.info("Iniciando actualización automática de caché")
         cache_manager.actualizar_cache_completa()
@@ -329,11 +343,11 @@ def refrescar_cache_automatica():
 
 
 def detectar_estado_conexion():
-    """
+    '''
     Detecta si hay conexión con el servidor central
     Esta es una implementación simplificada, en un entorno real
     se usaría algún mecanismo más sofisticado
-    """
+    '''
     try:
         # Intentar una operación básica con la base de datos
         from django.db import connection

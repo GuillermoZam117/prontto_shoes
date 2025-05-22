@@ -49,6 +49,8 @@ class ColaSincronizacion(models.Model):
     
     # Metadatos para solución de conflictos
     tiene_conflicto = models.BooleanField(default=False)
+    datos_servidor = models.JSONField(null=True, blank=True, help_text='Datos del servidor en caso de conflicto')
+    diferencias = models.JSONField(null=True, blank=True, help_text='Diferencias detectadas en conflicto')
     resuelto_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, 
                                    null=True, blank=True, related_name='conflictos_resueltos')
     fecha_resolucion = models.DateTimeField(null=True, blank=True)

@@ -1,0 +1,46 @@
+{% extends "layouts/base.html" %}
+{% load static %}
+
+{% block title %}Eliminar {{ tienda.nombre }} | Pronto Shoes{% endblock %}
+
+{% block page_title %}Eliminar Tienda{% endblock %}
+
+{% block breadcrumbs_content %}
+    <li class="breadcrumb-item"><a href="{% url 'tiendas:lista' %}">Tiendas</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'tiendas:detalle' tienda.id %}">{{ tienda.nombre }}</a></li>
+    <li class="breadcrumb-item active">Eliminar</li>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-6 mx-auto">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Confirmar Eliminación</h6>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i> 
+                    <strong>¡Advertencia!</strong> Esta acción no se puede deshacer.
+                </div>
+                
+                <p class="mb-4">
+                    ¿Estás seguro de que deseas eliminar la tienda <strong>{{ tienda.nombre }}</strong>?
+                    Eliminar una tienda también eliminará todos los registros asociados a ella, incluyendo inventarios, traspasos,
+                    y su historial de sincronización.
+                </p>
+                
+                <form method="post" action="">
+                    {% csrf_token %}
+                    <div class="d-flex justify-content-end">
+                        <a href="{% url 'tiendas:detalle' tienda.id %}" class="btn btn-secondary me-2">Cancelar</a>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="bi bi-trash me-1"></i> Eliminar Tienda
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -2,6 +2,9 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
 
+# Agregar namespace para la aplicación
+app_name = 'sincronizacion'
+
 router = DefaultRouter()
 router.register(r'cola-sincronizacion', views.ColaSincronizacionViewSet, basename='cola-sincronizacion')
 router.register(r'configuracion-sincronizacion', views.ConfiguracionSincronizacionViewSet, basename='configuracion-sincronizacion')
@@ -19,6 +22,7 @@ urlpatterns = [
     path('conflicto/<uuid:operacion_id>/', views.resolver_conflicto, name='resolver_conflicto'),
     path('historial/', views.historial_sincronizacion, name='historial_sincronizacion'),
     path('configuracion/', views.configuracion_sincronizacion, name='configuracion_sincronizacion'),
+    path('configuracion/<int:config_id>/sincronizar/', views.sincronizar_ahora, name='sincronizar_ahora'),
     path('auditoria/', views.auditoria_sincronizacion, name='auditoria_sincronizacion'),
     path('offline/', views.offline_status, name='offline_status'),
 ]

@@ -149,8 +149,7 @@ class SeguridadSincronizacion:
         
         # Encriptar campos sensibles
         for campo in campos_sensibles:
-            if campo in datos_seguros:
-                # Encriptar campo (aquí se usa una encriptación simple pero se
+            if campo in datos_seguros:                # Encriptar campo (aquí se usa una encriptación simple pero se
                 # debe implementar una encriptación más robusta en producción)
                 valor = datos_seguros[campo]
                 if isinstance(valor, str):
@@ -164,15 +163,14 @@ class SeguridadSincronizacion:
         """
         Crea una entrada en el registro de auditoría
         """
-        from .models import RegistroAuditoria
-        
         try:
             # Crear registro
             registro = RegistroAuditoria.objects.create(
                 usuario=usuario,
                 tienda=tienda,
                 accion=accion,
-                objeto_afectado=objeto_afectado,
+                content_type=ContentType.objects.get_for_model(objeto_afectado) if objeto_afectado else None,
+                object_id=str(objeto_afectado.pk) if objeto_afectado else None,
                 detalles=detalles,
                 exitoso=exitoso,
                 fecha=timezone.now(),

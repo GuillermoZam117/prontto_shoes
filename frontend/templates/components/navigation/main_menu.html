@@ -62,11 +62,10 @@ Componente para el menú principal de navegación (versión simplificada para lo
     <li class="nav-item dropdown">
         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
             <i class="bi bi-gear me-1"></i> Administración
-        </a>
-        <ul class="dropdown-menu dropdown-menu-end">
-            <li><a class="dropdown-item" href="{% url 'proveedores:lista' %}">Proveedores</a></li>
+        </a>        <ul class="dropdown-menu dropdown-menu-end">            <li><a class="dropdown-item" href="{% url 'proveedores:lista' %}">Proveedores</a></li>
             <li><a class="dropdown-item" href="{% url 'descuentos:lista' %}">Tabulador de Descuentos</a></li>
-            <li><a class="dropdown-item" href="#">Tiendas</a></li>
+            <li><a class="dropdown-item" href="{% url 'tiendas:lista' %}">Tiendas</a></li>
+            <li><a class="dropdown-item" href="{% url 'sincronizacion:sincronizacion_dashboard' %}">Sincronización</a></li>
             <li><hr class="dropdown-divider"></li>
             <li><a class="dropdown-item" href="#">Usuarios</a></li>
             <li><a class="dropdown-item" href="{% url 'logout' %}">Cerrar Sesión</a></li>

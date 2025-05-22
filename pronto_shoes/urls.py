@@ -84,6 +84,8 @@ urlpatterns = [
     # Devoluciones application
     path('devoluciones/', include('devoluciones.urls')),    # Requisiciones application
     path('requisiciones/', include('requisiciones.urls')),
+    # Tiendas application
+    path('tiendas/', include('tiendas.urls')),
     # Sincronizacion application
     path('sincronizacion/', include('sincronizacion.urls')),
     path('api/', include(router.urls)),
@@ -94,10 +96,8 @@ urlpatterns = [
     path('api/reportes/devoluciones/', DevolucionesReporteAPIView.as_view(), name='devoluciones-reporte'),
     path('api/reportes/requisiciones/', RequisicionesReporteAPIView.as_view(), name='requisiciones-reporte'),
     path('api/reportes/descuentos/', DescuentosReporteAPIView.as_view(), name='descuentos-reporte'),
-    path('api/reportes/logs_auditoria/', LogsAuditoriaReporteAPIView.as_view(), name='logs-auditoria-reporte'),
-    
-    # Authentication URLs
-    path('login/', auth_views.LoginView.as_view(), name='login'),
+    path('api/reportes/logs_auditoria/', LogsAuditoriaReporteAPIView.as_view(), name='logs-auditoria-reporte'),    # Authentication URLs
+    path('login/', auth_views.LoginView.as_view(template_name='registration/login_simple.html'), name='login'),
     path('logout/', auth_views.LogoutView.as_view(), name='logout'),
     path('password_change/', auth_views.PasswordChangeView.as_view(), name='password_change'),
     path('password_change/done/', auth_views.PasswordChangeDoneView.as_view(), name='password_change_done'),
@@ -105,6 +105,9 @@ urlpatterns = [
     path('password_reset/done/', auth_views.PasswordResetDoneView.as_view(), name='password_reset_done'),
     path('reset/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
     path('reset/done/', auth_views.PasswordResetCompleteView.as_view(), name='password_reset_complete'),
+    
+    # Redirect from Django's default /accounts/login/ to our login page
+    path('accounts/login/', RedirectView.as_view(url='/login/', permanent=True), name='accounts_login_redirect'),
 ]
 
 urlpatterns += [

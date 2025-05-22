@@ -176,6 +176,7 @@ SPECTACULAR_SETTINGS = {
 }
 
 # Authentication settings
+LOGIN_URL = '/login/'  # URL where the login page is located
 LOGIN_REDIRECT_URL = '/dashboard/'  # Redirect to dashboard after login
 LOGOUT_REDIRECT_URL = '/login/'  # Redirect to login page after logout
 

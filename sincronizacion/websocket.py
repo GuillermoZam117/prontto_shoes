@@ -18,6 +18,61 @@ CANAL_ESTADO_SINCRONIZACION = 'sync_estado'
 CANAL_CONFLICTOS = 'sync_conflictos'
 CANAL_COLA = 'sync_cola'
 
+def notificar_conflicto(operacion_id, tienda_id=None, datos=None):
+    """
+    Notifica a todos los clientes sobre un nuevo conflicto de sincronización
+    
+    Args:
+        operacion_id: ID de la operación con conflicto
+        tienda_id: ID de la tienda relacionada con el conflicto (opcional)
+        datos: Datos adicionales sobre el conflicto (opcional)
+    """
+    try:
+        from .models import ColaSincronizacion
+        
+        # Obtener la operación
+        operacion = ColaSincronizacion.objects.get(id=operacion_id)
+        
+        # Preparar datos para envío
+        data = {
+            'operacion_id': str(operacion.id),
+            'modelo': f"{operacion.content_type.app_label}.{operacion.content_type.model}",
+            'objeto_id': operacion.object_id,
+            'tienda_origen': operacion.tienda_origen.id if operacion.tienda_origen else None,
+            'tienda_destino': operacion.tienda_destino.id if operacion.tienda_destino else None,
+            'fecha': operacion.fecha_creacion.isoformat(),
+            'datos_adicionales': datos or {}
+        }
+        
+        # Obtener el channel layer
+        channel_layer = get_channel_layer()
+        
+        # Enviar a todos los suscriptores del canal de conflictos
+        async_to_sync(channel_layer.group_send)(
+            CANAL_CONFLICTOS,
+            {
+                'type': 'update_conflicto',
+                'data': data
+            }
+        )
+        
+        # Si se especificó una tienda, notificar también a ese canal específico
+        if tienda_id:
+            tienda_channel = f"{CANAL_ESTADO_SINCRONIZACION}_{tienda_id}"
+            async_to_sync(channel_layer.group_send)(
+                tienda_channel,
+                {
+                    'type': 'update_conflicto',
+                    'data': data
+                }
+            )
+        
+        logger.info(f"Notificación de conflicto enviada para operación {operacion_id}")
+        return True
+    except Exception as e:
+        logger.error(f"Error al notificar conflicto: {e}")
+        return False
+
 
 class SincronizacionConsumer(WebsocketConsumer):
     """

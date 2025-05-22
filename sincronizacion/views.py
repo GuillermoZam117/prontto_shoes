@@ -5,9 +5,13 @@ from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Count, Q
 from django.utils import timezone
-from django.shortcuts import render
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.apps import apps
+from django.contrib import messages
+from django.http import JsonResponse
+from django.db.models import Count, Q
+from django.utils.timezone import now, timedelta
 from tiendas.models import Tienda
 
 from .models import ColaSincronizacion, ConfiguracionSincronizacion, RegistroSincronizacion, EstadoSincronizacion
@@ -17,9 +21,15 @@ from .serializers import (
 )
 from .tasks import (
     procesar_cola_sincronizacion, iniciar_sincronizacion_completa,
-    verificar_sincronizaciones_automaticas, resolver_conflicto
+    verificar_sincronizaciones_automaticas, resolver_conflicto as resolver_conflicto_task
 )
 from .security import RegistroAuditoria, SeguridadSincronizacion
+from .conflict_resolution import ConflictResolver, ConflictResolutionStrategy
+from .performance_optimizations import (
+    refrescar_cache_incremental, cache_model_batch,
+    detectar_conflictos_potenciales, ajustar_prioridades_dinamicas,
+    procesar_cola_rapido
+)
 
 class ColaSincronizacionViewSet(viewsets.ModelViewSet):
     queryset = ColaSincronizacion.objects.all().order_by('-fecha_creacion')
@@ -224,73 +234,206 @@ def sincronizacion_dashboard(request):
     """
     Vista principal del panel de sincronización
     """
-    # Obtener tienda actual (para un sistema multitienda)
+    # Obtener estadísticas para el dashboard
     tienda_actual = Tienda.objects.filter(activa=True).first()
     
-    # Obtener contadores de operaciones
+    # Contar operaciones pendientes
     pendientes = ColaSincronizacion.objects.filter(
-        estado=EstadoSincronizacion.PENDIENTE, 
-        tienda_origen=tienda_actual
+        estado=EstadoSincronizacion.PENDIENTE
     ).count()
     
+    # Contar conflictos
     conflictos = ColaSincronizacion.objects.filter(
-        tiene_conflicto=True,
-        tienda_origen=tienda_actual
+        tiene_conflicto=True
     ).count()
     
-    # Obtener configuración de sincronización
-    try:
-        config = ConfiguracionSincronizacion.objects.get(tienda=tienda_actual)
-    except ConfiguracionSincronizacion.DoesNotExist:
-        config = None
-    
-    # Obtener última sincronización exitosa
-    ultima_sync = RegistroSincronizacion.objects.filter(
-        tienda=tienda_actual,
-        estado=EstadoSincronizacion.COMPLETADO
+    # Última sincronización exitosa
+    ultima_sincronizacion = RegistroSincronizacion.objects.filter(
+        exitoso=True
     ).order_by('-fecha_fin').first()
     
+    # Estado de conexión (simplificado para esta implementación)
+    estado_conexion = 'conectado' if tienda_actual else 'desconectado'
+    
+    # Estadísticas por tipo de objeto
+    estadisticas_por_modelo = ColaSincronizacion.objects.filter(
+        estado=EstadoSincronizacion.PENDIENTE
+    ).values(
+        'content_type__app_label', 
+        'content_type__model'
+    ).annotate(
+        total=Count('id')
+    ).order_by('-total')[:5]  # Top 5
+    
+    # Obtener configuración de sincronización
+    configuracion, created = ConfiguracionSincronizacion.objects.get_or_create(
+        tienda=tienda_actual,
+        defaults={
+            'sincronizacion_automatica': True,
+            'intervalo_minutos': 15
+        }
+    )
+    
     return render(request, 'sincronizacion/dashboard.html', {
-        'tienda_actual': tienda_actual,
         'pendientes': pendientes,
         'conflictos': conflictos,
-        'config': config,
-        'ultima_sincronizacion': ultima_sync,
+        'ultima_sincronizacion': ultima_sincronizacion,
+        'estado_conexion': estado_conexion,
+        'estadisticas_por_modelo': estadisticas_por_modelo,
+        'configuracion': configuracion,
+        'tienda_actual': tienda_actual
     })
 
 @login_required
 def cola_sincronizacion(request):
     """
-    Vista para ver y gestionar la cola de sincronización
+    Vista para la cola de sincronización
     """
-    return render(request, 'sincronizacion/cola.html')
+    # Obtener parámetros de filtrado
+    estado = request.GET.get('estado', '')
+    modelo = request.GET.get('modelo', '')
+    
+    # Base query
+    operaciones = ColaSincronizacion.objects.all().order_by('-fecha_creacion')
+    
+    # Aplicar filtros
+    if estado:
+        operaciones = operaciones.filter(estado=estado)
+    
+    if modelo and '.' in modelo:
+        app_label, model = modelo.split('.')
+        try:
+            ct = ContentType.objects.get(app_label=app_label, model=model)
+            operaciones = operaciones.filter(content_type=ct)
+        except ContentType.DoesNotExist:
+            pass
+    
+    # Paginación básica
+    operaciones = operaciones[:100]  # Limitar a 100 resultados
+    
+    # Obtener tipos de contenido para el filtro
+    content_types = ContentType.objects.filter(
+        colasincronizacion__isnull=False
+    ).distinct().order_by('app_label', 'model')
+    
+    return render(request, 'sincronizacion/cola.html', {
+        'operaciones': operaciones,
+        'content_types': content_types,
+        'estado_seleccionado': estado,
+        'modelo_seleccionado': modelo,
+        'estados': EstadoSincronizacion.choices
+    })
 
 @login_required
 def resolver_conflicto(request, operacion_id):
     """
-    Vista para resolver un conflicto de sincronización específico
+    Vista para resolver conflictos de sincronización
     """
-    operacion = ColaSincronizacion.objects.get(id=operacion_id, tiene_conflicto=True)
+    operacion = get_object_or_404(ColaSincronizacion, id=operacion_id)
     
-    return render(request, 'sincronizacion/resolver_conflicto.html', {
+    # Verificar si realmente hay un conflicto
+    if not operacion.tiene_conflicto:
+        messages.error(request, 'La operación no tiene conflictos para resolver.')
+        return redirect('sincronizacion:cola_sincronizacion')
+    
+    if request.method == 'POST':
+        # Obtener decisión del usuario
+        decision = request.POST.get('resolucion', '')
+        
+        # Importar función de tarea para resolver conflictos
+        from .tasks import resolver_conflicto as resolver_conflicto_task
+        
+        if decision == 'servidor':
+            # Usar datos del servidor
+            resultado = resolver_conflicto_task(
+                operacion_id=operacion.id,
+                usar_datos_servidor=True,
+                usuario=request.user
+            )
+        elif decision == 'local':
+            # Usar datos locales
+            resultado = resolver_conflicto_task(
+                operacion_id=operacion.id,
+                usar_datos_servidor=False,
+                usuario=request.user
+            )
+        elif decision == 'personalizado':
+            # Datos personalizados (simplificado)
+            datos_personalizados = request.POST.get('datos_personalizados', '{}')
+            import json
+            try:
+                datos_json = json.loads(datos_personalizados)
+                resultado = resolver_conflicto_task(
+                    operacion_id=operacion.id,
+                    usar_datos_servidor=False,
+                    datos_personalizados=datos_json,
+                    usuario=request.user
+                )
+            except json.JSONDecodeError:
+                messages.error(request, 'Error en el formato de los datos personalizados.')
+                return redirect('sincronizacion:resolver_conflicto', operacion_id=operacion_id)
+        else:
+            messages.error(request, 'Opción de resolución no válida.')
+            return redirect('sincronizacion:resolver_conflicto', operacion_id=operacion_id)
+        
+        if resultado:
+            messages.success(request, 'Conflicto resuelto correctamente.')
+            return redirect('sincronizacion:cola_sincronizacion')
+        else:
+            messages.error(request, 'Error al resolver el conflicto.')
+    
+    # Obtener modelo y datos
+    content_type = operacion.content_type
+    model_class = content_type.model_class()
+    model_name = f"{content_type.app_label}.{content_type.model}"
+    
+    # Preparar contexto para la plantilla
+    context = {
         'operacion': operacion,
-    })
+        'model_name': model_name,
+        'datos_locales': operacion.datos,
+        'datos_servidor': operacion.datos_servidor or {},
+        'diferencias': operacion.diferencias or []
+    }
+    
+    return render(request, 'sincronizacion/resolver_conflicto.html', context)
 
 @login_required
 def historial_sincronizacion(request):
     """
-    Vista para ver el historial de sincronizaciones
+    Vista para el historial de sincronizaciones
     """
-    # Obtener tienda actual
-    tienda_actual = Tienda.objects.filter(activa=True).first()
+    # Obtener parámetros de filtrado
+    desde = request.GET.get('desde', '')
+    hasta = request.GET.get('hasta', '')
     
-    # Obtener registros de sincronización para esta tienda
-    registros = RegistroSincronizacion.objects.filter(
-        tienda=tienda_actual
-    ).order_by('-fecha_inicio')
+    # Base query
+    registros = RegistroSincronizacion.objects.all().order_by('-fecha_inicio')
+    
+    # Aplicar filtros de fecha
+    if desde:
+        try:
+            from datetime import datetime
+            fecha_desde = datetime.strptime(desde, '%Y-%m-%d')
+            registros = registros.filter(fecha_inicio__gte=fecha_desde)
+        except ValueError:
+            pass
+    
+    if hasta:
+        try:
+            from datetime import datetime
+            fecha_hasta = datetime.strptime(hasta, '%Y-%m-%d')
+            registros = registros.filter(fecha_inicio__lte=fecha_hasta)
+        except ValueError:
+            pass
+    
+    # Paginación básica
+    registros = registros[:100]  # Limitar a 100 resultados
     
     return render(request, 'sincronizacion/historial.html', {
         'registros': registros,
+        'desde': desde,
+        'hasta': hasta
     })
 
 @login_required
@@ -310,133 +453,169 @@ def configuracion_sincronizacion(request):
         }
     )
     
+    if request.method == 'POST':
+        # Actualizar configuración
+        sincronizacion_automatica = request.POST.get('sincronizacion_automatica') == 'on'
+        intervalo_minutos = int(request.POST.get('intervalo_minutos', 15))
+        
+        config.sincronizacion_automatica = sincronizacion_automatica
+        config.intervalo_minutos = intervalo_minutos
+        config.save()
+        
+        messages.success(request, 'Configuración actualizada correctamente.')
+        return redirect('sincronizacion:configuracion_sincronizacion')
+    
     return render(request, 'sincronizacion/configuracion.html', {
         'config': config,
     })
 
 @login_required
+def sincronizar_ahora(request, config_id):
+    """
+    Inicia una sincronización manual
+    """
+    config = get_object_or_404(ConfiguracionSincronizacion, id=config_id)
+    
+    # Iniciar sincronización
+    try:
+        iniciar_sincronizacion_completa(config.tienda)
+        messages.success(request, 'Sincronización iniciada correctamente.')
+    except Exception as e:
+        messages.error(request, f'Error al iniciar sincronización: {e}')
+    
+    return redirect('sincronizacion:sincronizacion_dashboard')
+
+@login_required
 def auditoria_sincronizacion(request):
     """
-    Vista para ver el registro de auditoría de sincronización
+    Vista para consultar los registros de auditoría
     """
-    # Obtener tienda actual
-    tienda_actual = Tienda.objects.filter(activa=True).first()
+    # Obtener parámetros de filtrado
+    accion = request.GET.get('accion', '')
+    exitoso = request.GET.get('exitoso', '')
     
-    # Obtener registros de auditoría para esta tienda
-    registros = RegistroAuditoria.objects.filter(
-        tienda=tienda_actual
-    ).order_by('-fecha')[:100]  # Limitar a los últimos 100 registros
+    # Base query
+    registros = RegistroAuditoria.objects.all().order_by('-fecha')
+    
+    # Aplicar filtros
+    if accion:
+        registros = registros.filter(accion=accion)
+    
+    if exitoso in ['true', 'false']:
+        registros = registros.filter(exitoso=exitoso == 'true')
+    
+    # Paginación básica
+    registros = registros[:100]  # Limitar a 100 resultados
+    
+    # Acciones distintas para el filtro
+    acciones_distintas = RegistroAuditoria.objects.values_list('accion', flat=True).distinct()
     
     return render(request, 'sincronizacion/auditoria.html', {
         'registros': registros,
+        'accion_seleccionada': accion,
+        'exitoso_seleccionado': exitoso,
+        'acciones_distintas': acciones_distintas
     })
 
 @login_required
 def offline_status(request):
     """
-    Vista para verificar y gestionar el estado offline
+    Vista para gestionar el modo offline
     """
-    from .cache_manager import cache_manager, detectar_estado_conexion
-    
-    # Determinar si estamos en modo offline
-    modo_offline = not detectar_estado_conexion()
-    
     # Obtener tienda actual
     tienda_actual = Tienda.objects.filter(activa=True).first()
     
-    # Obtener modelos cacheados (para modo offline)
-    from .signals import MODELOS_SINCRONIZABLES
-    modelos_criticos = []
+    # Información sobre datos precargados en caché
+    from .cache_manager import cache_manager
     
-    for modelo_str in MODELOS_SINCRONIZABLES:
-        if cache_manager.es_modelo_critico(modelo_str):
-            app_label, model_name = modelo_str.split('.')
+    # Lista de modelos críticos con conteo
+    modelos_criticos = [
+        'productos.Producto',
+        'productos.Catalogo',
+        'clientes.Cliente',
+        'inventario.Inventario',
+        'descuentos.TabuladorDescuento',
+    ]
+    
+    estadisticas_cache = []
+    
+    for modelo_str in modelos_criticos:
+        app_label, model_name = modelo_str.split('.')
+        try:
             model_class = apps.get_model(app_label, model_name)
             
-            # Contar registros en caché
-            cached_instances = cache_manager.get_cached_queryset(model_class)
+            # Contar registros totales
+            total_registros = model_class.objects.count()
             
-            modelos_criticos.append({
-                'nombre': modelo_str,
-                'cached_count': len(cached_instances) if cached_instances else 0,
-                'total_count': model_class.objects.count()
+            # Contar registros en caché
+            ids_en_cache = cache_manager.get_persisted_ids(model_class)
+            total_en_cache = len(ids_en_cache)
+            
+            estadisticas_cache.append({
+                'modelo': model_name,
+                'app': app_label,
+                'total': total_registros,
+                'en_cache': total_en_cache,
+                'porcentaje': (total_en_cache / total_registros * 100) if total_registros > 0 else 0
+            })
+            
+        except Exception as e:
+            estadisticas_cache.append({
+                'modelo': model_name,
+                'app': app_label,
+                'error': str(e),
+                'total': 0,
+                'en_cache': 0,
+                'porcentaje': 0
             })
     
+    if request.method == 'POST' and request.POST.get('action') == 'update_cache':
+        modelo = request.POST.get('modelo')
+        if modelo and '.' in modelo:
+            app_label, model_name = modelo.split('.')
+            try:
+                model_class = apps.get_model(app_label, model_name)
+                total = cache_model_batch(model_class)
+                messages.success(request, f'Se han actualizado {total} registros en la caché para {model_name}.')
+            except Exception as e:
+                messages.error(request, f'Error al actualizar caché: {e}')
+        
+        return redirect('sincronizacion:offline_status')
+    
     return render(request, 'sincronizacion/offline.html', {
-        'tienda_actual': tienda_actual,
-        'modo_offline': modo_offline,
-        'modelos_criticos': modelos_criticos,
+        'tienda': tienda_actual,
+        'estadisticas_cache': estadisticas_cache
     })
 
 class RegistroAuditoriaViewSet(viewsets.ReadOnlyModelViewSet):
-    """ViewSet para el modelo RegistroAuditoria"""
+    """ViewSet para consultar los registros de auditoría de seguridad"""
     queryset = RegistroAuditoria.objects.all().order_by('-fecha')
     serializer_class = RegistroAuditoriaSerializer
     permission_classes = [IsAuthenticated, IsAdminUser]
-    filterset_fields = ['tienda', 'accion', 'exitoso']
+    filterset_fields = ['tienda', 'usuario', 'accion', 'exitoso']
     search_fields = ['accion', 'detalles']
     
     def get_queryset(self):
         queryset = super().get_queryset()
         
-        # Filtrar por fecha
-        fecha_desde = self.request.query_params.get('fecha_desde')
-        if fecha_desde:
+        # Filtrar por rango de fechas
+        fecha_inicio = self.request.query_params.get('fecha_inicio')
+        fecha_fin = self.request.query_params.get('fecha_fin')
+        
+        if fecha_inicio:
             try:
-                from django.utils.dateparse import parse_datetime
-                fecha_desde = parse_datetime(fecha_desde)
-                if fecha_desde:
-                    queryset = queryset.filter(fecha__gte=fecha_desde)
-            except:
+                from datetime import datetime
+                fecha_inicio_dt = datetime.strptime(fecha_inicio, '%Y-%m-%d')
+                queryset = queryset.filter(fecha__gte=fecha_inicio_dt)
+            except ValueError:
                 pass
-        
-        fecha_hasta = self.request.query_params.get('fecha_hasta')
-        if fecha_hasta:
+                
+        if fecha_fin:
             try:
-                from django.utils.dateparse import parse_datetime
-                fecha_hasta = parse_datetime(fecha_hasta)
-                if fecha_hasta:
-                    queryset = queryset.filter(fecha__lte=fecha_hasta)
-            except:
+                from datetime import datetime
+                fecha_fin_dt = datetime.strptime(fecha_fin, '%Y-%m-%d')
+                queryset = queryset.filter(fecha__lte=fecha_fin_dt)
+            except ValueError:
                 pass
-        
-        # Filtrar por usuario
-        usuario_id = self.request.query_params.get('usuario_id')
-        if usuario_id:
-            queryset = queryset.filter(usuario_id=usuario_id)
-        
+                
         return queryset
-    
-    @action(detail=False, methods=['get'])
-    def estadisticas(self, request):
-        """Obtiene estadísticas de las operaciones de auditoría"""
-        # Total por acción
-        por_accion = RegistroAuditoria.objects.values('accion').annotate(total=Count('id'))
-        
-        # Éxitos vs. errores
-        exitosos = RegistroAuditoria.objects.filter(exitoso=True).count()
-        fallidos = RegistroAuditoria.objects.filter(exitoso=False).count()
-        
-        # Por tienda
-        por_tienda = RegistroAuditoria.objects.values(
-            'tienda__id', 
-            'tienda__nombre'
-        ).annotate(
-            total=Count('id')
-        ).order_by('-total')
-        
-        # Por tiempo
-        from django.db.models.functions import TruncDay
-        por_dia = RegistroAuditoria.objects.annotate(
-            dia=TruncDay('fecha')
-        ).values('dia').annotate(
-            total=Count('id')
-        ).order_by('-dia')[:7]  # últimos 7 días
-        
-        return Response({
-            'por_accion': por_accion,
-            'exitosos': exitosos,
-            'fallidos': fallidos,
-            'por_tienda': por_tienda,
-            'por_dia': por_dia
-        })

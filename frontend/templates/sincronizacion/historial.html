@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "layouts/base.html" %}
 {% load static %}
 
 {% block title %}Historial de Sincronización{% endblock %}
@@ -6,9 +6,8 @@
 {% block content %}
 <div class="container-fluid px-4">
     <h1 class="mt-4">Historial de Sincronización</h1>
-    <ol class="breadcrumb mb-4">
-        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'sincronizacion_dashboard' %}">Sincronización</a></li>
+    <ol class="breadcrumb mb-4">        <li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'sincronizacion:sincronizacion_dashboard' %}">Sincronización</a></li>
         <li class="breadcrumb-item active">Historial</li>
     </ol>
     

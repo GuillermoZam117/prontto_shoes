@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "layouts/base.html" %}
 {% load static %}
 
 {% block title %}Configuración de Sincronización{% endblock %}
@@ -6,9 +6,8 @@
 {% block content %}
 <div class="container-fluid px-4">
     <h1 class="mt-4">Configuración de Sincronización</h1>
-    <ol class="breadcrumb mb-4">
-        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'sincronizacion_dashboard' %}">Sincronización</a></li>
+    <ol class="breadcrumb mb-4">        <li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'sincronizacion:sincronizacion_dashboard' %}">Sincronización</a></li>
         <li class="breadcrumb-item active">Configuración</li>
     </ol>
     
@@ -97,7 +96,7 @@
                 </div>
                 
                 <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                    <a href="{% url 'sincronizacion_dashboard' %}" class="btn btn-secondary me-2">Cancelar</a>
+                    <a href="{% url 'sincronizacion:sincronizacion_dashboard' %}" class="btn btn-secondary me-2">Cancelar</a>
                     <button class="btn btn-primary" type="submit">Guardar Configuración</button>
                 </div>
             </form>
@@ -109,10 +108,9 @@
             <i class="fas fa-sync me-1"></i>
             Sincronización Manual
         </div>
-        <div class="card-body">
-            <p>Puede iniciar manualmente una sincronización completa para esta tienda:</p>
+        <div class="card-body">            <p>Puede iniciar manualmente una sincronización completa para esta tienda:</p>
             
-            <form id="sync-now-form" method="post" action="{% url 'sincronizar_ahora' %}">
+            <form id="sync-now-form" method="post" action="{% url 'sincronizacion:sincronizar_ahora' config.id %}">
                 {% csrf_token %}
                 <div class="d-grid gap-2 d-md-flex justify-content-md-start">
                     <button type="submit" class="btn btn-primary">

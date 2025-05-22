@@ -1,0 +1,191 @@
+/**
+ * CSS styles for the Synchronization module
+ */
+
+/* Status indicators */
+.sync-status-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 5px;
+}
+
+.sync-status-connected {
+    background-color: #28a745;
+}
+
+.sync-status-disconnected {
+    background-color: #dc3545;
+}
+
+.sync-status-syncing {
+    background-color: #17a2b8;
+    animation: pulse 1.5s infinite;
+}
+
+.sync-status-pending {
+    background-color: #ffc107;
+}
+
+.sync-status-error {
+    background-color: #dc3545;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(0.8);
+        opacity: 0.8;
+    }
+    50% {
+        transform: scale(1.2);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(0.8);
+        opacity: 0.8;
+    }
+}
+
+/* Conflict resolution */
+.conflict-comparison {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.conflict-panel {
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 1rem;
+}
+
+.conflict-panel h5 {
+    margin-top: 0;
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.conflict-local {
+    background-color: #f8f9fa;
+}
+
+.conflict-server {
+    background-color: #e9ecef;
+}
+
+.conflict-diff {
+    background-color: #fff3cd;
+    border-left: 3px solid #ffc107;
+    padding-left: 0.5rem;
+}
+
+.conflict-resolution-actions {
+    margin: 2rem 0;
+    padding: 1rem;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+}
+
+/* Offline mode management */
+.offline-progress {
+    height: 1.5rem;
+}
+
+.cache-status-table {
+    font-size: 0.9rem;
+}
+
+.cache-action {
+    font-size: 0.8rem;
+}
+
+/* Sync history */
+.sync-history-item {
+    border-left: 3px solid #6c757d;
+    padding-left: 1rem;
+    margin-bottom: 1rem;
+    position: relative;
+}
+
+.sync-history-success {
+    border-left-color: #28a745;
+}
+
+.sync-history-error {
+    border-left-color: #dc3545;
+}
+
+.sync-history-dot {
+    width: 10px;
+    height: 10px;
+    background-color: #6c757d;
+    border-radius: 50%;
+    position: absolute;
+    left: -6px;
+    top: 6px;
+}
+
+.sync-history-success .sync-history-dot {
+    background-color: #28a745;
+}
+
+.sync-history-error .sync-history-dot {
+    background-color: #dc3545;
+}
+
+.sync-time {
+    font-size: 0.8rem;
+    color: #6c757d;
+}
+
+/* Queue management */
+.operation-type-crear {
+    color: #28a745;
+}
+
+.operation-type-actualizar {
+    color: #007bff;
+}
+
+.operation-type-eliminar {
+    color: #dc3545;
+}
+
+.status-pendiente {
+    background-color: #fff3cd;
+}
+
+.status-en-proceso {
+    background-color: #d1ecf1;
+}
+
+.status-completado {
+    background-color: #d4edda;
+}
+
+.status-error {
+    background-color: #f8d7da;
+}
+
+.status-conflicto {
+    background-color: #fff3cd;
+}
+
+/* Dashboard widgets */
+.sync-dashboard-card {
+    transition: all 0.3s ease;
+}
+
+.sync-dashboard-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.last-sync-time {
+    font-size: 0.8rem;
+    margin-top: 1rem;
+    opacity: 0.8;
+}

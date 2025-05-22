@@ -1,0 +1,364 @@
+"""
+Gestor de caché para operaciones offline.
+
+Este módulo se encarga de gestionar la caché local para permitir operaciones
+offline, asegurando que los datos críticos estén disponibles incluso cuando
+no hay conexión con el servidor central.
+"""
+import logging
+import os
+import json
+import time
+from datetime import datetime, timedelta
+from pathlib import Path
+from django.conf import settings
+from django.core.cache import cache
+from django.contrib.contenttypes.models import ContentType
+from django.apps import apps
+from django.db import models
+from django.utils import timezone
+from tiendas.models import Tienda
+from .signals import MODELOS_SINCRONIZABLES, serializar_instancia, obtener_config_modelo
+
+logger = logging.getLogger(__name__)
+
+# Tiempo de vida por defecto de la caché en segundos (12 horas)
+DEFAULT_CACHE_TTL = 60 * 60 * 12
+
+# Prefijo para las claves de caché
+CACHE_PREFIX = 'sync_cache_'
+
+# Directorio para almacenamiento persistente de caché
+CACHE_DIR = getattr(settings, 'SINCRONIZACION_CACHE_DIR', 
+                   os.path.join(settings.BASE_DIR, 'cache', 'sincronizacion'))
+
+
+class CacheManager:
+    """
+    Gestor de caché para operaciones offline.
+    
+    Proporciona funcionalidades para:
+    - Cachear modelos localmente
+    - Actualizar la caché automáticamente
+    - Gestionar prioridades de cacheo
+    - Persistir datos clave para funcionamiento offline
+    """
+    
+    def __init__(self):
+        """Inicializa el gestor de caché"""
+        self.ensure_cache_dir()
+    
+    def ensure_cache_dir(self):
+        """Asegura que el directorio de caché exista"""
+        os.makedirs(CACHE_DIR, exist_ok=True)
+    
+    def get_cache_key(self, model_class, object_id=None):
+        """
+        Genera una clave de caché para un modelo o instancia específica
+        """
+        app_label = model_class._meta.app_label
+        model_name = model_class._meta.model_name
+        
+        if object_id:
+            return f"{CACHE_PREFIX}{app_label}.{model_name}.{object_id}"
+        else:
+            return f"{CACHE_PREFIX}{app_label}.{model_name}"
+    
+    def cache_model_instance(self, instance, ttl=DEFAULT_CACHE_TTL):
+        """
+        Almacena una instancia de modelo en la caché
+        """
+        try:
+            # Obtener configuración del modelo
+            config = obtener_config_modelo(instance)
+            excluded_fields = config.get('excluded_fields', [])
+            
+            # Serializar la instancia
+            datos = serializar_instancia(instance, excluded_fields)
+            
+            # Generar clave de caché
+            cache_key = self.get_cache_key(instance.__class__, instance.pk)
+            
+            # Almacenar en caché
+            cache.set(cache_key, datos, ttl)
+            
+            # Almacenar en caché persistente si es un modelo crítico para operaciones offline
+            if self.es_modelo_critico(instance.__class__):
+                self.persist_to_disk(cache_key, datos)
+            
+            return True
+        
+        except Exception as e:
+            logger.error(f"Error al cachear instancia {instance}: {e}")
+            return False
+    
+    def cache_model_queryset(self, model_class, queryset=None, ttl=DEFAULT_CACHE_TTL):
+        """
+        Almacena un conjunto de instancias de un modelo en la caché
+        """
+        if queryset is None:
+            queryset = model_class.objects.all()
+        
+        # Obtener configuración del modelo
+        model_str = f"{model_class._meta.app_label}.{model_class._meta.model_name}"
+        config = MODELOS_SINCRONIZABLES.get(model_str, {'excluded_fields': []})
+        excluded_fields = config.get('excluded_fields', [])
+        
+        # Clave para el listado completo
+        list_cache_key = self.get_cache_key(model_class)
+        
+        # Lista de IDs para rastrear qué instancias están en caché
+        cached_ids = []
+        
+        # Cachear cada instancia
+        for instance in queryset:
+            try:
+                # Serializar la instancia
+                datos = serializar_instancia(instance, excluded_fields)
+                
+                # Generar clave de caché
+                cache_key = self.get_cache_key(model_class, instance.pk)
+                
+                # Almacenar en caché
+                cache.set(cache_key, datos, ttl)
+                cached_ids.append(str(instance.pk))
+                
+                # Persistir si es crítico
+                if self.es_modelo_critico(model_class):
+                    self.persist_to_disk(cache_key, datos)
+            
+            except Exception as e:
+                logger.error(f"Error al cachear instancia {instance.pk} de {model_class}: {e}")
+        
+        # Almacenar lista de IDs cacheados
+        cache.set(list_cache_key, cached_ids, ttl)
+        
+        return len(cached_ids)
+    
+    def get_cached_instance(self, model_class, object_id):
+        """
+        Obtiene una instancia cacheada de un modelo
+        """
+        cache_key = self.get_cache_key(model_class, object_id)
+        
+        # Intentar obtener de la caché en memoria
+        datos = cache.get(cache_key)
+        
+        # Si no está en memoria, intentar obtener del almacenamiento persistente
+        if datos is None:
+            datos = self.load_from_disk(cache_key)
+        
+        return datos
+    
+    def get_cached_queryset(self, model_class):
+        """
+        Obtiene todas las instancias cacheadas de un modelo
+        """
+        list_cache_key = self.get_cache_key(model_class)
+        
+        # Obtener lista de IDs cacheados
+        cached_ids = cache.get(list_cache_key, [])
+        
+        # Si no hay IDs en memoria, buscar en almacenamiento persistente
+        if not cached_ids:
+            cached_ids = self.get_persisted_ids(model_class)
+        
+        # Obtener cada instancia cacheada
+        instances = []
+        for object_id in cached_ids:
+            datos = self.get_cached_instance(model_class, object_id)
+            if datos:
+                instances.append(datos)
+        
+        return instances
+    
+    def invalidate_cache(self, model_class, object_id=None):
+        """
+        Invalida la caché para un modelo o instancia específica
+        """
+        if object_id:
+            # Invalidar una instancia específica
+            cache_key = self.get_cache_key(model_class, object_id)
+            cache.delete(cache_key)
+            self.remove_from_disk(cache_key)
+        else:
+            # Invalidar todas las instancias del modelo
+            list_cache_key = self.get_cache_key(model_class)
+            cached_ids = cache.get(list_cache_key, [])
+            
+            for cached_id in cached_ids:
+                cache_key = self.get_cache_key(model_class, cached_id)
+                cache.delete(cache_key)
+                self.remove_from_disk(cache_key)
+            
+            cache.delete(list_cache_key)
+    
+    def persist_to_disk(self, cache_key, datos):
+        """
+        Almacena los datos en disco para persistencia
+        """
+        try:
+            # Crear path seguro para archivo
+            safe_key = cache_key.replace('.', '_').replace('/', '_')
+            file_path = os.path.join(CACHE_DIR, f"{safe_key}.json")
+            
+            # Guardar datos en archivo
+            with open(file_path, 'w', encoding='utf-8') as f:
+                json.dump(datos, f, ensure_ascii=False)
+            
+            return True
+        
+        except Exception as e:
+            logger.error(f"Error al persistir caché a disco {cache_key}: {e}")
+            return False
+    
+    def load_from_disk(self, cache_key):
+        """
+        Carga datos desde almacenamiento persistente
+        """
+        try:
+            # Obtener path del archivo
+            safe_key = cache_key.replace('.', '_').replace('/', '_')
+            file_path = os.path.join(CACHE_DIR, f"{safe_key}.json")
+            
+            # Verificar si existe
+            if not os.path.exists(file_path):
+                return None
+            
+            # Cargar datos
+            with open(file_path, 'r', encoding='utf-8') as f:
+                datos = json.load(f)
+            
+            # Actualizar caché en memoria
+            cache.set(cache_key, datos, DEFAULT_CACHE_TTL)
+            
+            return datos
+        
+        except Exception as e:
+            logger.error(f"Error al cargar caché desde disco {cache_key}: {e}")
+            return None
+      def remove_from_disk(self, cache_key):
+        """
+        Elimina datos del almacenamiento persistente
+        """
+        try:
+            safe_key = cache_key.replace('.', '_').replace('/', '_')
+            file_path = os.path.join(CACHE_DIR, f"{safe_key}.json")
+            
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            
+            return True
+        
+        except Exception as e:
+            logger.error(f"Error al eliminar caché del disco {cache_key}: {e}")
+            return False
+      def get_persisted_ids(self, model_class):
+        """
+        Obtiene los IDs de las instancias persistidas en disco
+        """
+        try:
+            app_label = model_class._meta.app_label
+            model_name = model_class._meta.model_name
+            prefix = f"{CACHE_PREFIX}{app_label}_{model_name}_"
+            
+            ids = []
+            for filename in os.listdir(CACHE_DIR):
+                if filename.startswith(prefix) and filename.endswith('.json'):
+                    # Extraer ID de nombre de archivo
+                    object_id = filename[len(prefix):-5]  # Quitar prefijo y .json
+                    ids.append(object_id)
+            
+            return ids
+        
+        except Exception as e:
+            logger.error(f"Error al obtener IDs persistidos para {model_class}: {e}")
+            return []
+      def es_modelo_critico(self, model_class):
+        """
+        Determina si un modelo es crítico para operaciones offline
+        """
+        # Modelos considerados críticos para funcionamiento offline
+        MODELOS_CRITICOS = [
+            'productos.Producto',
+            'productos.Catalogo',
+            'clientes.Cliente',
+            'inventario.Inventario',
+            'descuentos.TabuladorDescuento',
+        ]
+            'clientes.Cliente',
+            'inventario.Inventario',
+            'descuentos.TabuladorDescuento',
+        ]
+        
+        # Check if model_class is already a string
+        if isinstance(model_class, str):
+            model_str = model_class
+        else:
+            # Handle case when model_class is a Django model class
+            try:
+                model_str = f"{model_class._meta.app_label}.{model_class._meta.model_name}"
+            except AttributeError:
+                # Handle case when model_class might be an instance or something else
+                try:
+                    model_str = f"{model_class.__class__._meta.app_label}.{model_class.__class__._meta.model_name}"
+                except AttributeError:
+                    logger.error(f"No se pudo determinar el modelo para {model_class}")
+                    return False
+            
+        return model_str in MODELOS_CRITICOS
+    
+    def actualizar_cache_completa(self):
+        """
+        Actualiza la caché completa para modelos críticos
+        """
+        for model_str in MODELOS_SINCRONIZABLES:
+            if not self.es_modelo_critico(model_str):
+                continue
+            
+            try:
+                app_label, model_name = model_str.split('.')
+                model = apps.get_model(app_label, model_name)
+                
+                # Cachear modelo
+                total = self.cache_model_queryset(model)
+                logger.info(f"Actualizados {total} registros en caché para {model_str}")
+            
+            except Exception as e:
+                logger.error(f"Error al actualizar caché para {model_str}: {e}")
+
+# Instancia global del gestor de caché
+cache_manager = CacheManager()
+
+
+def refrescar_cache_automatica():
+    """
+    Actualiza automáticamente la caché para modelos críticos
+    """
+    try:
+        logger.info("Iniciando actualización automática de caché")
+        cache_manager.actualizar_cache_completa()
+        logger.info("Actualización de caché completada")
+    except Exception as e:
+        logger.error(f"Error al actualizar caché automáticamente: {e}")
+
+
+def detectar_estado_conexion():
+    """
+    Detecta si hay conexión con el servidor central
+    Esta es una implementación simplificada, en un entorno real
+    se usaría algún mecanismo más sofisticado
+    """
+    try:
+        # Intentar una operación básica con la base de datos
+        from django.db import connection
+        cursor = connection.cursor()
+        cursor.execute("SELECT 1")
+        cursor.fetchone()
+        
+        # Verificar si hay alguna tienda central
+        tienda_central = Tienda.objects.filter(es_central=True).exists()
+        
+        return True
+    except:
+        return False
