@@ -1,0 +1,317 @@
+{% extends "layouts/base.html" %}
+{% load static %}
+
+{% block title %}
+    {% if producto %}Editar{% else %}Nuevo{% endif %} Producto
+{% endblock %}
+
+{% block page_title %}
+    {% if producto %}Editar Producto: {{ producto.nombre }}{% else %}Nuevo Producto{% endif %}
+{% endblock %}
+
+{% block breadcrumbs_content %}
+    <li class="breadcrumb-item"><a href="{% url 'productos:lista' %}">Productos</a></li>
+    <li class="breadcrumb-item active">{% if producto %}Editar{% else %}Nuevo{% endif %} Producto</li>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .image-preview {
+        max-width: 150px;
+        max-height: 150px;
+        margin-top: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 5px;
+        transition: all 0.3s;
+    }
+    
+    .image-preview:hover {
+        transform: scale(1.05);
+    }
+    
+    .precio-field {
+        font-size: 1.1rem;
+        font-weight: 600;
+    }
+    
+    .alert-transition {
+        transition: opacity 0.5s ease-in-out;
+    }
+    
+    .validation-error {
+        color: #dc3545;
+        font-size: 0.875em;
+        margin-top: 0.25rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card shadow mb-4" 
+     x-data="{
+        formData: {
+            codigo: '{{ producto.codigo|default:"" }}',
+            nombre: '{{ producto.nombre|default:"" }}',
+            descripcion: '{{ producto.descripcion|default:"" }}',
+            precio_compra: '{{ producto.precio_compra|default:0 }}',
+            precio_venta: '{{ producto.precio_venta|default:0 }}',
+            existencia_minima: '{{ producto.existencia_minima|default:5 }}',
+            marca: '{{ producto.marca|default:"" }}',
+            proveedor: '{% if producto.proveedor %}{{ producto.proveedor.id }}{% endif %}',
+            categoria: '{% if producto.categoria %}{{ producto.categoria.id }}{% endif %}',
+            activo: {% if producto.activo|default:True %}true{% else %}false{% endif %},
+            imagen_preview: '{{ producto.imagen.url|default:"" }}'
+        },
+        validation: {
+            codigo: true,
+            nombre: true,
+            precio_venta: true,
+            precio_compra: true
+        },
+        loading: false,
+        successMessage: '',
+        errorMessage: '',
+        
+        validateCodigo() {
+            this.validation.codigo = this.formData.codigo.trim().length > 0;
+            return this.validation.codigo;
+        },
+        
+        validateNombre() {
+            this.validation.nombre = this.formData.nombre.trim().length > 0;
+            return this.validation.nombre;
+        },
+        
+        validatePrecioCompra() {
+            this.validation.precio_compra = parseFloat(this.formData.precio_compra) >= 0;
+            return this.validation.precio_compra;
+        },
+        
+        validatePrecioVenta() {
+            this.validation.precio_venta = parseFloat(this.formData.precio_venta) > 0;
+            return this.validation.precio_venta;
+        },
+        
+        validateForm() {
+            return this.validateCodigo() && 
+                   this.validateNombre() && 
+                   this.validatePrecioCompra() && 
+                   this.validatePrecioVenta();
+        },
+        
+        handleFileChange(event) {
+            const file = event.target.files[0];
+            if (file) {
+                this.formData.imagen_preview = URL.createObjectURL(file);
+            }
+        },
+        
+        calcularPrecioVenta() {
+            // Por defecto, precio venta es 40% más que precio compra
+            if (this.formData.precio_compra && parseFloat(this.formData.precio_compra) > 0) {
+                this.formData.precio_venta = (parseFloat(this.formData.precio_compra) * 1.4).toFixed(2);
+            }
+        },
+        
+        checkPrecioVentaMayor() {
+            if (parseFloat(this.formData.precio_venta) < parseFloat(this.formData.precio_compra)) {
+                return false;
+            }
+            return true;
+        }
+     }">
+    
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">
+            {% if producto %}Editar Producto{% else %}Crear Nuevo Producto{% endif %}
+        </h6>
+    </div>
+    
+    <div class="card-body">
+        <!-- Mensajes de alerta -->
+        <div x-show="successMessage" 
+             x-transition.duration.500ms
+             class="alert alert-success alert-transition" 
+             x-text="successMessage"></div>
+             
+        <div x-show="errorMessage" 
+             x-transition.duration.500ms
+             class="alert alert-danger alert-transition" 
+             x-text="errorMessage"></div>
+    
+        <form hx-post="{% if producto %}{% url 'productos:editar_producto' producto.id %}{% else %}{% url 'productos:crear_producto' %}{% endif %}"
+              hx-swap="outerHTML"
+              hx-encoding="multipart/form-data"
+              hx-indicator="#loading-indicator"
+              @submit.prevent="if(!validateForm()) { $event.preventDefault(); return false; } loading = true;">
+            
+            {% csrf_token %}
+            
+            <div class="row">
+                <!-- Columna izquierda -->
+                <div class="col-md-6">
+                    <!-- Código de producto -->
+                    <div class="mb-3">
+                        <label for="codigo" class="form-label">Código *</label>
+                        <input type="text" class="form-control" id="codigo" name="codigo" 
+                               x-model="formData.codigo"
+                               @blur="validateCodigo"
+                               :class="{'is-invalid': !validation.codigo}"
+                               required>
+                        <div class="validation-error" x-show="!validation.codigo">
+                            El código del producto es obligatorio.
+                        </div>
+                    </div>
+                    
+                    <!-- Nombre de producto -->
+                    <div class="mb-3">
+                        <label for="nombre" class="form-label">Nombre *</label>
+                        <input type="text" class="form-control" id="nombre" name="nombre" 
+                               x-model="formData.nombre"
+                               @blur="validateNombre"
+                               :class="{'is-invalid': !validation.nombre}"
+                               required>
+                        <div class="validation-error" x-show="!validation.nombre">
+                            El nombre del producto es obligatorio.
+                        </div>
+                    </div>
+                    
+                    <!-- Descripción -->
+                    <div class="mb-3">
+                        <label for="descripcion" class="form-label">Descripción</label>
+                        <textarea class="form-control" id="descripcion" name="descripcion" rows="3"
+                                  x-model="formData.descripcion"></textarea>
+                    </div>
+                    
+                    <!-- Marca -->
+                    <div class="mb-3">
+                        <label for="marca" class="form-label">Marca</label>
+                        <input type="text" class="form-control" id="marca" name="marca" 
+                               x-model="formData.marca">
+                    </div>
+                </div>
+                
+                <!-- Columna derecha -->
+                <div class="col-md-6">
+                    <!-- Precio de compra -->
+                    <div class="mb-3">
+                        <label for="precio_compra" class="form-label">Precio de Compra *</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" class="form-control precio-field" id="precio_compra" name="precio_compra"
+                                   min="0" step="0.01" 
+                                   x-model="formData.precio_compra"
+                                   @blur="validatePrecioCompra"
+                                   @input="calcularPrecioVenta"
+                                   :class="{'is-invalid': !validation.precio_compra}"
+                                   required>
+                        </div>
+                        <div class="validation-error" x-show="!validation.precio_compra">
+                            El precio de compra debe ser mayor o igual a 0.
+                        </div>
+                    </div>
+                    
+                    <!-- Precio de venta -->
+                    <div class="mb-3">
+                        <label for="precio_venta" class="form-label">Precio de Venta *</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" class="form-control precio-field" id="precio_venta" name="precio_venta"
+                                   min="0" step="0.01" 
+                                   x-model="formData.precio_venta"
+                                   @blur="validatePrecioVenta"
+                                   :class="{'is-invalid': !validation.precio_venta}"
+                                   required>
+                        </div>
+                        <div class="validation-error" x-show="!validation.precio_venta">
+                            El precio de venta debe ser mayor que 0.
+                        </div>
+                        <div class="validation-error" x-show="validation.precio_venta && !checkPrecioVentaMayor()">
+                            Advertencia: El precio de venta es menor que el precio de compra.
+                        </div>
+                    </div>
+                    
+                    <!-- Existencia mínima -->
+                    <div class="mb-3">
+                        <label for="existencia_minima" class="form-label">Existencia Mínima</label>
+                        <input type="number" class="form-control" id="existencia_minima" name="existencia_minima"
+                               min="0" 
+                               x-model="formData.existencia_minima">
+                    </div>
+                    
+                    <!-- Proveedor -->
+                    <div class="mb-3">
+                        <label for="proveedor" class="form-label">Proveedor</label>
+                        <select class="form-select" id="proveedor" name="proveedor"
+                                x-model="formData.proveedor">
+                            <option value="">Seleccionar proveedor...</option>
+                            {% for proveedor in proveedores %}
+                            <option value="{{ proveedor.id }}">{{ proveedor.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <!-- Categoría -->
+                    <div class="mb-3">
+                        <label for="categoria" class="form-label">Categoría</label>
+                        <select class="form-select" id="categoria" name="categoria"
+                                x-model="formData.categoria">
+                            <option value="">Seleccionar categoría...</option>
+                            {% for categoria in categorias %}
+                            <option value="{{ categoria.id }}">{{ categoria.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Imagen del producto -->
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="imagen" class="form-label">Imagen del Producto</label>
+                    <input type="file" class="form-control" id="imagen" name="imagen" accept="image/*"
+                           @change="handleFileChange">
+                    <div x-show="formData.imagen_preview" class="mt-2">
+                        <img :src="formData.imagen_preview" alt="Vista previa de imagen" class="image-preview">
+                    </div>
+                </div>
+                
+                <!-- Activo -->
+                <div class="col-md-6 d-flex align-items-end mb-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="activo" name="activo"
+                               x-model="formData.activo">
+                        <label class="form-check-label" for="activo">
+                            Producto Activo
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="d-flex justify-content-end mt-4">
+                <a href="{% url 'productos:lista' %}" class="btn btn-secondary me-2">Cancelar</a>
+                <button type="submit" class="btn btn-primary" :disabled="loading">
+                    <span id="loading-indicator" class="spinner-border spinner-border-sm me-1" style="display: none;"></span>
+                    {% if producto %}Actualizar{% else %}Guardar{% endif %} Producto
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+<script src="https://unpkg.com/htmx.org@1.9.0"></script>
+<script>
+    document.addEventListener('htmx:afterRequest', function(event) {
+        if (event.detail.successful) {
+            // Si la solicitud es exitosa y tenemos una respuesta redireccionada
+            if (event.detail.xhr.status === 200 && event.detail.xhr.getResponseHeader('HX-Redirect')) {
+                window.location.href = event.detail.xhr.getResponseHeader('HX-Redirect');
+            }
+        }
+    });
+</script>
+{% endblock %}

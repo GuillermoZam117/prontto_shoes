@@ -166,6 +166,7 @@ class DetallePedidoViewSet(viewsets.ModelViewSet):
 class ApartadosPorClienteReporteAPIView(APIView):
     permission_classes = [IsAuthenticated]
     pagination_class = LimitOffsetPagination
+    serializer_class = PedidoSerializer  # Add this for DRF Spectacular
 
     """
     Devuelve un reporte de productos apartados por cliente (pedidos pendientes).
@@ -274,6 +275,7 @@ class ApartadosPorClienteReporteAPIView(APIView):
 class PedidosPorSurtirReporteAPIView(APIView):
     permission_classes = [IsAuthenticated]
     pagination_class = LimitOffsetPagination
+    serializer_class = PedidoSerializer  # Add this for DRF Spectacular
 
     def get(self, request):
         # Obtener y validar parámetros

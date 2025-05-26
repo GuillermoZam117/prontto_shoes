@@ -161,8 +161,7 @@ SPECTACULAR_SETTINGS = {
         'deepLinking': True,
         'persistAuthorization': True,
         'displayOperationId': False,
-    },
-    'COMPONENT_SPLIT_REQUEST': True,
+    },    'COMPONENT_SPLIT_REQUEST': True,
     'TAGS': [
         {'name': 'Productos', 'description': 'Operaciones relacionadas con productos y catálogos'},
         {'name': 'Ventas', 'description': 'Operaciones relacionadas con pedidos y ventas'},

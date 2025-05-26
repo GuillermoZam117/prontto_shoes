@@ -33,21 +33,31 @@ class NotaCargo(models.Model):
 
 class TransaccionCaja(models.Model):
     TIPO_MOVIMIENTO_CHOICES = [
-        ('ingreso', 'Ingreso'),
-        ('egreso', 'Egreso'),
+        ('INGRESO', 'Ingreso'),
+        ('EGRESO', 'Egreso'),
     ]
     caja = models.ForeignKey(Caja, on_delete=models.CASCADE, related_name='transacciones')
     tipo_movimiento = models.CharField(max_length=10, choices=TIPO_MOVIMIENTO_CHOICES)
     monto = models.DecimalField(max_digits=12, decimal_places=2)
     descripcion = models.TextField(blank=True, null=True)
+    referencia = models.CharField(max_length=100, blank=True, null=True)
+    fecha = models.DateField(auto_now_add=True)
     pedido = models.ForeignKey(Pedido, on_delete=models.SET_NULL, null=True, blank=True)
     anticipo = models.ForeignKey(Anticipo, on_delete=models.SET_NULL, null=True, blank=True)
     nota_cargo = models.ForeignKey(NotaCargo, on_delete=models.SET_NULL, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(get_user_model(), related_name='transacciones_caja_creadas', on_delete=models.SET_NULL, null=True, blank=True)
 
+    @property
+    def tipo(self):
+        return self.tipo_movimiento
+
     def __str__(self):
         return f"{self.tipo_movimiento.capitalize()} en Caja {self.caja.id}: {self.monto}"
+
+
+# Alias para compatibilidad con vistas existentes
+MovimientoCaja = TransaccionCaja
 
 class Factura(models.Model):
     pedido = models.OneToOneField(Pedido, on_delete=models.PROTECT, related_name='factura')

@@ -1,0 +1,168 @@
+
+🔁 1. Proceso: Importación de Catálogo de Productos
+Actor: Administrador
+Inicio: Se recibe catálogo de proveedor en Excel
+
+Pasos:
+
+Administrador accede al módulo de “Catálogo”.
+Sube archivo Excel del proveedor.
+El sistema valida formato y estructura.
+El sistema extrae productos y los presenta en vista previa.
+Administrador confirma la importación.
+El sistema guarda los productos con propiedades: marca, modelo, color, talla, temporada, devolución, etc.
+Se marca catálogo como “vigente”.
+
+Proceso de devolucion 
+Vigencia maxima por proveedor
+Vigencia de devolucion por clientes 
+Historia de devoluciones
+
+Fin: Catálogo disponible para requisiciones de distribuidores.
+
+🛒 2. Proceso: Requisición en Línea por Distribuidor
+Actor: Distribuidor
+Inicio: Distribuidor quiere realizar un pedido
+
+Pasos:
+Distribuidor inicia sesión en el sistema web.
+Accede al catálogo vigente.
+Filtra por marca, modelo, talla, etc.
+Selecciona productos e ingresa cantidades.
+Envía requisición.
+El sistema valida:
+Que el producto esté en catálogo vigente.
+Que no exista pedido duplicado (cliente + producto).
+El sistema registra pedido como “pendiente por surtir”.
+
+Fin: Pedido queda registrado y visible para administración.
+
+✅ 3. Proceso: Validación y Pedido a Proveedor
+Actor: Administrador
+Inicio: Pedido nuevo por parte del distribuidor
+
+Pasos:
+
+Administrador revisa pedidos entrantes.
+Selecciona pedidos para surtir.
+Genera orden de compra para proveedor.
+Marca pedido como “en proceso” o “cancelado”.
+Si aplica, el sistema descuenta del inventario.
+Fin: Pedido queda vinculado al proveedor y en estado de seguimiento.
+
+📦 4. Proceso: Gestión de Inventario y Traspasos
+Actor: Almacén
+Inicio: Movimiento de productos entre tiendas
+Pasos:
+Encargado accede a módulo de inventario.
+Consulta mercancía por tienda o central.
+Crea solicitud de traspaso.
+Confirma traspaso (salida/entrada).
+Productos faltantes / status para validar pedidos incompletos
+
+El sistema actualiza inventarios por tienda.
+
+Se genera reporte de movimiento.
+Fin: Inventarios actualizados y trazabilidad asegurada.
+
+💸 5. Proceso: Flujo de Caja Diario
+
+Actor: Cajero / Administrador
+Inicio: Inicio de jornada en tienda
+Pasos:
+Cajero abre caja y registra fondo inicial.
+Durante el día registra ventas, anticipos, gastos.
+Al final del día, realiza corte de caja.
+Sistema genera reporte de ingresos y egresos.
+
+Administrador puede consultar flujo diario de cualquier tienda.
+
+Fin: Cierre diario de caja con reporte disponible.
+
+🔁 6. Proceso: Aplicación de Descuento por Tabulador
+Actor: Sistema / Administrador
+Inicio: Inicio de mes
+
+Pasos:
+Sistema consulta ventas acumuladas de cada cliente en el mes anterior.
+Asigna nivel de descuento según tabulador escalonado.
+Aplica el % automáticamente a todos los tickets del mes en curso.
+Muestra en ticket: monto acumulado anterior + % descuento.
+Administrador puede recalcular manualmente si es necesario.
+Fin: Descuento aplicado de forma automática y transparente.
+
+🔄 7. Proceso: Devoluciones de Productos
+Actor: Cliente / Cajero / Administrador
+Inicio: Cliente solicita devolución
+
+Pasos:
+Cajero recibe solicitud de devolución.
+Identifica tipo de devolución:
+Por defecto (garantía)
+Por cambio (color/talla)
+El sistema valida si el producto es elegible.
+Valida vigencia de dias de devolucion
+Se confirma con proveedor si aplica (si es por defecto).
+Se genera nota de crédito o anticipo para cliente.
+El inventario se ajusta si el producto regresa.
+Fin: Devolución registrada y reflejada en inventario y saldo del cliente.
+¿Quieres que te lo entregue en un archivo PDF o como imagen también?
+Se toma el precio de devolucion que sea menor o igual al monto que el distribuidor
+
+Proceso de oferta de temporada
+Actualizacion de temporada, es el mismo catalogo pero con precios de oferta 
+
+Proceso de ajuste de precios de temporada 
+Validacion de revision si el modelo fue devuelto 
+Ajuste de ticket
+
+precio de monto recibido
+nota de credito sobre saldo a favor 
+Bloqueo de ticket despues de ajuste 
+
+
+Programa de lealtad para clientes 
+Puntos = Definir valor de cada punto 
+Definir = Monto y cantidad de puntos 
+Solo en ventas
+No aplica devoluciones 
+
+
+
+
+✅ Procesos Incluidos (con diagrama textual):
+Módulo / Proceso	¿Incluido?	Comentario
+Importación de Catálogos	✅	Procesado por el administrador
+Requisición en línea por distribuidor	✅	Flujo completo desde login hasta pedido registrado
+Validación y generación de pedidos al proveedor	✅	Incluye candado para evitar duplicados
+Gestión de inventarios y traspasos entre tiendas	✅	Incluye movimientos y trazabilidad
+Flujo de caja diario	✅	Desde apertura hasta cierre y consultas
+Aplicación de descuentos por tabulador	✅	Automatizado según reglas de negocio
+Devoluciones (por defecto o cambio)	✅	Con validación por proveedor incluida
+
+🔍 Procesos Faltantes o que se pueden agregar como detalle adicional:
+Módulo / Proceso	Comentario
+Registro de clientes y saldos	Puede detallarse el proceso desde el alta del cliente, registro de anticipos y saldo a favor.
+Facturación	Aunque está mencionada en “Caja”, podríamos hacer un flujo específico para facturación electrónica (si aplica).
+Control de apartados	Se mencionan reportes de apartados. Podemos detallar el proceso desde que se aparta mercancía.
+Cancelaciones	Se menciona un flujo de cancelación en 2 pasos. Este proceso puede detallarse por separado.
+Proceso de surtido tras venta	Hay mención de surtido opcional. Sería útil un flujo para ese caso específico.
+Reportes y Dashboards	Aunque no son procesos operativos, podrías definir un proceso de generación, revisión y toma de decisiones.
+
+
+Proceso de entrada de mercancia 
+** Costeo manual ** 
+Al entrar la mercancia 
+se costea automaticamente de acuerdo al campo de (Descuento de compras en proveedor)
+si se desea se puede costear manualmente el precio de los articulos 
+el costeo es por porcentaje (x monto pendiente de confirmar)
+Una vez validado el pedido ya no se puede editar
+Solo un super admin puede editar una entrada por compra a proveedor
+
+
+Lista temporada - desactivada - 
+Lista oferta - Desactivada -
+ 
+Lista Temporada 2 - Activando nuevo catalogo de temporada, los catalogos de ofertas y de linea anteriores se desactivan 
+
+Lista de oferta 2 - 

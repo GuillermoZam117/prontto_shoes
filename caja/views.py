@@ -4,17 +4,19 @@ from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Caja, NotaCargo, Factura, TransaccionCaja
 from .serializers import CajaSerializer, NotaCargoSerializer, FacturaSerializer, TransaccionCajaSerializer
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
+from drf_spectacular.utils import extend_schema, OpenApiParameter
+from drf_spectacular.types import OpenApiTypes
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
-from django.db import transaction
+from django.db import transaction, IntegrityError
 from django.db.models import Sum, Q
 from datetime import date, datetime
 from django.contrib.auth import get_user_model
 from tiendas.models import Tienda
 from django.contrib import messages
+from ventas.models import Pedido
 
 # Frontend views
 def caja_list(request):
@@ -104,8 +106,8 @@ def cerrar_caja(request, pk):
         try:
             with transaction.atomic():
                 # Calculate totals
-                total_ingresos = caja.transacciones.filter(tipo_movimiento='ingreso').aggregate(Sum('monto'))['monto__sum'] or 0
-                total_egresos = caja.transacciones.filter(tipo_movimiento='egreso').aggregate(Sum('monto'))['monto__sum'] or 0
+                total_ingresos = caja.transacciones.filter(tipo_movimiento='INGRESO').aggregate(Sum('monto'))['monto__sum'] or 0
+                total_egresos = caja.transacciones.filter(tipo_movimiento='EGRESO').aggregate(Sum('monto'))['monto__sum'] or 0
                 
                 # Update caja
                 caja.ingresos = total_ingresos
@@ -121,9 +123,8 @@ def cerrar_caja(request, pk):
         except Exception as e:
             messages.error(request, f"Error al cerrar la caja: {str(e)}")
     
-    # Calculate current totals for display
-    total_ingresos = caja.transacciones.filter(tipo_movimiento='ingreso').aggregate(Sum('monto'))['monto__sum'] or 0
-    total_egresos = caja.transacciones.filter(tipo_movimiento='egreso').aggregate(Sum('monto'))['monto__sum'] or 0
+    # Calculate current totals for display    total_ingresos = caja.transacciones.filter(tipo_movimiento='INGRESO').aggregate(Sum('monto'))['monto__sum'] or 0
+    total_egresos = caja.transacciones.filter(tipo_movimiento='EGRESO').aggregate(Sum('monto'))['monto__sum'] or 0
     saldo_actual = caja.fondo_inicial + total_ingresos - total_egresos
     
     # Get transactions
@@ -149,8 +150,7 @@ def movimientos_list(request):
     
     # Base query
     movimientos = TransaccionCaja.objects.select_related('caja', 'caja__tienda', 'pedido', 'anticipo', 'nota_cargo', 'created_by')
-    
-    # Apply filters
+      # Apply filters
     if fecha_desde:
         fecha_desde_obj = datetime.fromisoformat(fecha_desde).date()
         movimientos = movimientos.filter(caja__fecha__gte=fecha_desde_obj)
@@ -163,14 +163,16 @@ def movimientos_list(request):
         movimientos = movimientos.filter(caja__tienda_id=tienda_id)
     
     if tipo_movimiento:
-        movimientos = movimientos.filter(tipo_movimiento=tipo_movimiento)
+        # Convert to uppercase to match our model choices
+        tipo_movimiento_upper = tipo_movimiento.upper()
+        movimientos = movimientos.filter(tipo_movimiento=tipo_movimiento_upper)
     
     # Get tiendas for filter dropdown
     tiendas = Tienda.objects.all()
     
     # Calculate totals for summary
-    total_ingresos = movimientos.filter(tipo_movimiento='ingreso').aggregate(Sum('monto'))['monto__sum'] or 0
-    total_egresos = movimientos.filter(tipo_movimiento='egreso').aggregate(Sum('monto'))['monto__sum'] or 0
+    total_ingresos = movimientos.filter(tipo_movimiento='INGRESO').aggregate(Sum('monto'))['monto__sum'] or 0
+    total_egresos = movimientos.filter(tipo_movimiento='EGRESO').aggregate(Sum('monto'))['monto__sum'] or 0
     saldo_neto = total_ingresos - total_egresos
     
     context = {
@@ -249,27 +251,44 @@ def factura_list(request):
     # Get filter parameters
     fecha_desde = request.GET.get('fecha_desde', (date.today().replace(day=1)).isoformat())
     fecha_hasta = request.GET.get('fecha_hasta', date.today().isoformat())
+    folio = request.GET.get('folio', '')
     
     # Base query
-    facturas = Factura.objects.select_related('pedido', 'created_by')
+    facturas = Factura.objects.select_related('pedido__cliente', 'created_by')
     
     # Apply filters
     if fecha_desde:
-        fecha_desde_obj = datetime.fromisoformat(fecha_desde).date()
-        facturas = facturas.filter(fecha__gte=fecha_desde_obj)
+        try:
+            fecha_desde_obj = datetime.fromisoformat(fecha_desde).date()
+            facturas = facturas.filter(fecha__gte=fecha_desde_obj)
+        except ValueError:
+            messages.error(request, "Formato de fecha inicial inválido.")
     
     if fecha_hasta:
-        fecha_hasta_obj = datetime.fromisoformat(fecha_hasta).date()
-        facturas = facturas.filter(fecha__lte=fecha_hasta_obj)
+        try:
+            fecha_hasta_obj = datetime.fromisoformat(fecha_hasta).date()
+            facturas = facturas.filter(fecha__lte=fecha_hasta_obj)
+        except ValueError:
+            messages.error(request, "Formato de fecha final inválido.")
+    
+    if folio:
+        facturas = facturas.filter(folio__icontains=folio)
     
     # Calculate total for summary
     total_facturado = facturas.aggregate(Sum('total'))['total__sum'] or 0
+    
+    # Calculate promedio si hay facturas
+    promedio_factura = 0
+    if facturas.count() > 0:
+        promedio_factura = total_facturado / facturas.count()
     
     context = {
         'facturas': facturas,
         'fecha_desde': fecha_desde,
         'fecha_hasta': fecha_hasta,
+        'folio': folio,
         'total_facturado': total_facturado,
+        'promedio_factura': promedio_factura,
     }
     
     return render(request, 'caja/factura_list.html', context)
@@ -420,10 +439,10 @@ class CajaViewSet(viewsets.ModelViewSet):
             caja = Caja.objects.select_for_update().get(tienda_id=tienda_id, fecha=fecha, cerrada=False)
         except Caja.DoesNotExist:
             return Response({"error": "Caja no encontrada o ya cerrada para esta tienda y fecha."}, status=status.HTTP_404_NOT_FOUND)
-
+        
         with transaction.atomic():
-            total_ingresos = caja.transacciones.filter(tipo_movimiento='ingreso').aggregate(Sum('monto'))['monto__sum'] or 0
-            total_egresos = caja.transacciones.filter(tipo_movimiento='egreso').aggregate(Sum('monto'))['monto__sum'] or 0
+            total_ingresos = caja.transacciones.filter(tipo_movimiento='INGRESO').aggregate(Sum('monto'))['monto__sum'] or 0
+            total_egresos = caja.transacciones.filter(tipo_movimiento='EGRESO').aggregate(Sum('monto'))['monto__sum'] or 0
 
             caja.ingresos = total_ingresos
             caja.egresos = total_egresos
@@ -475,18 +494,33 @@ class TransaccionCajaViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['caja', 'tipo_movimiento', 'pedido', 'anticipo', 'nota_cargo', 'created_at']
-
+    
     def perform_create(self, serializer):
         user = self.request.user
         today = date.today()
 
-        if not hasattr(user, 'tienda') or user.tienda is None:
-             raise ValidationError("User is not associated with a store.")
-             
-        try:
-            caja_abierta = Caja.objects.get(tienda=user.tienda, fecha=today, cerrada=False)
-        except Caja.DoesNotExist:
-             raise ValidationError("No hay una caja abierta para su tienda en la fecha actual.")
+        # Get the tienda from the request data or find available open caja
+        # In DRF, request.data contains the POST data
+        tienda_id = None
+        if hasattr(self.request, 'data') and self.request.data:
+            tienda_id = self.request.data.get('tienda_id')
+        elif hasattr(self.request, 'POST'):
+            # Fallback to request.POST for form data
+            tienda_id = self.request.POST.get('tienda_id')
+        
+        if tienda_id:
+            try:
+                caja_abierta = Caja.objects.get(tienda_id=tienda_id, fecha=today, cerrada=False)
+            except Caja.DoesNotExist:
+                raise ValidationError("No hay una caja abierta para la tienda especificada en la fecha actual.")
+        else:
+            # If no tienda specified, try to find any open caja for today
+            try:
+                caja_abierta = Caja.objects.filter(fecha=today, cerrada=False).first()
+                if not caja_abierta:
+                    raise ValidationError("No hay cajas abiertas en la fecha actual.")
+            except Exception:
+                raise ValidationError("No hay una caja abierta en la fecha actual.")
 
         serializer.save(created_by=user, caja=caja_abierta)
 
@@ -554,3 +588,153 @@ class MovimientosCajaReporteAPIView(APIView):
             })
 
         return Response(data)
+
+def factura_create(request):
+    """Vista para crear una nueva factura"""
+    pedidos_sin_factura = Pedido.objects.filter(
+        estado='surtido', 
+        pagado=True,
+        factura__isnull=True  # Asegurarse que no tengan factura ya generada
+    ).select_related('cliente', 'tienda').order_by('-fecha')
+    if request.method == 'POST':
+        pedido_id = request.POST.get('pedido')
+        folio = request.POST.get('folio')
+        fecha = request.POST.get('fecha')
+        total = request.POST.get('total')
+        
+        # Validaciones
+        if not pedido_id or not folio or not fecha or not total:
+            messages.error(request, "Todos los campos son obligatorios.")
+            return redirect('caja:nueva_factura')
+        
+        try:
+            pedido = Pedido.objects.get(id=pedido_id)
+            
+            # Verificar que el pedido no tenga ya una factura
+            if hasattr(pedido, 'factura'):
+                messages.error(request, f"El pedido #{pedido_id} ya tiene una factura asociada.")
+                return redirect('caja:facturas')
+            
+            # Verificar que el pedido esté pagado y surtido
+            if not pedido.pagado or pedido.estado != 'surtido':
+                messages.error(request, f"El pedido #{pedido_id} no puede facturarse porque no está pagado o surtido.")
+                return redirect('caja:nueva_factura')
+                
+            # Crear la factura
+            factura = Factura.objects.create(
+                pedido=pedido,
+                folio=folio,
+                fecha=fecha,
+                total=float(total),
+                created_by=request.user
+            )
+            
+            messages.success(request, f"Factura #{folio} generada con éxito.")
+            return redirect('caja:ver_factura', factura.id)
+            
+        except Pedido.DoesNotExist:
+            messages.error(request, f"El pedido #{pedido_id} no existe.")
+        except IntegrityError:
+            messages.error(request, f"Ya existe una factura con el folio {folio}.")
+            # Recargar la página con los datos para que el usuario pueda corregir
+            context = {
+                'pedidos_sin_factura': pedidos_sin_factura,
+                'pedido_id': pedido_id,
+                'folio': folio,
+                'fecha': fecha,
+                'total': total
+            }
+            return render(request, 'caja/factura_form.html', context)
+        except Exception as e:
+            messages.error(request, f"Error al generar la factura: {str(e)}")
+    
+    context = {
+        'pedidos_sin_factura': pedidos_sin_factura,
+    }
+    
+    return render(request, 'caja/factura_form.html', context)
+
+def factura_detail(request, pk):
+    """Vista para ver detalle de una factura"""
+    factura = get_object_or_404(Factura.objects.select_related(
+        'pedido__cliente', 'pedido__tienda', 'created_by'
+    ), pk=pk)
+    
+    # Calcular subtotal y descuento
+    detalles = factura.pedido.detalles.all()
+    subtotal = sum(detalle.subtotal for detalle in detalles)
+    
+    descuento = 0
+    if factura.pedido.descuento_aplicado > 0:
+        descuento = subtotal * (factura.pedido.descuento_aplicado / 100)
+    
+    context = {
+        'factura': factura,
+        'subtotal': subtotal,
+        'descuento': descuento,
+    }
+    
+    return render(request, 'caja/factura_detail.html', context)
+
+def factura_print(request, pk):
+    """Vista para imprimir una factura"""
+    factura = get_object_or_404(Factura.objects.select_related(
+        'pedido__cliente', 'pedido__tienda', 'created_by'
+    ), pk=pk)
+    
+    # Calcular subtotal y descuento
+    detalles = factura.pedido.detalles.all()
+    subtotal = sum(detalle.subtotal for detalle in detalles)
+    
+    descuento = 0
+    if factura.pedido.descuento_aplicado > 0:
+        descuento = subtotal * (factura.pedido.descuento_aplicado / 100)
+    
+    context = {
+        'factura': factura,
+        'subtotal': subtotal,
+        'descuento': descuento,
+    }
+    
+    return render(request, 'caja/factura_print.html', context)
+
+def factura_pdf(request, pk):
+    """Vista para generar PDF de una factura"""
+    from django.http import HttpResponse
+    from django.template.loader import render_to_string
+    
+    factura = get_object_or_404(Factura.objects.select_related(
+        'pedido__cliente', 'pedido__tienda', 'created_by'
+    ), pk=pk)
+    
+    # Calcular subtotal y descuento
+    detalles = factura.pedido.detalles.all()
+    subtotal = sum(detalle.subtotal for detalle in detalles)
+    
+    descuento = 0
+    if factura.pedido.descuento_aplicado > 0:
+        descuento = subtotal * (factura.pedido.descuento_aplicado / 100)
+    
+    context = {
+        'factura': factura,
+        'subtotal': subtotal,
+        'descuento': descuento,
+        'detalles': detalles,
+    }
+    
+    # En una implementación real se utilizaría una biblioteca como WeasyPrint, 
+    # ReportLab o xhtml2pdf para generar un PDF. En este ejemplo usamos
+    # una solución simplificada basada en el navegador.
+    
+    # 1. Generar el HTML para el PDF
+    html_string = render_to_string('caja/factura_print.html', context)
+    
+    # 2. Configurar la respuesta HTTP
+    response = HttpResponse(content_type='text/html')
+    response['Content-Disposition'] = f'attachment; filename="factura_{factura.folio}.html"'
+    
+    # 3. Escribir el HTML en la respuesta
+    response.write(html_string)
+    
+    messages.success(request, f"Factura #{factura.folio} descargada correctamente.")
+    return response

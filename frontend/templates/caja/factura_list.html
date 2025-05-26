@@ -1,0 +1,201 @@
+{% extends "layouts/base.html" %}
+{% load static %}
+
+{% block title %}Facturas{% endblock %}
+
+{% block page_title %}Facturas{% endblock %}
+
+{% block breadcrumbs_content %}
+    <li class="breadcrumb-item"><a href="{% url 'caja:lista' %}">Caja</a></li>
+    <li class="breadcrumb-item active">Facturas</li>
+{% endblock %}
+
+{% block page_actions %}
+    <a href="{% url 'caja:nueva_factura' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-1"></i> Nueva Factura
+    </a>
+{% endblock %}
+
+{% block content %}
+<!-- Filtros -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+        <h6 class="m-0 font-weight-bold text-primary">Filtros</h6>
+    </div>
+    <div class="card-body">
+        <form method="GET" class="row g-3" id="facturaFilterForm">
+            <div class="col-md-4">
+                <label for="fecha_desde" class="form-label">Fecha Inicio</label>
+                <input type="date" class="form-control" id="fecha_desde" name="fecha_desde" value="{{ fecha_desde }}">
+            </div>
+            <div class="col-md-4">
+                <label for="fecha_hasta" class="form-label">Fecha Fin</label>
+                <input type="date" class="form-control" id="fecha_hasta" name="fecha_hasta" value="{{ fecha_hasta }}">
+            </div>
+            <div class="col-md-4">
+                <label for="folio" class="form-label">Folio</label>
+                <input type="text" class="form-control" id="folio" name="folio" value="{{ folio }}" placeholder="Buscar por folio...">
+            </div>
+            <div class="col-12 text-end">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-search me-1"></i> Filtrar
+                </button>
+                <button type="button" id="clearFiltersBtn" class="btn btn-secondary">
+                    <i class="bi bi-arrow-clockwise me-1"></i> Limpiar Filtros
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Resumen -->
+<div class="row">
+    <div class="col-xl-4 col-md-6 mb-4">
+        <div class="card border-left-primary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            Total Facturas
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ facturas.count }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-file-earmark-text fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-4 col-md-6 mb-4">
+        <div class="card border-left-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Total Facturado
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            ${{ total_facturado|floatformat:2 }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-cash fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-4 col-md-6 mb-4">
+        <div class="card border-left-info shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            Promedio por Factura
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            ${{ promedio_factura|default:"0.00"|floatformat:2 }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-calculator fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Lista de Facturas -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Facturas</h6>
+    </div>
+    <div class="card-body">
+        {% if facturas %}
+            <div class="table-responsive">
+                <table class="table table-hover table-sm" id="facturasTable">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Folio</th>
+                            <th>Fecha</th>
+                            <th>Pedido</th>
+                            <th>Cliente</th>
+                            <th class="text-end">Total</th>
+                            <th>Creada por</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for factura in facturas %}
+                        <tr>
+                            <td>{{ factura.id }}</td>
+                            <td>{{ factura.folio }}</td>
+                            <td>{{ factura.fecha|date:"d/m/Y" }}</td>
+                            <td>
+                                <a href="{% url 'ventas:detalle_pedido' factura.pedido.id %}" target="_blank">
+                                    #{{ factura.pedido.id }}
+                                </a>
+                            </td>
+                            <td>{{ factura.pedido.cliente.nombre }}</td>
+                            <td class="text-end">${{ factura.total|floatformat:2 }}</td>
+                            <td>{{ factura.created_by.username }}</td>
+                            <td>
+                                <div class="btn-group">
+                                    <a href="{% url 'caja:ver_factura' factura.id %}" class="btn btn-sm btn-primary" title="Ver Factura">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <a href="{% url 'caja:imprimir_factura' factura.id %}" class="btn btn-sm btn-success" title="Imprimir Factura" target="_blank">
+                                        <i class="bi bi-printer"></i>
+                                    </a>
+                                    <a href="{% url 'caja:descargar_factura_pdf' factura.id %}" class="btn btn-sm btn-info" title="Descargar PDF">
+                                        <i class="bi bi-file-pdf"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center my-5">
+                <div class="mb-3">
+                    <i class="bi bi-file-earmark-x text-muted" style="font-size: 4rem;"></i>
+                </div>
+                <h5>No hay facturas para mostrar</h5>
+                <p class="text-muted">
+                    No se encontraron facturas que coincidan con los criterios seleccionados.
+                </p>
+                {% if not fecha_desde and not fecha_hasta and not folio %}
+                <a href="{% url 'caja:nueva_factura' %}" class="btn btn-primary mt-2">
+                    <i class="bi bi-plus-circle me-1"></i> Crear Nueva Factura
+                </a>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        $('#facturasTable').DataTable({
+            language: {
+                url: '//cdn.datatables.net/plug-ins/1.10.25/i18n/Spanish.json'
+            },            
+            order: [[2, 'desc']], // Ordenar por fecha (descendente)
+            pageLength: 25
+        });
+    });
+</script>
+<script src="{% static 'js/facturas.js' %}"></script>
+{% endblock %}
+{% endblock %}

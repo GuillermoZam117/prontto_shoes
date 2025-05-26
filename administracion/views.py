@@ -19,6 +19,7 @@ class LogAuditoriaViewSet(viewsets.ModelViewSet):
 
 class LogsAuditoriaReporteAPIView(APIView):
     permission_classes = [IsAuthenticated]
+    serializer_class = LogAuditoriaSerializer  # Add this for DRF Spectacular
     """
     Devuelve un reporte de logs de auditoría, mostrando usuario, acción, fecha y descripción.
     """

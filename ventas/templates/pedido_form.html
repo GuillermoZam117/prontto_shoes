@@ -1,0 +1,315 @@
+{% extends "layouts/base.html" %}
+{% load static %}
+
+{% block title %}
+    {% if pedido %}Editar{% else %}Nuevo{% endif %} Pedido
+{% endblock %}
+
+{% block page_title %}
+    {% if pedido %}Editar Pedido #{{ pedido.id }}{% else %}Nuevo Pedido{% endif %}
+{% endblock %}
+
+{% block breadcrumbs_content %}
+    <li class="breadcrumb-item"><a href="{% url 'ventas:pedidos' %}">Pedidos</a></li>
+    <li class="breadcrumb-item active">{% if pedido %}Editar #{{ pedido.id }}{% else %}Nuevo{% endif %}</li>
+{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+<style>
+    .product-row {
+        margin-bottom: 10px;
+        padding: 10px;
+        border-radius: 5px;
+        background-color: #f8f9fa;
+        transition: all 0.3s ease;
+    }
+    
+    .product-row:hover {
+        background-color: #e9ecef;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .fade-in {
+        animation: fadeIn 0.5s;
+    }
+    
+    @keyframes fadeIn {
+        0% { opacity: 0; }
+        100% { opacity: 1; }
+    }
+    
+    .total-section {
+        font-size: 1.2rem;
+        font-weight: 600;
+    }
+    
+    .error-feedback {
+        color: #dc3545;
+        font-size: 0.875em;
+        margin-top: 0.25rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card shadow mb-4" 
+     x-data="{
+        productos: [],
+        cliente: null,
+        detalles: [{ producto_id: null, cantidad: 1, precio: 0, subtotal: 0 }],
+        descuento: 0,
+        total: 0,
+        loading: false,
+        
+        calcularSubtotal(index) {
+            const detalle = this.detalles[index];
+            detalle.subtotal = parseFloat(detalle.cantidad) * parseFloat(detalle.precio);
+            this.calcularTotal();
+        },
+        
+        calcularTotal() {
+            let suma = 0;
+            this.detalles.forEach(detalle => {
+                suma += detalle.subtotal || 0;
+            });
+            
+            const descuentoValor = (suma * this.descuento) / 100;
+            this.total = suma - descuentoValor;
+        },
+        
+        agregarProducto() {
+            this.detalles.push({ producto_id: null, cantidad: 1, precio: 0, subtotal: 0 });
+        },
+        
+        removerProducto(index) {
+            if (this.detalles.length > 1) {
+                this.detalles.splice(index, 1);
+                this.calcularTotal();
+            }
+        },
+        
+        async cargarDatosCliente() {
+            if (!this.cliente) return;
+            
+            this.loading = true;
+            try {
+                const response = await fetch(`/api/clientes/${this.cliente}/`);
+                if (response.ok) {
+                    const data = await response.json();
+                    this.descuento = data.descuento_actual || 0;
+                    this.calcularTotal();
+                }
+            } catch (error) {
+                console.error('Error al cargar datos del cliente:', error);
+            } finally {
+                this.loading = false;
+            }
+        },
+        
+        async cargarPrecioProducto(index) {
+            const detalle = this.detalles[index];
+            if (!detalle.producto_id) return;
+            
+            try {
+                const response = await fetch(`/api/productos/${detalle.producto_id}/`);
+                if (response.ok) {
+                    const data = await response.json();
+                    detalle.precio = data.precio_venta || 0;
+                    this.calcularSubtotal(index);
+                }
+            } catch (error) {
+                console.error('Error al cargar precio del producto:', error);
+            }
+        },
+        
+        async init() {
+            // Cargar productos disponibles
+            try {
+                const response = await fetch('/api/productos/?disponible=true');
+                if (response.ok) {
+                    this.productos = await response.json();
+                }
+            } catch (error) {
+                console.error('Error al cargar productos:', error);
+            }
+            
+            // Si tenemos un pedido existente, cargar sus datos
+            {% if pedido %}
+            this.cliente = {{ pedido.cliente.id }};
+            this.detalles = [];
+            
+            {% for detalle in pedido.detalles.all %}
+            this.detalles.push({
+                producto_id: {{ detalle.producto.id }},
+                cantidad: {{ detalle.cantidad }},
+                precio: {{ detalle.precio_unitario }},
+                subtotal: {{ detalle.subtotal }}
+            });
+            {% endfor %}
+            
+            this.descuento = {{ pedido.descuento_porcentaje }};
+            this.total = {{ pedido.total }};
+            {% endif %}
+        }
+     }"
+     x-init="init()">
+    
+    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+        <h6 class="m-0 font-weight-bold text-primary">
+            {% if pedido %}Editar Pedido #{{ pedido.id }}{% else %}Nuevo Pedido{% endif %}
+        </h6>
+        <div x-show="loading" class="spinner-border spinner-border-sm text-primary" role="status">
+            <span class="visually-hidden">Cargando...</span>
+        </div>
+    </div>
+    
+    <div class="card-body">
+        <form hx-post="{% if pedido %}{% url 'ventas:editar_pedido' pedido.id %}{% else %}{% url 'ventas:crear_pedido' %}{% endif %}"
+              hx-swap="outerHTML"
+              hx-trigger="submit"
+              hx-indicator="#loading-indicator"
+              @submit.prevent="loading = true">
+            
+            {% csrf_token %}
+            
+            <!-- Cliente -->
+            <div class="mb-4">
+                <label for="cliente" class="form-label">Cliente *</label>
+                <select class="form-select" id="cliente" name="cliente" required
+                        x-model="cliente"
+                        @change="cargarDatosCliente()">
+                    <option value="">Seleccionar cliente...</option>
+                    {% for cliente in clientes %}
+                    <option value="{{ cliente.id }}">{{ cliente.nombre }}</option>
+                    {% endfor %}
+                </select>
+                <div class="invalid-feedback">Por favor seleccione un cliente.</div>
+            </div>
+            
+            <!-- Detalles de productos -->
+            <div class="mb-4">
+                <h5 class="mb-3">Productos</h5>
+                
+                <template x-for="(detalle, index) in detalles" :key="index">
+                    <div class="product-row fade-in">
+                        <div class="row">
+                            <div class="col-md-5 mb-2">
+                                <label :for="'producto_' + index" class="form-label">Producto *</label>
+                                <select :name="'detalles['+index+'][producto]'" :id="'producto_' + index" 
+                                        class="form-select"
+                                        x-model="detalle.producto_id"
+                                        @change="cargarPrecioProducto(index)"
+                                        required>
+                                    <option value="">Seleccionar producto...</option>
+                                    <template x-for="producto in productos">
+                                        <option :value="producto.id" x-text="producto.codigo + ' - ' + producto.nombre"></option>
+                                    </template>
+                                </select>
+                                <div class="error-feedback" x-show="!detalle.producto_id">Seleccione un producto</div>
+                            </div>
+                            
+                            <div class="col-md-2 mb-2">
+                                <label :for="'cantidad_' + index" class="form-label">Cantidad *</label>
+                                <input type="number" :name="'detalles['+index+'][cantidad]'" :id="'cantidad_' + index"
+                                       class="form-control"
+                                       x-model="detalle.cantidad"
+                                       @input="calcularSubtotal(index)"
+                                       min="1" required>
+                                <div class="error-feedback" x-show="detalle.cantidad < 1">Debe ser mayor a 0</div>
+                            </div>
+                            
+                            <div class="col-md-2 mb-2">
+                                <label :for="'precio_' + index" class="form-label">Precio *</label>
+                                <input type="number" :name="'detalles['+index+'][precio]'" :id="'precio_' + index"
+                                       class="form-control"
+                                       x-model="detalle.precio"
+                                       @input="calcularSubtotal(index)"
+                                       min="0" step="0.01" required>
+                            </div>
+                            
+                            <div class="col-md-2 mb-2">
+                                <label :for="'subtotal_' + index" class="form-label">Subtotal</label>
+                                <input type="text" :id="'subtotal_' + index"
+                                       class="form-control"
+                                       x-model="detalle.subtotal.toFixed(2)"
+                                       readonly>
+                            </div>
+                            
+                            <div class="col-md-1 mb-2 d-flex align-items-end">
+                                <button type="button" class="btn btn-danger btn-sm mb-2"
+                                        @click="removerProducto(index)"
+                                        x-show="detalles.length > 1"
+                                        title="Eliminar producto">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+                
+                <div class="text-center mt-3">
+                    <button type="button" class="btn btn-success btn-sm"
+                            @click="agregarProducto()"
+                            hx-trigger="click"
+                            hx-swap="none">
+                        <i class="bi bi-plus-circle me-1"></i> Agregar Producto
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Descuento -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <label for="descuento" class="form-label">Descuento (%)</label>
+                    <input type="number" id="descuento" name="descuento" class="form-control"
+                           x-model="descuento"
+                           @input="calcularTotal()"
+                           min="0" max="100" step="0.01">
+                </div>
+            </div>
+            
+            <!-- Total -->
+            <div class="row mb-4">
+                <div class="col-md-6 offset-md-6">
+                    <div class="card border-primary">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between total-section">
+                                <span>Total:</span>
+                                <span x-text="'$' + total.toFixed(2)"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="d-flex justify-content-end mt-4">
+                <a href="{% url 'ventas:pedidos' %}" class="btn btn-secondary me-2">Cancelar</a>
+                <button type="submit" class="btn btn-primary" 
+                        :disabled="detalles.some(d => !d.producto_id) || !cliente || loading">
+                    <span id="loading-indicator" class="spinner-border spinner-border-sm me-1" style="display: none;"></span>
+                    Guardar Pedido
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+<script src="https://unpkg.com/htmx.org@1.9.0"></script>
+<script>
+    document.addEventListener('alpine:init', () => {
+        // Inicialización para select2
+        $(document).ready(function() {
+            $('.select2').select2({
+                theme: 'bootstrap-5'
+            });
+        });
+    });
+</script>
+{% endblock %}

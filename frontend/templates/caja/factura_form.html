@@ -1,0 +1,190 @@
+{% extends "layouts/base.html" %}
+{% load static %}
+
+{% block title %}{{ titulo|default:"Generar Factura" }}{% endblock %}
+
+{% block page_title %}{{ titulo|default:"Generar Factura" }}{% endblock %}
+
+{% block breadcrumbs_content %}
+    <li class="breadcrumb-item"><a href="{% url 'caja:lista' %}">Caja</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'caja:facturas' %}">Facturas</a></li>
+    <li class="breadcrumb-item active">{{ titulo|default:"Generar Factura" }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">{{ titulo|default:"Generar Factura" }}</h6>
+    </div>
+    <div class="card-body">
+        <form method="post" id="facturaForm" x-data="facturaHandler()">
+            {% csrf_token %}
+            
+            <div class="row mb-3">
+                <!-- Pedido -->
+                <div class="col-md-6">
+                    <label for="pedido" class="form-label">Pedido <span class="text-danger">*</span></label>
+                    <select class="form-select" id="pedido" name="pedido" x-on:change="cargarPedido" required>
+                        <option value="">Seleccionar pedido...</option>
+                        {% for pedido in pedidos_sin_factura %}
+                        <option value="{{ pedido.id }}" data-total="{{ pedido.total }}" data-cliente="{{ pedido.cliente.nombre }}" data-fecha="{{ pedido.fecha|date:'Y-m-d' }}">
+                            #{{ pedido.id }} - {{ pedido.cliente.nombre }} - ${{ pedido.total }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <div class="form-text">
+                        Seleccione el pedido para el cual desea generar factura.
+                    </div>
+                </div>
+                
+                <!-- Folio -->
+                <div class="col-md-6">
+                    <label for="folio" class="form-label">Folio <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="folio" name="folio" required
+                           placeholder="Ejemplo: F-0001">
+                    <div class="form-text">
+                        Ingrese el número de folio único para esta factura.
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mb-3">
+                <!-- Fecha -->
+                <div class="col-md-6">
+                    <label for="fecha" class="form-label">Fecha <span class="text-danger">*</span></label>
+                    <input type="date" class="form-control" id="fecha" name="fecha" 
+                           x-model="fecha" required>
+                </div>
+                
+                <!-- Total -->
+                <div class="col-md-6">
+                    <label for="total" class="form-label">Total ($) <span class="text-danger">*</span></label>
+                    <input type="number" class="form-control" id="total" name="total" 
+                           x-model="total" step="0.01" min="0.01" required readonly>
+                </div>
+            </div>
+            
+            <!-- Información del Cliente -->
+            <div class="card mb-4">
+                <div class="card-header py-2 bg-light">
+                    <h6 class="m-0 font-weight-bold">Información del Cliente</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-0" x-text="'Cliente: ' + cliente"></div>
+                </div>
+            </div>
+            
+            <!-- Resumen del Pedido -->
+            <div class="card mb-4">
+                <div class="card-header py-2 bg-light">
+                    <h6 class="m-0 font-weight-bold">Resumen del Pedido</h6>
+                </div>
+                <div class="card-body">
+                    <p>Se generará una factura para el pedido seleccionado con los siguientes detalles:</p>
+                    
+                    <table class="table table-sm">
+                        <tr>
+                            <th>Pedido:</th>
+                            <td x-text="'#' + pedidoId"></td>
+                        </tr>
+                        <tr>
+                            <th>Cliente:</th>
+                            <td x-text="cliente"></td>
+                        </tr>
+                        <tr>
+                            <th>Fecha de Pedido:</th>
+                            <td x-text="fechaPedido"></td>
+                        </tr>
+                        <tr>
+                            <th>Total:</th>
+                            <td x-text="'$' + total"></td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="alert alert-info">
+                <strong>Nota:</strong> Una vez generada la factura, no se podrá modificar.
+            </div>
+
+            <hr>
+            
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'caja:facturas' %}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left me-1"></i> Cancelar
+                </a>
+                <button type="submit" class="btn btn-primary" x-bind:disabled="!isFormValid">
+                    <i class="bi bi-file-earmark-text me-1"></i> Generar Factura
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function facturaHandler() {
+        return {
+            pedidoId: '',
+            cliente: '',
+            fecha: new Date().toISOString().split('T')[0],
+            fechaPedido: '',
+            total: '',
+            
+            cargarPedido() {
+                const select = document.getElementById('pedido');
+                const option = select.options[select.selectedIndex];
+                
+                if (option.value) {
+                    this.pedidoId = option.value;
+                    this.cliente = option.dataset.cliente;
+                    this.fechaPedido = option.dataset.fecha;
+                    this.total = option.dataset.total;
+                } else {
+                    this.pedidoId = '';
+                    this.cliente = '';
+                    this.fechaPedido = '';
+                    this.total = '';
+                }
+            },
+            
+            get isFormValid() {
+                return this.pedidoId && document.getElementById('folio').value.trim() && this.fecha && this.total;
+            }
+        }
+    }
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        // Form validation
+        document.getElementById('facturaForm').addEventListener('submit', function(event) {
+            const pedido = document.getElementById('pedido').value.trim();
+            const folio = document.getElementById('folio').value.trim();
+            const fecha = document.getElementById('fecha').value.trim();
+            
+            if (!pedido) {
+                alert("Por favor seleccione un pedido.");
+                event.preventDefault();
+                return false;
+            }
+            
+            if (!folio) {
+                alert("Por favor ingrese un número de folio.");
+                event.preventDefault();
+                return false;
+            }
+            
+            if (!fecha) {
+                alert("Por favor seleccione una fecha.");
+                event.preventDefault();
+                return false;
+            }
+              return true;
+        });
+    });
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/facturas.js' %}"></script>
+{% endblock %}

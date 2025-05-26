@@ -2,6 +2,8 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
+from drf_spectacular.types import OpenApiTypes
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Count, Q
 from django.utils import timezone
@@ -10,14 +12,16 @@ from django.contrib.auth.decorators import login_required
 from django.apps import apps
 from django.contrib import messages
 from django.http import JsonResponse
-from django.db.models import Count, Q
+from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
 from django.utils.timezone import now, timedelta
 from tiendas.models import Tienda
 
 from .models import ColaSincronizacion, ConfiguracionSincronizacion, RegistroSincronizacion, EstadoSincronizacion
 from .serializers import (
     ColaSincronizacionSerializer, ConfiguracionSincronizacionSerializer,
-    RegistroSincronizacionSerializer, ContentTypeSerializer, RegistroAuditoriaSerializer
+    RegistroSincronizacionSerializer, ContentTypeSerializer, RegistroAuditoriaSerializer,
+    ProcesarPendientesRequestSerializer, ResolverConflictoRequestSerializer
 )
 from .tasks import (
     procesar_cola_sincronizacion, iniciar_sincronizacion_completa,
@@ -31,6 +35,22 @@ from .performance_optimizations import (
     procesar_cola_rapido
 )
 
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Sincronización"],
+        description="Lista todas las operaciones de la cola de sincronización",
+        parameters=[
+            OpenApiParameter("estado", OpenApiTypes.STR, description="Filtrar por estado"),
+            OpenApiParameter("tipo_operacion", OpenApiTypes.STR, description="Filtrar por tipo de operación"),
+            OpenApiParameter("content_type", OpenApiTypes.INT, description="Filtrar por tipo de contenido"),
+            OpenApiParameter("modelo", OpenApiTypes.STR, description="Filtrar por modelo (app_label.model)"),
+        ]
+    ),
+    create=extend_schema(tags=["Sincronización"], description="Crear nueva operación de sincronización"),
+    retrieve=extend_schema(tags=["Sincronización"], description="Obtener detalles de una operación de sincronización"),
+    update=extend_schema(tags=["Sincronización"], description="Actualizar operación de sincronización"),
+    destroy=extend_schema(tags=["Sincronización"], description="Eliminar operación de sincronización"),
+)
 class ColaSincronizacionViewSet(viewsets.ModelViewSet):
     queryset = ColaSincronizacion.objects.all().order_by('-fecha_creacion')
     serializer_class = ColaSincronizacionSerializer
@@ -45,7 +65,7 @@ class ColaSincronizacionViewSet(viewsets.ModelViewSet):
         content_type_id = self.request.query_params.get('content_type')
         if content_type_id:
             queryset = queryset.filter(content_type_id=content_type_id)
-        
+            
         # Filtrar por modelo (app_label.model)
         modelo = self.request.query_params.get('modelo')
         if modelo and '.' in modelo:
@@ -55,9 +75,14 @@ class ColaSincronizacionViewSet(viewsets.ModelViewSet):
                 queryset = queryset.filter(content_type=ct)
             except ContentType.DoesNotExist:
                 pass
-        
         return queryset
     
+    @extend_schema(
+        tags=["Sincronización"],
+        description="Procesa una operación específica de la cola",
+        request=ProcesarPendientesRequestSerializer,
+        responses={200: {"description": "Operación procesada exitosamente"}}
+    )
     @action(detail=True, methods=['post'])
     def procesar(self, request, pk=None):
         """Procesa una operación específica de la cola"""
@@ -70,14 +95,18 @@ class ColaSincronizacionViewSet(viewsets.ModelViewSet):
         resultado = procesar_cola_sincronizacion(operacion_id=operacion.id)
         
         # Recargar para obtener el estado actualizado
-        operacion.refresh_from_db()
-        
+        operacion.refresh_from_db()        
         return Response({
             'detail': 'Operación procesada',
-            'resultado': resultado,
-            'estado_actual': operacion.estado
+            'resultado': resultado,            'estado_actual': operacion.estado
         })
     
+    @extend_schema(
+        tags=["Sincronización"],
+        description="Resuelve un conflicto de sincronización",
+        request=ResolverConflictoRequestSerializer,
+        responses={200: {"description": "Conflicto resuelto exitosamente"}}
+    )
     @action(detail=True, methods=['post'])
     def resolver(self, request, pk=None):
         """Resuelve un conflicto de sincronización"""
@@ -89,15 +118,13 @@ class ColaSincronizacionViewSet(viewsets.ModelViewSet):
         # Determinar estrategia de resolución
         usar_datos_servidor = request.data.get('usar_datos_servidor', True)
         datos_personalizados = request.data.get('datos_personalizados')
-        
-        # Resolver conflicto
+          # Resolver conflicto
         resultado = resolver_conflicto(
             operacion.id, 
             usar_datos_servidor=usar_datos_servidor,
             datos_personalizados=datos_personalizados,
             usuario=request.user
         )
-        
         # Recargar para obtener el estado actualizado
         operacion.refresh_from_db()
         
@@ -106,7 +133,13 @@ class ColaSincronizacionViewSet(viewsets.ModelViewSet):
             'resultado': resultado,
             'estado_actual': operacion.estado
         })
-    
+
+    @extend_schema(
+        tags=["Sincronización"],
+        description="Procesa todas las operaciones pendientes",
+        request=ProcesarPendientesRequestSerializer,
+        responses={200: {"description": "Procesamiento completado"}}
+    )
     @action(detail=False, methods=['post'])
     def procesar_pendientes(self, request):
         """Procesa todas las operaciones pendientes"""
@@ -117,7 +150,6 @@ class ColaSincronizacionViewSet(viewsets.ModelViewSet):
             tienda_id=tienda_id,
             max_items=max_items
         )
-        
         return Response({
             'detail': 'Procesamiento completado',
             'exitosas': exitosas,
@@ -125,6 +157,11 @@ class ColaSincronizacionViewSet(viewsets.ModelViewSet):
             'conflictos': conflictos
         })
     
+    @extend_schema(
+        tags=["Sincronización"],
+        description="Obtiene estadísticas de la cola de sincronización",
+        responses={200: {"description": "Estadísticas de sincronización"}}
+    )
     @action(detail=False, methods=['get'])
     def estadisticas(self, request):
         """Obtiene estadísticas de la cola de sincronización"""
@@ -165,11 +202,24 @@ class ColaSincronizacionViewSet(viewsets.ModelViewSet):
         })
 
 
+@extend_schema_view(
+    list=extend_schema(tags=["Sincronización"], description="Lista configuraciones de sincronización"),
+    create=extend_schema(tags=["Sincronización"], description="Crear nueva configuración de sincronización"),
+    retrieve=extend_schema(tags=["Sincronización"], description="Obtener detalles de configuración"),
+    update=extend_schema(tags=["Sincronización"], description="Actualizar configuración de sincronización"),
+    destroy=extend_schema(tags=["Sincronización"], description="Eliminar configuración de sincronización"),
+)
 class ConfiguracionSincronizacionViewSet(viewsets.ModelViewSet):
     queryset = ConfiguracionSincronizacion.objects.all()
     serializer_class = ConfiguracionSincronizacionSerializer
     permission_classes = [IsAuthenticated, IsAdminUser]
     
+    @extend_schema(
+        tags=["Sincronización"],
+        description="Inicia una sincronización completa para la tienda",
+        request=None,
+        responses={200: {"description": "Sincronización iniciada exitosamente"}}
+    )
     @action(detail=True, methods=['post'])
     def sincronizar_ahora(self, request, pk=None):
         """Inicia una sincronización completa para la tienda"""
@@ -188,6 +238,10 @@ class ConfiguracionSincronizacionViewSet(viewsets.ModelViewSet):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@extend_schema_view(
+    list=extend_schema(tags=["Sincronización"], description="Lista registros de sincronización"),
+    retrieve=extend_schema(tags=["Sincronización"], description="Obtener detalles de registro de sincronización"),
+)
 class RegistroSincronizacionViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = RegistroSincronizacion.objects.all().order_by('-fecha_inicio')
     serializer_class = RegistroSincronizacionSerializer
@@ -195,6 +249,10 @@ class RegistroSincronizacionViewSet(viewsets.ReadOnlyModelViewSet):
     filterset_fields = ['tienda', 'estado']
 
 
+@extend_schema_view(
+    list=extend_schema(tags=["Sincronización"], description="Lista tipos de contenido disponibles para sincronización"),
+    retrieve=extend_schema(tags=["Sincronización"], description="Obtener detalles de tipo de contenido"),
+)
 class ContentTypeViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet para listar los tipos de contenido (modelos) disponibles para sincronización"""
     queryset = ContentType.objects.all().order_by('app_label', 'model')
@@ -241,15 +299,14 @@ def sincronizacion_dashboard(request):
     pendientes = ColaSincronizacion.objects.filter(
         estado=EstadoSincronizacion.PENDIENTE
     ).count()
-    
-    # Contar conflictos
+      # Contar conflictos
     conflictos = ColaSincronizacion.objects.filter(
         tiene_conflicto=True
     ).count()
     
     # Última sincronización exitosa
     ultima_sincronizacion = RegistroSincronizacion.objects.filter(
-        exitoso=True
+        estado=EstadoSincronizacion.COMPLETADO
     ).order_by('-fecha_fin').first()
     
     # Estado de conexión (simplificado para esta implementación)
@@ -587,6 +644,17 @@ def offline_status(request):
         'estadisticas_cache': estadisticas_cache
     })
 
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Auditoría"],
+        description="Lista registros de auditoría de seguridad",
+        parameters=[
+            OpenApiParameter("fecha_inicio", OpenApiTypes.DATE, description="Filtrar desde fecha (YYYY-MM-DD)"),
+            OpenApiParameter("fecha_fin", OpenApiTypes.DATE, description="Filtrar hasta fecha (YYYY-MM-DD)"),
+        ]
+    ),
+    retrieve=extend_schema(tags=["Auditoría"], description="Obtener detalles de registro de auditoría"),
+)
 class RegistroAuditoriaViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet para consultar los registros de auditoría de seguridad"""
     queryset = RegistroAuditoria.objects.all().order_by('-fecha')
@@ -619,3 +687,47 @@ class RegistroAuditoriaViewSet(viewsets.ReadOnlyModelViewSet):
                 pass
                 
         return queryset
+
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
+
+@require_http_methods(["GET"])
+@csrf_exempt
+def estadisticas_api(request):
+    """API endpoint for sync statistics - no authentication required for frontend monitoring"""
+    # Total por estado
+    por_estado = ColaSincronizacion.objects.values('estado').annotate(total=Count('id'))
+    
+    # Total por content_type para pendientes
+    pendientes_por_modelo = ColaSincronizacion.objects.filter(
+        estado=EstadoSincronizacion.PENDIENTE
+    ).values(
+        'content_type__app_label', 
+        'content_type__model'
+    ).annotate(
+        total=Count('id')
+    ).order_by('-total')
+    
+    # Conflictos
+    conflictos = ColaSincronizacion.objects.filter(tiene_conflicto=True).count()
+    
+    # Antigüedad del pendiente más viejo
+    try:
+        mas_antiguo = ColaSincronizacion.objects.filter(
+            estado=EstadoSincronizacion.PENDIENTE
+        ).order_by('fecha_creacion').first()
+        
+        if mas_antiguo:
+            antiguedad = (timezone.now() - mas_antiguo.fecha_creacion).total_seconds() / 60  # en minutos
+        else:
+            antiguedad = 0
+    except:
+        antiguedad = 0
+    
+    return JsonResponse({
+        'por_estado': list(por_estado),
+        'pendientes_por_modelo': list(pendientes_por_modelo),
+        'conflictos': conflictos,
+        'antiguedad_minutos': round(antiguedad, 2)
+    })

@@ -1,0 +1,389 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Factura #{{ factura.folio }} - Pronto Shoes</title>
+    <style>
+        @media print {
+            @page {
+                size: letter;
+                margin: 1.5cm;
+            }
+            body {
+                font-family: Arial, sans-serif;
+                font-size: 12pt;
+                line-height: 1.3;
+                color: #000;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .container {
+                width: 100%;
+                padding: 0;
+                margin: 0;
+            }
+            .header {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 20px;
+            }
+            .header-left {
+                float: left;
+                width: 50%;
+            }
+            .header-right {
+                float: right;
+                width: 50%;
+                text-align: right;
+            }
+            .logo {
+                max-height: 80px;
+            }
+            h1 {
+                font-size: 24pt;
+                color: #2c3e50;
+                margin: 0;
+            }
+            h2 {
+                font-size: 18pt;
+                margin-top: 0;
+            }
+            h3 {
+                font-size: 16pt;
+                margin: 0;
+            }
+            h5 {
+                font-size: 14pt;
+                color: #555;
+                margin-bottom: 10px;
+            }
+            hr {
+                border: none;
+                border-top: 1px solid #ddd;
+                margin: 20px 0;
+            }
+            .client-info {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 20px;
+            }
+            .client-info-left {
+                float: left;
+                width: 50%;
+            }
+            .client-info-right {
+                float: right;
+                width: 50%;
+                text-align: right;
+            }
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 20px;
+            }
+            th, td {
+                border: 1px solid #ddd;
+                padding: 8px;
+            }
+            th {
+                background-color: #f8f9fa;
+                text-align: left;
+            }
+            .text-end {
+                text-align: right;
+            }
+            .text-center {
+                text-align: center;
+            }
+            .total-row {
+                font-weight: bold;
+                background-color: #e9ecef;
+            }
+            .notes {
+                margin-top: 30px;
+            }
+            .footer {
+                position: fixed;
+                bottom: 0;
+                width: 100%;
+                text-align: center;
+                font-size: 10pt;
+                color: #666;
+                border-top: 1px solid #ddd;
+                padding-top: 10px;
+            }
+            .print-btn {
+                background-color: #4e73df;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 5px;
+                cursor: pointer;
+                font-size: 14px;
+                margin-bottom: 20px;
+            }
+            .signature {
+                margin-top: 60px;
+                border-top: 1px solid #ddd;
+                width: 200px;
+                float: right;
+                text-align: center;
+                padding-top: 10px;
+            }
+            .clearfix::after {
+                content: "";
+                clear: both;
+                display: table;
+            }
+        }
+        
+        /* Estilos para visualización en pantalla */
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 21cm;
+            margin: 0 auto;
+            background-color: #f8f9fa;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .header-left {
+            float: left;
+            width: 50%;
+        }
+        .header-right {
+            float: right;
+            width: 50%;
+            text-align: right;
+        }
+        .logo {
+            max-height: 80px;
+        }
+        h1 {
+            font-size: 24px;
+            color: #2c3e50;
+            margin: 0;
+        }
+        h2 {
+            font-size: 18px;
+            margin-top: 0;
+        }
+        h3 {
+            font-size: 16px;
+            margin: 0;
+        }
+        h5 {
+            font-size: 14px;
+            color: #555;
+            margin-bottom: 10px;
+        }
+        hr {
+            border: none;
+            border-top: 1px solid #ddd;
+            margin: 20px 0;
+        }
+        .client-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .client-info-left {
+            float: left;
+            width: 50%;
+        }
+        .client-info-right {
+            float: right;
+            width: 50%;
+            text-align: right;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+        }
+        th {
+            background-color: #f8f9fa;
+            text-align: left;
+        }
+        .text-end {
+            text-align: right;
+        }
+        .text-center {
+            text-align: center;
+        }
+        .total-row {
+            font-weight: bold;
+            background-color: #e9ecef;
+        }
+        .notes {
+            margin-top: 30px;
+        }
+        .print-btn {
+            background-color: #4e73df;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+        .signature {
+            margin-top: 60px;
+            border-top: 1px solid #ddd;
+            width: 200px;
+            float: right;
+            text-align: center;
+            padding-top: 10px;
+        }
+        .clearfix::after {
+            content: "";
+            clear: both;
+            display: table;
+        }
+        .footer {
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+            border-top: 1px solid #ddd;
+            padding-top: 10px;
+            margin-top: 40px;
+        }    </style>
+</head>
+<body>
+    <button id="printFacturaBtn" class="print-btn no-print">Imprimir Factura</button>
+    
+    <div class="container">
+        <!-- Encabezado -->
+        <div class="header clearfix">
+            <div class="header-left">
+                <img src="/static/img/logo.png" alt="Pronto Shoes" class="logo">
+                <h2>Pronto Shoes</h2>
+                <p>{{ factura.pedido.tienda.direccion }}<br>
+                {{ factura.pedido.tienda.contacto }}</p>
+            </div>
+            <div class="header-right">
+                <h1>FACTURA</h1>
+                <h3># {{ factura.folio }}</h3>
+                <p><strong>Fecha:</strong> {{ factura.fecha|date:"d/m/Y" }}<br>
+                <strong>Pedido:</strong> #{{ factura.pedido.id }}</p>
+            </div>
+        </div>
+        
+        <hr>
+        
+        <!-- Información del Cliente -->
+        <div class="client-info clearfix">
+            <div class="client-info-left">
+                <h5>Datos del Cliente</h5>
+                <p><strong>Cliente:</strong> {{ factura.pedido.cliente.nombre }}<br>
+                <strong>Contacto:</strong> {{ factura.pedido.cliente.contacto }}<br>
+                {% if factura.pedido.cliente.observaciones %}
+                <strong>Observaciones:</strong> {{ factura.pedido.cliente.observaciones }}
+                {% endif %}
+                </p>
+            </div>
+            <div class="client-info-right">
+                <h5>Condiciones</h5>
+                <p><strong>Forma de Pago:</strong> {{ factura.pedido.tipo|title }}<br>
+                <strong>Fecha de Pedido:</strong> {{ factura.pedido.fecha|date:"d/m/Y" }}<br>
+                <strong>Tienda:</strong> {{ factura.pedido.tienda.nombre }}</p>
+            </div>
+        </div>
+        
+        <!-- Detalles -->
+        <table>
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Producto</th>
+                    <th class="text-end">Cantidad</th>
+                    <th class="text-end">Precio Unitario</th>
+                    <th class="text-end">Subtotal</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for detalle in factura.pedido.detalles.all %}
+                <tr>
+                    <td>{{ detalle.producto.codigo }}</td>
+                    <td>
+                        {{ detalle.producto.marca }} {{ detalle.producto.modelo }} {{ detalle.producto.color }}
+                        {% if detalle.producto.propiedad %}
+                        <br><small>{{ detalle.producto.propiedad }}</small>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">{{ detalle.cantidad }}</td>
+                    <td class="text-end">${{ detalle.precio_unitario|floatformat:2 }}</td>
+                    <td class="text-end">${{ detalle.subtotal|floatformat:2 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <th colspan="4" class="text-end">Subtotal:</th>
+                    <td class="text-end">${{ subtotal|floatformat:2 }}</td>
+                </tr>
+                {% if factura.pedido.descuento_aplicado > 0 %}
+                <tr>
+                    <th colspan="4" class="text-end">Descuento ({{ factura.pedido.descuento_aplicado }}%):</th>
+                    <td class="text-end">-${{ descuento|floatformat:2 }}</td>
+                </tr>
+                {% endif %}
+                <tr class="total-row">
+                    <th colspan="4" class="text-end">Total:</th>
+                    <td class="text-end">${{ factura.total|floatformat:2 }}</td>
+                </tr>
+            </tfoot>
+        </table>
+        
+        <!-- Notas y Firma -->
+        <div class="notes">
+            <h5>Notas</h5>
+            <p>
+                Gracias por su compra. Para cualquier duda o aclaración respecto a esta factura, 
+                por favor contacte a nuestro equipo de atención al cliente.
+            </p>
+        </div>
+        
+        <div class="signature">
+            <p>{{ factura.created_by.first_name }} {{ factura.created_by.last_name }}<br>
+            <small>{{ factura.created_at|date:"d/m/Y H:i" }}</small></p>
+        </div>
+        
+        <div class="clearfix"></div>
+    </div>
+      <div class="footer">
+        <p>Factura #{{ factura.folio }} - Pronto Shoes - {{ factura.fecha|date:"d/m/Y" }}</p>
+    </div>
+      <!-- Script para impresión automática -->
+    <script src="{% static 'js/facturas.js' %}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Automatically trigger print dialog when page loads
+            setTimeout(function() {
+                window.print();
+            }, 500);
+            
+            // Add click event to print button
+            document.getElementById('printFacturaBtn').addEventListener('click', function() {
+                printFactura();
+            });
+        });
+    </script>
+</body>
+</html>

@@ -109,17 +109,17 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for movimiento in movimientos %}                        <tr class="{% if movimiento.tipo_movimiento == 'ingreso' %}table-success{% elif movimiento.tipo_movimiento == 'egreso' %}table-danger{% endif %}">                            <td>{{ movimiento.id }}</td>
+                        {% for movimiento in movimientos %}                        <tr class="{% if movimiento.tipo_movimiento == 'INGRESO' %}table-success{% elif movimiento.tipo_movimiento == 'EGRESO' %}table-danger{% endif %}">                            <td>{{ movimiento.id }}</td>
                             <td>{{ movimiento.created_at|date:"d/m/Y H:i" }}</td>
                             <td>{{ movimiento.caja.tienda.nombre }}</td>
                             <td>{{ movimiento.caja.id }}</td>
-                            <td>                                <span class="badge {% if movimiento.tipo_movimiento == 'ingreso' %}bg-success{% elif movimiento.tipo_movimiento == 'egreso' %}bg-danger{% endif %}">
+                            <td>                                <span class="badge {% if movimiento.tipo_movimiento == 'INGRESO' %}bg-success{% elif movimiento.tipo_movimiento == 'EGRESO' %}bg-danger{% endif %}">
                                     {{ movimiento.tipo_movimiento|title }}
                                 </span>
                             </td>                            <td>{{ movimiento.descripcion }}</td>
-                            <td>${{ movimiento.monto|floatformat:2 }}</td>
-                            <td>
-                                {% if movimiento.pedido %}Pedido #{{ movimiento.pedido.id }}
+                            <td>${{ movimiento.monto|floatformat:2 }}</td>                            <td>
+                                {% if movimiento.referencia %}{{ movimiento.referencia }}
+                                {% elif movimiento.pedido %}Pedido #{{ movimiento.pedido.id }}
                                 {% elif movimiento.anticipo %}Anticipo #{{ movimiento.anticipo.id }}
                                 {% elif movimiento.nota_cargo %}Nota #{{ movimiento.nota_cargo.id }}
                                 {% else %}-{% endif %}

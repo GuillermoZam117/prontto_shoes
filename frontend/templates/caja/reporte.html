@@ -1,0 +1,412 @@
+{% extends "layouts/base.html" %}
+{% load static %}
+
+{% block title %}Reporte de Caja{% endblock %}
+
+{% block page_title %}Reporte de Caja{% endblock %}
+
+{% block breadcrumbs_content %}
+    <li class="breadcrumb-item"><a href="{% url 'caja:lista' %}">Caja</a></li>
+    <li class="breadcrumb-item active">Reporte</li>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .chart-container {
+        height: 300px;
+    }
+    .stats-card {
+        border-left: 4px solid;
+    }
+    .stats-card.income {
+        border-left-color: #1cc88a;
+    }
+    .stats-card.expense {
+        border-left-color: #e74a3b;
+    }
+    .stats-card.balance {
+        border-left-color: #36b9cc;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Filtros -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Filtros de Reporte</h6>
+    </div>
+    <div class="card-body">
+        <form method="GET">
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Tienda</label>
+                    <select class="form-select" name="tienda">
+                        <option value="">Todas las tiendas</option>
+                        {% for tienda in tiendas %}
+                        <option value="{{ tienda.id }}" {% if tienda_seleccionada == tienda.id|stringformat:"i" %}selected{% endif %}>
+                            {{ tienda.nombre }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Desde</label>
+                    <input type="date" class="form-control" name="fecha_desde" value="{{ fecha_desde }}">
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Hasta</label>
+                    <input type="date" class="form-control" name="fecha_hasta" value="{{ fecha_hasta }}">
+                </div>
+                <div class="col-md-3 d-flex align-items-end mb-3">
+                    <button class="btn btn-primary me-2" type="submit">
+                        <i class="bi bi-search me-1"></i> Filtrar
+                    </button>
+                    <a href="{% url 'caja:reporte' %}" class="btn btn-secondary">
+                        <i class="bi bi-arrow-repeat me-1"></i> Limpiar
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Resumen Estadístico -->
+<div class="row mb-4">
+    <div class="col-xl-4 col-md-6 mb-4">
+        <div class="card stats-card income shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Total Ingresos
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            ${{ total_ingresos|floatformat:2 }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-graph-up-arrow fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-4 col-md-6 mb-4">
+        <div class="card stats-card expense shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                            Total Egresos
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            ${{ total_egresos|floatformat:2 }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-graph-down-arrow fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-4 col-md-6 mb-4">
+        <div class="card stats-card balance shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            Saldo Final Total
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            ${{ total_saldo|floatformat:2 }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-cash-stack fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-12 col-md-6 mb-4">
+        <div class="card border-left-warning shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            Período del Reporte
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ fecha_desde }} - {{ fecha_hasta }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-calendar-range fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Gráficos -->
+<div class="row">
+    <!-- Movimientos por Tienda -->
+    <div class="col-xl-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Movimientos por Tienda</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="tiendasChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Comparación Ingresos vs Egresos -->
+    <div class="col-xl-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Ingresos vs Egresos</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="ingresosEgresosChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Resumen por Tienda -->
+{% if tiendas_data %}
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Resumen por Tienda</h6>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover table-sm">
+                <thead>
+                    <tr>
+                        <th>Tienda</th>
+                        <th class="text-end">Cajas Procesadas</th>
+                        <th class="text-end">Total Ingresos</th>
+                        <th class="text-end">Total Egresos</th>
+                        <th class="text-end">Saldo Final</th>
+                        <th class="text-end">Balance</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tienda_id, data in tiendas_data.items %}
+                    <tr>
+                        <td><strong>{{ data.nombre }}</strong></td>
+                        <td class="text-end">{{ data.cajas_count }}</td>
+                        <td class="text-end text-success">${{ data.ingresos|floatformat:2 }}</td>
+                        <td class="text-end text-danger">${{ data.egresos|floatformat:2 }}</td>
+                        <td class="text-end text-info">${{ data.saldo|floatformat:2 }}</td>                        <td class="text-end">
+                            {% with balance_positive=data.ingresos balance_negative=data.egresos %}
+                                {% if balance_positive > balance_negative %}
+                                    <span class="badge bg-success">+${{ balance_positive|floatformat:2 }}</span>
+                                {% elif balance_positive < balance_negative %}
+                                    <span class="badge bg-danger">-${{ balance_negative|floatformat:2 }}</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">$0.00</span>
+                                {% endif %}
+                            {% endwith %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Detalle de Cajas -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+        <h6 class="m-0 font-weight-bold text-primary">Detalle de Cajas</h6>
+        <button class="btn btn-sm btn-outline-primary" onclick="exportTableToExcel('cajaTable', 'reporte_cajas')">
+            <i class="bi bi-file-excel me-1"></i> Exportar a Excel
+        </button>
+    </div>
+    <div class="card-body">
+        {% if cajas %}
+            <div class="table-responsive">
+                <table class="table table-hover table-sm" id="cajaTable">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Tienda</th>
+                            <th>Fecha</th>
+                            <th class="text-end">Fondo Inicial</th>
+                            <th class="text-end">Ingresos</th>
+                            <th class="text-end">Egresos</th>
+                            <th class="text-end">Saldo Final</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for caja in cajas %}
+                        <tr>
+                            <td>{{ caja.id }}</td>
+                            <td>{{ caja.tienda.nombre }}</td>
+                            <td>{{ caja.fecha|date:"d/m/Y" }}</td>
+                            <td class="text-end">${{ caja.fondo_inicial|floatformat:2 }}</td>
+                            <td class="text-end text-success">${{ caja.ingresos|floatformat:2 }}</td>
+                            <td class="text-end text-danger">${{ caja.egresos|floatformat:2 }}</td>
+                            <td class="text-end">
+                                {% if caja.cerrada %}
+                                    <strong>${{ caja.saldo_final|floatformat:2 }}</strong>
+                                {% else %}
+                                    <span class="text-muted">Pendiente</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if caja.cerrada %}
+                                    <span class="badge bg-secondary">Cerrada</span>
+                                {% else %}
+                                    <span class="badge bg-success">Abierta</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if not caja.cerrada %}
+                                    <a href="{% url 'caja:cerrar' caja.id %}" class="btn btn-sm btn-warning" title="Cerrar Caja">
+                                        <i class="bi bi-lock"></i>
+                                    </a>
+                                {% endif %}
+                                <a href="{% url 'caja:movimientos' %}?caja={{ caja.id }}" class="btn btn-sm btn-info" title="Ver Movimientos">
+                                    <i class="bi bi-list-check"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center my-5">
+                <div class="mb-3">
+                    <i class="bi bi-cash-register text-muted" style="font-size: 4rem;"></i>
+                </div>
+                <h5>No hay datos para mostrar</h5>
+                <p class="text-muted">No se encontraron cajas con los filtros seleccionados.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Datos para los gráficos
+    const tiendasLabels = [];
+    const tiendasIngresos = [];
+    const tiendasEgresos = [];
+    const tiendasSaldos = [];
+    
+    {% for tienda_id, data in tiendas_data.items %}
+        tiendasLabels.push('{{ data.nombre }}');
+        tiendasIngresos.push({{ data.ingresos }});
+        tiendasEgresos.push({{ data.egresos }});
+        tiendasSaldos.push({{ data.saldo }});
+    {% endfor %}
+    
+    // Gráfico de Tiendas (Barras)
+    const tiendasCtx = document.getElementById('tiendasChart').getContext('2d');
+    new Chart(tiendasCtx, {
+        type: 'bar',
+        data: {
+            labels: tiendasLabels,
+            datasets: [{
+                label: 'Ingresos',
+                data: tiendasIngresos,
+                backgroundColor: '#1cc88a',
+                borderWidth: 1
+            }, {
+                label: 'Egresos',
+                data: tiendasEgresos,
+                backgroundColor: '#e74a3b',
+                borderWidth: 1
+            }, {
+                label: 'Saldo Final',
+                data: tiendasSaldos,
+                backgroundColor: '#36b9cc',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // Gráfico de Ingresos vs Egresos (Dona)
+    const ingresosEgresosCtx = document.getElementById('ingresosEgresosChart').getContext('2d');
+    new Chart(ingresosEgresosCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Ingresos', 'Egresos'],
+            datasets: [{
+                data: [{{ total_ingresos }}, {{ total_egresos }}],
+                backgroundColor: ['#1cc88a', '#e74a3b'],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((context.parsed / total) * 100).toFixed(1);
+                            return context.label + ': $' + context.parsed.toLocaleString() + ' (' + percentage + '%)';
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // Función para exportar tabla a Excel
+    function exportTableToExcel(tableId, filename) {
+        const table = document.getElementById(tableId);
+        const wb = XLSX.utils.table_to_book(table, {sheet: "Reporte"});
+        XLSX.writeFile(wb, filename + '.xlsx');
+    }
+</script>
+
+<!-- XLSX Library for Excel export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+{% endblock %}

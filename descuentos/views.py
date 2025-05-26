@@ -219,6 +219,7 @@ class TabuladorDescuentoViewSet(viewsets.ModelViewSet):
 
 class DescuentosReporteAPIView(APIView):
     permission_classes = [IsAuthenticated]
+    serializer_class = TabuladorDescuentoSerializer  # Add this for DRF Spectacular
     """
     Devuelve un reporte del tabulador de descuentos, mostrando rango mínimo, rango máximo y porcentaje.
     """

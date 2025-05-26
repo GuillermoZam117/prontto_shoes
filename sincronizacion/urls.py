@@ -14,7 +14,8 @@ router.register(r'auditoria', views.RegistroAuditoriaViewSet, basename='auditori
 
 urlpatterns = [
     # API URLs
-    path('api/', include(router.urls)),
+    path('api/', include(router.urls)),  # This already includes the estadisticas endpoint through the ViewSet
+    path('api/estadisticas/', views.estadisticas_api, name='estadisticas_api'),  # Direct endpoint for frontend
     
     # Frontend URLs
     path('', views.sincronizacion_dashboard, name='sincronizacion_dashboard'),

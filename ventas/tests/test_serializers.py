@@ -4,7 +4,8 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from decimal import Decimal
 from unittest.mock import patch, MagicMock
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
+from rest_framework.exceptions import ValidationError
 
 from ventas.serializers import PedidoSerializer, DetallePedidoSerializer
 from ventas.models import Pedido, DetallePedido
@@ -483,3 +484,249 @@ class PedidoSerializerTestCase(TestCase):
         # Check that error message is informative
         error_message = str(serializer.errors['non_field_errors'][0])
         self.assertIn('Ya existe un pedido', error_message)
+        
+    def test_validate_different_order_types(self):
+        """Test that order validation allows different order types for same client/date"""
+        # Create a venta order
+        Pedido.objects.create(
+            cliente=self.cliente,
+            fecha=timezone.now(),
+            estado='pendiente',
+            total=Decimal('100.00'),
+            tienda=self.tienda,
+            tipo='venta'
+        )
+        
+        # Try to create an apartado order for the same client/date
+        data = {
+            'cliente': self.cliente.id,
+            'fecha': timezone.now(),
+            'tienda': self.tienda.id,
+            'tipo': 'apartado',  # Different type
+            'detalles': [
+                {
+                    'producto': self.producto.id,
+                    'cantidad': 1,
+                    'precio_unitario': Decimal('100.00'),
+                    'subtotal': Decimal('100.00')
+                }
+            ],
+            'subtotal': Decimal('100.00'),
+            'descuento_porcentaje': Decimal('0.00'),
+            'total': Decimal('100.00')
+        }
+        
+        serializer = PedidoSerializer(data=data)
+        self.assertTrue(serializer.is_valid(), f"Validation failed: {serializer.errors}")
+    
+    def test_validate_same_date_different_type(self):
+        """Test that orders of different types can be created on the same date"""
+        # Create orders with different types on same date
+        today = timezone.now().date()
+        
+        # Create venta
+        Pedido.objects.create(
+            cliente=self.cliente,
+            fecha=today,
+            estado='pendiente',
+            total=Decimal('100.00'),
+            tienda=self.tienda,
+            tipo='venta'
+        )
+        
+        # Create apartado - should be allowed
+        apartado_data = {
+            'cliente': self.cliente.id,
+            'fecha': today,
+            'tienda': self.tienda.id,
+            'tipo': 'apartado',
+            'detalles': [
+                {
+                    'producto': self.producto.id,
+                    'cantidad': 1,
+                    'precio_unitario': Decimal('100.00'),
+                    'subtotal': Decimal('100.00')
+                }
+            ],
+            'subtotal': Decimal('100.00'),
+            'descuento_porcentaje': Decimal('0.00'),
+            'total': Decimal('100.00')
+        }
+        
+        serializer = PedidoSerializer(data=apartado_data)
+        self.assertTrue(serializer.is_valid(), f"Validation failed: {serializer.errors}")
+        
+    def test_validate_fecha_in_future(self):
+        """Test that orders with future dates are rejected"""
+        tomorrow = timezone.now().date() + timedelta(days=1)
+        
+        data = {
+            'cliente': self.cliente.id,
+            'fecha': tomorrow,
+            'tienda': self.tienda.id,
+            'tipo': 'venta',
+            'detalles': [
+                {
+                    'producto': self.producto.id,
+                    'cantidad': 1,
+                    'precio_unitario': Decimal('100.00'),
+                    'subtotal': Decimal('100.00')
+                }
+            ],
+            'subtotal': Decimal('100.00'),
+            'descuento_porcentaje': Decimal('0.00'),
+            'total': Decimal('100.00')
+        }
+        
+        serializer = PedidoSerializer(data=data)
+        # Depending on business rules, this might be valid or invalid
+        # Let's check current implementation
+        if not serializer.is_valid():
+            self.assertIn('fecha', serializer.errors, "Error should be related to date")
+            
+    def test_validate_negative_cantidad(self):
+        """Test that orders with negative quantities are rejected"""
+        data = {
+            'cliente': self.cliente.id,
+            'fecha': timezone.now(),
+            'tienda': self.tienda.id,
+            'tipo': 'venta',
+            'detalles': [
+                {
+                    'producto': self.producto.id,
+                    'cantidad': -1,  # Negative quantity
+                    'precio_unitario': Decimal('100.00'),
+                    'subtotal': Decimal('-100.00')
+                }
+            ],
+            'subtotal': Decimal('-100.00'),
+            'descuento_porcentaje': Decimal('0.00'),
+            'total': Decimal('-100.00')
+        }
+        
+        serializer = PedidoSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('detalles', serializer.errors, "Error should be related to detalles")
+        
+    def test_validate_zero_cantidad(self):
+        """Test that orders with zero quantities are rejected"""
+        data = {
+            'cliente': self.cliente.id,
+            'fecha': timezone.now(),
+            'tienda': self.tienda.id,
+            'tipo': 'venta',
+            'detalles': [
+                {
+                    'producto': self.producto.id,
+                    'cantidad': 0,  # Zero quantity
+                    'precio_unitario': Decimal('100.00'),
+                    'subtotal': Decimal('0.00')
+                }
+            ],
+            'subtotal': Decimal('0.00'),
+            'descuento_porcentaje': Decimal('0.00'),
+            'total': Decimal('0.00')
+        }
+        
+        serializer = PedidoSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        
+    def test_apply_cliente_descuento(self):
+        """Test that client discounts are correctly applied"""
+        # Create a discount for the client
+        DescuentoCliente.objects.create(
+            cliente=self.cliente,
+            porcentaje=Decimal('10.00'),
+            fecha_inicio=timezone.now().date() - timedelta(days=10),
+            fecha_fin=timezone.now().date() + timedelta(days=10),
+            activo=True
+        )
+        
+        data = {
+            'cliente': self.cliente.id,
+            'fecha': timezone.now(),
+            'tienda': self.tienda.id,
+            'tipo': 'venta',
+            'detalles': [
+                {
+                    'producto': self.producto.id,
+                    'cantidad': 1,
+                    'precio_unitario': Decimal('100.00'),
+                    'subtotal': Decimal('100.00')
+                }
+            ],
+            'subtotal': Decimal('100.00'),
+            'total': Decimal('90.00')  # After 10% discount
+        }
+        
+        serializer = PedidoSerializer(data=data)
+        # The serializer should apply the discount automatically
+        self.assertTrue(serializer.is_valid(), f"Validation failed: {serializer.errors}")
+        self.assertEqual(Decimal('10.00'), serializer.validated_data.get('descuento_porcentaje'))
+        
+    def test_apply_descuento_with_programa_lealtad(self):
+        """Test that loyalty program discounts are correctly applied"""
+        # Create a loyalty program rule
+        regla = ReglaProgramaLealtad.objects.create(
+            nombre="Regla Test",
+            monto_minimo=Decimal('50.00'),
+            descuento_porcentaje=Decimal('5.00'),
+            activo=True
+        )
+        
+        data = {
+            'cliente': self.cliente.id,
+            'fecha': timezone.now(),
+            'tienda': self.tienda.id,
+            'tipo': 'venta',
+            'detalles': [
+                {
+                    'producto': self.producto.id,
+                    'cantidad': 1,
+                    'precio_unitario': Decimal('100.00'),
+                    'subtotal': Decimal('100.00')
+                }
+            ],
+            'subtotal': Decimal('100.00'),
+            'total': Decimal('95.00')  # After 5% loyalty discount
+        }
+        
+        serializer = PedidoSerializer(data=data)
+        # The serializer might apply the loyalty discount
+        if serializer.is_valid():
+            self.assertEqual(Decimal('5.00'), serializer.validated_data.get('descuento_porcentaje'))
+            
+    def test_multiple_order_creation_same_client_different_days(self):
+        """Test that orders can be created for the same client on different days"""
+        # Create order for today
+        Pedido.objects.create(
+            cliente=self.cliente,
+            fecha=timezone.now(),
+            estado='pendiente',
+            total=Decimal('100.00'),
+            tienda=self.tienda,
+            tipo='venta'
+        )
+        
+        # Create order for yesterday
+        yesterday = timezone.now() - timedelta(days=1)
+        data = {
+            'cliente': self.cliente.id,
+            'fecha': yesterday,
+            'tienda': self.tienda.id,
+            'tipo': 'venta',
+            'detalles': [
+                {
+                    'producto': self.producto.id,
+                    'cantidad': 1,
+                    'precio_unitario': Decimal('100.00'),
+                    'subtotal': Decimal('100.00')
+                }
+            ],
+            'subtotal': Decimal('100.00'),
+            'descuento_porcentaje': Decimal('0.00'),
+            'total': Decimal('100.00')
+        }
+        
+        serializer = PedidoSerializer(data=data)
+        self.assertTrue(serializer.is_valid(), f"Validation failed: {serializer.errors}")

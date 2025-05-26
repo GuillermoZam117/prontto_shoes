@@ -1,0 +1,397 @@
+{% extends "layouts/base.html" %}
+{% load static %}
+
+{% block title %}Reporte de Devoluciones{% endblock %}
+
+{% block page_title %}Reporte de Devoluciones{% endblock %}
+
+{% block breadcrumbs_content %}
+    <li class="breadcrumb-item"><a href="{% url 'devoluciones:lista' %}">Devoluciones</a></li>
+    <li class="breadcrumb-item active">Reporte</li>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .chart-container {
+        height: 300px;
+    }
+    .metric-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+    }
+    .metric-card .metric-value {
+        font-size: 2.5rem;
+        font-weight: bold;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Filtros -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Filtros</h6>
+    </div>
+    <div class="card-body">
+        <form method="GET">
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Cliente</label>
+                    <select name="cliente" class="form-select">
+                        <option value="">Todos los clientes</option>
+                        {% for cliente in clientes %}
+                        <option value="{{ cliente.id }}" {% if cliente_seleccionado == cliente.id|stringformat:"i" %}selected{% endif %}>{{ cliente.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Estado</label>
+                    <select name="estado" class="form-select">
+                        <option value="">Todos los estados</option>
+                        <option value="pendiente" {% if estado_seleccionado == 'pendiente' %}selected{% endif %}>Pendiente</option>
+                        <option value="procesando" {% if estado_seleccionado == 'procesando' %}selected{% endif %}>Procesando</option>
+                        <option value="completado" {% if estado_seleccionado == 'completado' %}selected{% endif %}>Completado</option>
+                        <option value="cancelado" {% if estado_seleccionado == 'cancelado' %}selected{% endif %}>Cancelado</option>
+                    </select>
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label class="form-label">Tipo</label>
+                    <select name="tipo" class="form-select">
+                        <option value="">Todos los tipos</option>
+                        <option value="defecto" {% if tipo_seleccionado == 'defecto' %}selected{% endif %}>Defecto</option>
+                        <option value="cambio" {% if tipo_seleccionado == 'cambio' %}selected{% endif %}>Cambio</option>
+                    </select>
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label class="form-label">Desde</label>
+                    <input type="date" name="fecha_desde" class="form-control" value="{{ fecha_desde }}">
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label class="form-label">Hasta</label>
+                    <input type="date" name="fecha_hasta" class="form-control" value="{{ fecha_hasta }}">
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-funnel me-1"></i> Aplicar Filtros
+                    </button>
+                    <a href="{% url 'devoluciones:reporte' %}" class="btn btn-secondary">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i> Limpiar
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Métricas principales -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card metric-card h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-white text-uppercase mb-1">
+                            Total Devoluciones
+                        </div>
+                        <div class="metric-value text-white">{{ total_devoluciones }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-arrow-return-left fa-2x text-white-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card metric-card h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-white text-uppercase mb-1">
+                            Saldo Total Generado
+                        </div>
+                        <div class="metric-value text-white">${{ total_saldo_generado|floatformat:2 }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-currency-dollar fa-2x text-white-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card metric-card h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-white text-uppercase mb-1">
+                            Por Defecto
+                        </div>
+                        <div class="metric-value text-white">{{ total_defectos }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-exclamation-triangle fa-2x text-white-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card metric-card h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-white text-uppercase mb-1">
+                            Por Cambio
+                        </div>
+                        <div class="metric-value text-white">{{ total_cambios }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-arrow-left-right fa-2x text-white-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Gráficos -->
+<div class="row mb-4">
+    <div class="col-xl-6 col-lg-7">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Devoluciones por Tipo</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="tipoChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-6 col-lg-5">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Devoluciones por Estado</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="estadoChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabla detallada por cliente -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+        <h6 class="m-0 font-weight-bold text-primary">Reporte por Cliente</h6>
+        <button class="btn btn-sm btn-outline-primary" onclick="exportTableToExcel('reportTable', 'reporte_devoluciones')">
+            <i class="bi bi-download me-1"></i> Exportar Excel
+        </button>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered" id="reportTable" width="100%" cellspacing="0">
+                <thead>
+                    <tr>
+                        <th>Cliente</th>
+                        <th>Total Devoluciones</th>
+                        <th>Saldo Generado</th>
+                        <th>Por Defecto</th>
+                        <th>Por Cambio</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cliente_data in clientes_datos %}
+                    <tr>
+                        <td>{{ cliente_data.nombre }}</td>
+                        <td>{{ cliente_data.devoluciones_count }}</td>
+                        <td>${{ cliente_data.saldo_generado|floatformat:2 }}</td>
+                        <td>{{ cliente_data.tipos.defecto }}</td>
+                        <td>{{ cliente_data.tipos.cambio }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted">No hay datos para mostrar</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Lista detallada de devoluciones -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Devoluciones Detalladas</h6>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered" width="100%" cellspacing="0">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Fecha</th>
+                        <th>Cliente</th>
+                        <th>Producto</th>
+                        <th>Tipo</th>
+                        <th>Estado</th>
+                        <th>Saldo Generado</th>
+                        <th>Motivo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for devolucion in devoluciones %}
+                    <tr>
+                        <td>{{ devolucion.id }}</td>
+                        <td>{{ devolucion.fecha|date:"d/m/Y H:i" }}</td>
+                        <td>{{ devolucion.cliente.nombre }}</td>
+                        <td>{{ devolucion.producto.nombre }}</td>
+                        <td>
+                            <span class="badge {% if devolucion.tipo == 'defecto' %}bg-warning{% else %}bg-info{% endif %}">
+                                {{ devolucion.get_tipo_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge 
+                                {% if devolucion.estado == 'pendiente' %}bg-warning
+                                {% elif devolucion.estado == 'procesando' %}bg-primary
+                                {% elif devolucion.estado == 'completado' %}bg-success
+                                {% else %}bg-danger{% endif %}">
+                                {{ devolucion.get_estado_display }}
+                            </span>
+                        </td>
+                        <td>${{ devolucion.saldo_a_favor_generado|floatformat:2 }}</td>
+                        <td>{{ devolucion.motivo|truncatechars:50 }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted">No hay devoluciones para mostrar</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Chart data from Django context
+const tipoData = [
+    {% for item in devoluciones_por_tipo %}
+    {
+        label: '{{ item.tipo|capfirst }}',
+        value: {{ item.count }}
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+];
+
+const estadoData = [
+    {% for item in devoluciones_por_estado %}
+    {
+        label: '{{ item.estado|capfirst }}',
+        value: {{ item.count }}
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+];
+
+// Tipo Chart
+const tipoCtx = document.getElementById('tipoChart').getContext('2d');
+new Chart(tipoCtx, {
+    type: 'doughnut',
+    data: {
+        labels: tipoData.map(item => item.label),
+        datasets: [{
+            data: tipoData.map(item => item.value),
+            backgroundColor: [
+                '#FF6384',
+                '#36A2EB',
+                '#FFCE56',
+                '#4BC0C0'
+            ]
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    }
+});
+
+// Estado Chart
+const estadoCtx = document.getElementById('estadoChart').getContext('2d');
+new Chart(estadoCtx, {
+    type: 'pie',
+    data: {
+        labels: estadoData.map(item => item.label),
+        datasets: [{
+            data: estadoData.map(item => item.value),
+            backgroundColor: [
+                '#FF9F40',
+                '#4BC0C0',
+                '#9966FF',
+                '#FF6384'
+            ]
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    }
+});
+
+// Export to Excel function
+function exportTableToExcel(tableId, filename = '') {
+    var downloadLink;
+    var dataType = 'application/vnd.ms-excel';
+    var tableSelect = document.getElementById(tableId);
+    var tableHTML = tableSelect.outerHTML.replace(/ /g, '%20');
+    
+    // Specify file name
+    filename = filename ? filename + '.xls' : 'excel_data.xls';
+    
+    // Create download link element
+    downloadLink = document.createElement("a");
+    
+    document.body.appendChild(downloadLink);
+    
+    if(navigator.msSaveOrOpenBlob){
+        var blob = new Blob(['\ufeff', tableHTML], {
+            type: dataType
+        });
+        navigator.msSaveOrOpenBlob( blob, filename);
+    }else{
+        // Create a link to the file
+        downloadLink.href = 'data:' + dataType + ', ' + tableHTML;
+        
+        // Setting the file name
+        downloadLink.download = filename;
+        
+        //triggering the function
+        downloadLink.click();
+    }
+}
+</script>
+{% endblock %}

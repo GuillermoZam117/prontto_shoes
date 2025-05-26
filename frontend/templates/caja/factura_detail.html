@@ -1,0 +1,131 @@
+{% extends "layouts/base.html" %}
+{% load static %}
+
+{% block title %}Factura #{{ factura.folio }}{% endblock %}
+
+{% block page_title %}Factura #{{ factura.folio }}{% endblock %}
+
+{% block breadcrumbs_content %}
+    <li class="breadcrumb-item"><a href="{% url 'caja:lista' %}">Caja</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'caja:facturas' %}">Facturas</a></li>
+    <li class="breadcrumb-item active">Factura #{{ factura.folio }}</li>
+{% endblock %}
+
+{% block page_actions %}
+    <a href="{% url 'caja:imprimir_factura' factura.id %}" class="btn btn-success me-2" target="_blank">
+        <i class="bi bi-printer me-1"></i> Imprimir
+    </a>
+    <a href="{% url 'caja:descargar_factura_pdf' factura.id %}" class="btn btn-info">
+        <i class="bi bi-file-pdf me-1"></i> Descargar PDF
+    </a>
+{% endblock %}
+
+{% block content %}
+<div class="card shadow mb-4">
+    <div class="card-body" id="factura-vista-previa">
+        <!-- Encabezado -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <img src="{% static 'img/logo.png' %}" alt="Pronto Shoes" style="max-height: 100px;">
+                <h2 class="mt-2">Pronto Shoes</h2>
+                <p class="mb-0">{{ factura.pedido.tienda.direccion }}</p>
+                <p>{{ factura.pedido.tienda.contacto }}</p>
+            </div>
+            <div class="col-md-6 text-md-end">
+                <h1 class="text-primary mb-2">FACTURA</h1>
+                <h3># {{ factura.folio }}</h3>
+                <p class="mb-0"><strong>Fecha:</strong> {{ factura.fecha|date:"d/m/Y" }}</p>
+                <p><strong>Pedido:</strong> #{{ factura.pedido.id }}</p>
+            </div>
+        </div>
+        
+        <hr class="my-4">
+        
+        <!-- Información del Cliente -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <h5 class="text-secondary mb-2">Datos del Cliente</h5>
+                <p class="mb-0"><strong>Cliente:</strong> {{ factura.pedido.cliente.nombre }}</p>
+                <p class="mb-0"><strong>Contacto:</strong> {{ factura.pedido.cliente.contacto }}</p>
+                {% if factura.pedido.cliente.observaciones %}
+                <p><strong>Observaciones:</strong> {{ factura.pedido.cliente.observaciones }}</p>
+                {% endif %}
+            </div>
+            <div class="col-md-6 text-md-end">
+                <h5 class="text-secondary mb-2">Condiciones</h5>
+                <p class="mb-0"><strong>Forma de Pago:</strong> {{ factura.pedido.tipo|title }}</p>
+                <p class="mb-0"><strong>Fecha de Pedido:</strong> {{ factura.pedido.fecha|date:"d/m/Y" }}</p>
+                <p><strong>Tienda:</strong> {{ factura.pedido.tienda.nombre }}</p>
+            </div>
+        </div>
+        
+        <!-- Detalles -->
+        <div class="table-responsive mb-4">
+            <table class="table table-bordered">
+                <thead class="table-light">
+                    <tr>
+                        <th>Código</th>
+                        <th>Producto</th>
+                        <th class="text-end">Cantidad</th>
+                        <th class="text-end">Precio Unitario</th>
+                        <th class="text-end">Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for detalle in factura.pedido.detalles.all %}
+                    <tr>
+                        <td>{{ detalle.producto.codigo }}</td>
+                        <td>
+                            {{ detalle.producto.marca }} {{ detalle.producto.modelo }} {{ detalle.producto.color }}
+                            {% if detalle.producto.propiedad %}
+                            <br><small class="text-muted">{{ detalle.producto.propiedad }}</small>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">{{ detalle.cantidad }}</td>
+                        <td class="text-end">${{ detalle.precio_unitario|floatformat:2 }}</td>
+                        <td class="text-end">${{ detalle.subtotal|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <th colspan="4" class="text-end">Subtotal:</th>
+                        <td class="text-end">${{ subtotal|floatformat:2 }}</td>
+                    </tr>
+                    {% if factura.pedido.descuento_aplicado > 0 %}
+                    <tr>
+                        <th colspan="4" class="text-end">Descuento ({{ factura.pedido.descuento_aplicado }}%):</th>
+                        <td class="text-end">-${{ descuento|floatformat:2 }}</td>
+                    </tr>
+                    {% endif %}
+                    <tr class="table-primary">
+                        <th colspan="4" class="text-end">Total:</th>
+                        <td class="text-end"><strong>${{ factura.total|floatformat:2 }}</strong></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        
+        <!-- Notas y Firma -->
+        <div class="row">
+            <div class="col-md-8">
+                <h5 class="text-secondary mb-2">Notas</h5>
+                <p>
+                    Gracias por su compra. Para cualquier duda o aclaración respecto a esta factura, 
+                    por favor contacte a nuestro equipo de atención al cliente.
+                </p>
+            </div>
+            <div class="col-md-4">
+                <div class="border-top mt-4 pt-2 text-center">
+                    <p class="mb-0">{{ factura.created_by.first_name }} {{ factura.created_by.last_name }}</p>
+                    <p class="text-muted small">{{ factura.created_at|date:"d/m/Y H:i" }}</p>
+                </div>
+            </div>        </div>
+        
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/facturas.js' %}"></script>
+{% endblock %}

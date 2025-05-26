@@ -90,6 +90,7 @@ class TraspasoViewSet(viewsets.ModelViewSet):
 
 class InventarioActualReporteAPIView(APIView):
     permission_classes = [IsAuthenticated]
+    serializer_class = InventarioSerializer  # Add this for DRF Spectacular
     """
     Devuelve un reporte del inventario actual agrupado por tienda y producto.
     """

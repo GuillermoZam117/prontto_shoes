@@ -70,6 +70,7 @@ class DetalleRequisicionViewSet(viewsets.ModelViewSet):
 @extend_schema(tags=["Reportes"])
 class RequisicionesReporteAPIView(APIView):
     permission_classes = [IsAuthenticated]
+    serializer_class = RequisicionSerializer  # Add this for DRF Spectacular
     """
     Devuelve un reporte de requisiciones realizadas, mostrando cliente, productos, cantidades, estado y fecha.
     """

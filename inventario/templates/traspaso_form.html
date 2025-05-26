@@ -1,0 +1,478 @@
+{% extends "layouts/base.html" %}
+{% load static %}
+
+{% block title %}
+    {% if traspaso %}Editar{% else %}Nuevo{% endif %} Traspaso de Inventario
+{% endblock %}
+
+{% block page_title %}
+    {% if traspaso %}Editar{% else %}Nuevo{% endif %} Traspaso de Inventario
+{% endblock %}
+
+{% block breadcrumbs_content %}
+    <li class="breadcrumb-item"><a href="{% url 'inventario:lista' %}">Inventario</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'inventario:traspasos' %}">Traspasos</a></li>
+    <li class="breadcrumb-item active">{% if traspaso %}Editar{% else %}Nuevo{% endif %} Traspaso</li>
+{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+<style>
+    .product-row {
+        margin-bottom: 10px;
+        padding: 15px;
+        border-radius: 5px;
+        background-color: #f8f9fa;
+        transition: all 0.3s;
+    }
+    
+    .product-row:hover {
+        background-color: #e9ecef;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    
+    .fade-in {
+        animation: fadeIn 0.5s;
+    }
+    
+    @keyframes fadeIn {
+        0% { opacity: 0; transform: translateY(10px); }
+        100% { opacity: 1; transform: translateY(0); }
+    }
+    
+    .stock-warning {
+        color: #dc3545;
+        font-size: 0.875rem;
+    }
+    
+    .stock-available {
+        color: #198754;
+        font-size: 0.875rem;
+    }
+    
+    .product-selected {
+        border-left: 4px solid #4e73df;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card shadow mb-4" 
+     x-data="{
+        tiendaOrigen: {% if traspaso %}{{ traspaso.origen.id }}{% else %}''{% endif %},
+        tiendaDestino: {% if traspaso %}{{ traspaso.destino.id }}{% else %}''{% endif %},
+        motivo: '{% if traspaso %}{{ traspaso.motivo }}{% else %}{% endif %}',
+        detalles: [
+            {% if traspaso %}
+                {% for detalle in traspaso.detalles.all %}
+                    {
+                        producto_id: {{ detalle.producto.id }},
+                        producto_nombre: '{{ detalle.producto.nombre }}',
+                        producto_codigo: '{{ detalle.producto.codigo }}',
+                        cantidad: {{ detalle.cantidad }},
+                        stock_disponible: 0,
+                        stock_checking: false
+                    },
+                {% endfor %}
+            {% else %}
+                {
+                    producto_id: '',
+                    producto_nombre: '',
+                    producto_codigo: '',
+                    cantidad: 1,
+                    stock_disponible: 0,
+                    stock_checking: false
+                }
+            {% endif %}
+        ],
+        productos: [],
+        productosFiltrados: [],
+        busquedaProducto: '',
+        loading: false,
+        productosLoading: false,
+        showProductSelector: false,
+        selectedProductIndex: 0,
+        errorMessages: [],
+        
+        async cargarProductos() {
+            if (!this.tiendaOrigen) return;
+            
+            this.productosLoading = true;
+            this.productos = [];
+            
+            try {
+                const response = await fetch(`/api/inventario/disponibilidad/?tienda=${this.tiendaOrigen}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    this.productos = data.map(item => ({
+                        id: item.producto.id,
+                        codigo: item.producto.codigo,
+                        nombre: item.producto.nombre,
+                        stock: item.cantidad,
+                        precio: item.producto.precio_venta
+                    }));
+                    this.filtrarProductos();
+                }
+            } catch (error) {
+                console.error('Error al cargar productos disponibles:', error);
+            } finally {
+                this.productosLoading = false;
+            }
+        },
+        
+        filtrarProductos() {
+            const busqueda = this.busquedaProducto.toLowerCase();
+            this.productosFiltrados = this.productos.filter(p => 
+                p.codigo.toLowerCase().includes(busqueda) || 
+                p.nombre.toLowerCase().includes(busqueda)
+            );
+        },
+        
+        seleccionarProducto(producto, index) {
+            this.detalles[this.selectedProductIndex].producto_id = producto.id;
+            this.detalles[this.selectedProductIndex].producto_codigo = producto.codigo;
+            this.detalles[this.selectedProductIndex].producto_nombre = producto.nombre;
+            this.detalles[this.selectedProductIndex].stock_disponible = producto.stock;
+            this.showProductSelector = false;
+            this.busquedaProducto = '';
+        },
+        
+        async verificarStock(index) {
+            const detalle = this.detalles[index];
+            if (!detalle.producto_id || !this.tiendaOrigen) return;
+            
+            detalle.stock_checking = true;
+            
+            try {
+                const response = await fetch(`/api/inventario/disponibilidad/?tienda=${this.tiendaOrigen}&producto=${detalle.producto_id}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.length > 0) {
+                        detalle.stock_disponible = data[0].cantidad;
+                    } else {
+                        detalle.stock_disponible = 0;
+                    }
+                }
+            } catch (error) {
+                console.error('Error al verificar stock:', error);
+            } finally {
+                detalle.stock_checking = false;
+            }
+        },
+        
+        agregarProducto() {
+            this.detalles.push({
+                producto_id: '',
+                producto_nombre: '',
+                producto_codigo: '',
+                cantidad: 1,
+                stock_disponible: 0,
+                stock_checking: false
+            });
+        },
+        
+        removerProducto(index) {
+            if (this.detalles.length > 1) {
+                this.detalles.splice(index, 1);
+            }
+        },
+        
+        abrirSelectorProductos(index) {
+            this.selectedProductIndex = index;
+            this.showProductSelector = true;
+            this.busquedaProducto = '';
+            this.filtrarProductos();
+        },
+        
+        validarFormulario() {
+            this.errorMessages = [];
+            
+            if (!this.tiendaOrigen) {
+                this.errorMessages.push('Debe seleccionar una tienda de origen');
+            }
+            
+            if (!this.tiendaDestino) {
+                this.errorMessages.push('Debe seleccionar una tienda de destino');
+            }
+            
+            if (this.tiendaOrigen && this.tiendaOrigen === this.tiendaDestino) {
+                this.errorMessages.push('Las tiendas de origen y destino no pueden ser iguales');
+            }
+            
+            let productosValidos = true;
+            this.detalles.forEach((detalle, index) => {
+                if (!detalle.producto_id) {
+                    this.errorMessages.push(`Debe seleccionar un producto en la fila ${index + 1}`);
+                    productosValidos = false;
+                }
+                
+                if (detalle.cantidad <= 0) {
+                    this.errorMessages.push(`La cantidad en la fila ${index + 1} debe ser mayor a 0`);
+                    productosValidos = false;
+                }
+                
+                if (detalle.stock_disponible < detalle.cantidad) {
+                    this.errorMessages.push(`Stock insuficiente para ${detalle.producto_nombre} (disponible: ${detalle.stock_disponible})`);
+                    productosValidos = false;
+                }
+            });
+            
+            return this.errorMessages.length === 0;
+        },
+        
+        async init() {
+            {% if traspaso %}
+                // Para un traspaso existente, verificar el stock de todos los detalles
+                for (let i = 0; i < this.detalles.length; i++) {
+                    await this.verificarStock(i);
+                }
+            {% endif %}
+            
+            // Cargar productos disponibles si tenemos tienda origen seleccionada
+            if (this.tiendaOrigen) {
+                await this.cargarProductos();
+            }
+        }
+     }"
+     x-init="init()">
+    
+    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+        <h6 class="m-0 font-weight-bold text-primary">
+            {% if traspaso %}Editar{% else %}Nuevo{% endif %} Traspaso de Inventario
+        </h6>
+        <div x-show="loading || productosLoading" class="spinner-border spinner-border-sm text-primary" role="status">
+            <span class="visually-hidden">Cargando...</span>
+        </div>
+    </div>
+    
+    <div class="card-body">
+        <!-- Mensajes de error -->
+        <div class="alert alert-danger mb-4" x-show="errorMessages.length > 0">
+            <ul class="mb-0">
+                <template x-for="error in errorMessages" :key="error">
+                    <li x-text="error"></li>
+                </template>
+            </ul>
+        </div>
+    
+        <form hx-post="{% if traspaso %}{% url 'inventario:editar_traspaso' traspaso.id %}{% else %}{% url 'inventario:crear_traspaso' %}{% endif %}"
+              hx-swap="outerHTML"
+              hx-trigger="submit"
+              hx-indicator="#loading-indicator"
+              @submit.prevent="if (!validarFormulario()) { return false; } loading = true;">
+            
+            {% csrf_token %}
+            
+            <div class="row mb-4">
+                <!-- Tienda de origen -->
+                <div class="col-md-6 mb-3">
+                    <label for="tienda_origen" class="form-label">Tienda de Origen *</label>
+                    <select class="form-select" id="tienda_origen" name="tienda_origen" required
+                            x-model="tiendaOrigen"
+                            @change="cargarProductos"
+                            :disabled="loading">
+                        <option value="">Seleccionar...</option>
+                        {% for tienda in tiendas %}
+                        <option value="{{ tienda.id }}">{{ tienda.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Tienda de destino -->
+                <div class="col-md-6 mb-3">
+                    <label for="tienda_destino" class="form-label">Tienda de Destino *</label>
+                    <select class="form-select" id="tienda_destino" name="tienda_destino" required
+                            x-model="tiendaDestino"
+                            :disabled="loading">
+                        <option value="">Seleccionar...</option>
+                        {% for tienda in tiendas %}
+                        <option value="{{ tienda.id }}">{{ tienda.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Motivo -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <label for="motivo" class="form-label">Motivo del Traspaso</label>
+                    <textarea class="form-control" id="motivo" name="motivo" rows="2"
+                              x-model="motivo"
+                              :disabled="loading"></textarea>
+                </div>
+            </div>
+            
+            <!-- Detalles de productos -->
+            <div class="mb-4">
+                <h5 class="mb-3">Productos a Traspasar</h5>
+                
+                <template x-for="(detalle, index) in detalles" :key="index">
+                    <div class="product-row fade-in" :class="{'product-selected': index === selectedProductIndex && showProductSelector}">
+                        <div class="row">
+                            <!-- Producto -->
+                            <div class="col-md-5 mb-3">
+                                <label :for="'producto_' + index" class="form-label">Producto *</label>
+                                <div class="input-group">
+                                    <input type="hidden" :name="'detalles['+index+'][producto]'" x-model="detalle.producto_id" required>
+                                    <input type="text" class="form-control" :id="'producto_display_' + index"
+                                           x-model="detalle.producto_id ? (detalle.producto_codigo + ' - ' + detalle.producto_nombre) : ''"
+                                           placeholder="Buscar producto..."
+                                           @click="abrirSelectorProductos(index)"
+                                           readonly
+                                           :disabled="loading">
+                                    <button class="btn btn-outline-secondary" type="button"
+                                            @click="abrirSelectorProductos(index)"
+                                            :disabled="loading">
+                                        <i class="bi bi-search"></i>
+                                    </button>
+                                </div>
+                                
+                                <!-- Stock disponible -->
+                                <div class="mt-1" x-show="detalle.producto_id">
+                                    <span x-show="detalle.stock_checking">
+                                        <i class="spinner-border spinner-border-sm"></i> Verificando stock...
+                                    </span>
+                                    <span x-show="!detalle.stock_checking && detalle.stock_disponible > 0" 
+                                          class="stock-available"
+                                          x-text="'Stock disponible: ' + detalle.stock_disponible"></span>
+                                    <span x-show="!detalle.stock_checking && detalle.stock_disponible === 0" 
+                                          class="stock-warning">
+                                        No hay stock disponible
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <!-- Cantidad -->
+                            <div class="col-md-3 mb-3">
+                                <label :for="'cantidad_' + index" class="form-label">Cantidad *</label>
+                                <input type="number" :name="'detalles['+index+'][cantidad]'" :id="'cantidad_' + index"
+                                       class="form-control"
+                                       x-model="detalle.cantidad"
+                                       min="1" required
+                                       :class="{'is-invalid': detalle.cantidad > detalle.stock_disponible}"
+                                       :disabled="loading">
+                                <div class="invalid-feedback" x-show="detalle.cantidad > detalle.stock_disponible">
+                                    Excede el stock disponible
+                                </div>
+                            </div>
+                            
+                            <!-- Botón eliminar -->
+                            <div class="col-md-4 mb-3 d-flex align-items-end">
+                                <button type="button" class="btn btn-danger"
+                                        @click="removerProducto(index)"
+                                        x-show="detalles.length > 1"
+                                        :disabled="loading">
+                                    <i class="bi bi-trash me-1"></i>Eliminar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+                
+                <!-- Botón agregar producto -->
+                <div class="text-center mt-3">
+                    <button type="button" class="btn btn-success"
+                            @click="agregarProducto()"
+                            :disabled="!tiendaOrigen || loading">
+                        <i class="bi bi-plus-circle me-1"></i> Agregar Producto
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Modal de selección de productos -->
+            <div class="modal" tabindex="-1" x-show="showProductSelector"
+                 style="display: none" :style="showProductSelector ? 'display: block;' : ''">
+                <div class="modal-dialog modal-dialog-scrollable modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Seleccionar Producto</h5>
+                            <button type="button" class="btn-close" @click="showProductSelector = false"></button>
+                        </div>
+                        <div class="modal-body">
+                            <!-- Buscador -->
+                            <div class="mb-3">
+                                <input type="text" class="form-control" placeholder="Buscar producto por código o nombre..."
+                                       x-model="busquedaProducto"
+                                       @input="filtrarProductos">
+                            </div>
+                            
+                            <!-- Cargando productos -->
+                            <div x-show="productosLoading" class="text-center py-4">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Cargando productos...</span>
+                                </div>
+                                <p class="mt-2">Cargando productos disponibles...</p>
+                            </div>
+                            
+                            <!-- Lista de productos -->
+                            <div x-show="!productosLoading && productosFiltrados.length > 0" class="list-group">
+                                <template x-for="(producto, index) in productosFiltrados" :key="producto.id">
+                                    <button type="button" class="list-group-item list-group-item-action"
+                                            @click="seleccionarProducto(producto, index)">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <strong x-text="producto.codigo + ' - ' + producto.nombre"></strong>
+                                                <div x-text="'Precio: $' + producto.precio"></div>
+                                            </div>
+                                            <span class="badge bg-primary rounded-pill" x-text="'Stock: ' + producto.stock"></span>
+                                        </div>
+                                    </button>
+                                </template>
+                            </div>
+                            
+                            <!-- Sin resultados -->
+                            <div x-show="!productosLoading && productosFiltrados.length === 0" class="text-center py-4">
+                                <p class="text-muted">No se encontraron productos que coincidan con la búsqueda.</p>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @click="showProductSelector = false">Cerrar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="d-flex justify-content-end mt-4">
+                <a href="{% url 'inventario:traspasos' %}" class="btn btn-secondary me-2">Cancelar</a>
+                <button type="submit" class="btn btn-primary" :disabled="loading">
+                    <span id="loading-indicator" class="spinner-border spinner-border-sm me-1" style="display: none;"></span>
+                    {% if traspaso %}Actualizar{% else %}Guardar{% endif %} Traspaso
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+<script src="https://unpkg.com/htmx.org@1.9.0"></script>
+<script>
+    document.addEventListener('htmx:afterRequest', function(event) {
+        if (event.detail.successful) {
+            // Si la solicitud es exitosa y tenemos una respuesta redireccionada
+            if (event.detail.xhr.status === 200 && event.detail.xhr.getResponseHeader('HX-Redirect')) {
+                window.location.href = event.detail.xhr.getResponseHeader('HX-Redirect');
+            }
+        }
+    });
+    
+    // Inicializar modal
+    document.addEventListener('alpine:init', () => {
+        // Cuando se muestra el modal
+        document.addEventListener('htmx:afterSwap', function() {
+            // Control para evitar que se cierre el modal al hacer clic fuera
+            const modalBackdrop = document.querySelector('.modal');
+            if (modalBackdrop) {
+                modalBackdrop.addEventListener('click', function(event) {
+                    if (event.target === this) {
+                        Alpine.store('modalStore').close();
+                    }
+                });
+            }
+        });
+    });
+</script>
+{% endblock %}

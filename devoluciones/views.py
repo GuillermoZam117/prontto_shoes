@@ -589,6 +589,7 @@ class DevolucionViewSet(viewsets.ModelViewSet):
 class DevolucionesReporteAPIView(APIView):
     permission_classes = [IsAuthenticated]
     pagination_class = LimitOffsetPagination
+    serializer_class = DevolucionSerializer  # Add this for DRF Spectacular
 
     def get(self, request):
         # Obtener y validar parámetros
