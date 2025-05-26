@@ -19,36 +19,51 @@
 <div class="card shadow mb-4">
     <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
         <h6 class="m-0 font-weight-bold text-primary">Existencias por Producto</h6>
-        
-        <div class="d-flex">
-            <form class="form-inline me-2" method="GET">
-                <div class="input-group">
-                    {% if stock_bajo %}
-                    <input type="hidden" name="stock_bajo" value="true">
-                    {% endif %}
-                    {% if tienda_seleccionada %}
-                    <input type="hidden" name="tienda" value="{{ tienda_seleccionada }}">
-                    {% endif %}
-                    <input type="text" class="form-control" name="q" value="{{ search_query }}" placeholder="Buscar...">
-                    <button class="btn btn-outline-primary" type="submit">
-                        <i class="bi bi-search"></i>
-                    </button>
-                </div>
-            </form>
+          <div class="d-flex">
+            <div class="input-group me-2" x-data="{ loading: false }" @htmx:request.start="loading = true" @htmx:request.end="loading = false">
+                {% if stock_bajo %}
+                <input type="hidden" name="stock_bajo" value="true">
+                {% endif %}
+                {% if tienda_seleccionada %}
+                <input type="hidden" name="tienda" value="{{ tienda_seleccionada }}">
+                {% endif %}
+                <input type="text" 
+                       class="form-control" 
+                       name="q" 
+                       value="{{ search_query }}" 
+                       placeholder="Buscar productos, códigos..."
+                       hx-get="{% url 'inventario:lista' %}"
+                       hx-trigger="keyup changed delay:300ms"
+                       hx-target="#inventario-table-container"
+                       hx-indicator="#loading-spinner"
+                       hx-include="[name='tienda'], [name='stock_bajo']">
+                <span class="input-group-text">
+                    <div id="loading-spinner" class="htmx-indicator">
+                        <div class="spinner-border spinner-border-sm" role="status">
+                            <span class="visually-hidden">Buscando...</span>
+                        </div>
+                    </div>
+                    <i class="bi bi-search" x-show="!loading"></i>
+                </span>
+            </div>
             
             <div class="dropdown">
                 <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="filterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                     <i class="bi bi-funnel me-1"></i> Filtros
-                </button>
-                <div class="dropdown-menu dropdown-menu-end p-3" style="width: 300px;">
-                    <form method="GET">
+                </button>                <div class="dropdown-menu dropdown-menu-end p-3" style="width: 300px;">
+                    <div x-data="{ loading: false }" @htmx:request.start="loading = true" @htmx:request.end="loading = false">
                         {% if search_query %}
                         <input type="hidden" name="q" value="{{ search_query }}">
                         {% endif %}
                         
                         <div class="mb-3">
                             <label class="form-label">Tienda</label>
-                            <select name="tienda" class="form-select">
+                            <select name="tienda" 
+                                    class="form-select"
+                                    hx-get="{% url 'inventario:lista' %}"
+                                    hx-trigger="change"
+                                    hx-target="#inventario-table-container"
+                                    hx-include="[name='q'], [name='stock_bajo']">
                                 <option value="">Todas las tiendas</option>
                                 {% for tienda in tiendas %}
                                 <option value="{{ tienda.id }}" {% if tienda_seleccionada == tienda.id|stringformat:"i" %}selected{% endif %}>{{ tienda.nombre }}</option>
@@ -58,7 +73,16 @@
                         
                         <div class="mb-3">
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="stockBajo" name="stock_bajo" value="true" {% if stock_bajo %}checked{% endif %}>
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="stockBajo" 
+                                       name="stock_bajo" 
+                                       value="true" 
+                                       {% if stock_bajo %}checked{% endif %}
+                                       hx-get="{% url 'inventario:lista' %}"
+                                       hx-trigger="change"
+                                       hx-target="#inventario-table-container"
+                                       hx-include="[name='q'], [name='tienda']">
                                 <label class="form-check-label" for="stockBajo">
                                     Mostrar solo productos con stock bajo
                                 </label>
@@ -66,67 +90,24 @@
                         </div>
                         
                         <div class="d-flex justify-content-between">
-                            <a href="{% url 'inventario:lista' %}" class="btn btn-sm btn-outline-secondary">Limpiar</a>
-                            <button type="submit" class="btn btn-sm btn-primary">Aplicar</button>
+                            <a href="{% url 'inventario:lista' %}" 
+                               class="btn btn-sm btn-outline-secondary"
+                               hx-get="{% url 'inventario:lista' %}"
+                               hx-target="#inventario-table-container">Limpiar</a>
+                            <div x-show="loading" class="btn btn-sm btn-primary disabled">
+                                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                Aplicando...
+                            </div>
                         </div>
-                    </form>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-    
-    <div class="card-body">
-        {% if inventario %}
-            <div class="table-responsive">
-                <table class="table table-hover table-sm">
-                    <thead>
-                        <tr>
-                            <th>Código</th>
-                            <th>Producto</th>
-                            <th>Tienda</th>
-                            <th>Cantidad</th>
-                            <th>Estado</th>
-                            <th>Última Actualización</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in inventario %}
-                        <tr>
-                            <td>{{ item.producto.codigo }}</td>
-                            <td><a href="{% url 'productos:detalle' item.producto.id %}">{{ item.producto.nombre }}</a></td>
-                            <td>{{ item.tienda.nombre }}</td>
-                            <td>{{ item.cantidad_actual }}</td>
-                            <td>
-                                {% if item.cantidad_actual <= 0 %}
-                                <span class="badge bg-danger">Sin Stock</span>
-                                {% elif item.cantidad_actual < item.producto.stock_minimo %}
-                                <span class="badge bg-warning text-dark">Stock Bajo</span>
-                                {% else %}
-                                <span class="badge bg-success">Disponible</span>
-                                {% endif %}
-                            </td>
-                            <td>{{ item.updated_at|date:"d/m/Y H:i" }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        {% else %}
-            <div class="text-center my-5">
-                <div class="mb-3">
-                    <i class="bi bi-exclamation-diamond text-muted" style="font-size: 4rem;"></i>
-                </div>
-                <h5>No hay datos de inventario para mostrar</h5>
-                <p class="text-muted">
-                    {% if search_query or tienda_seleccionada or stock_bajo %}
-                    No se encontraron productos que coincidan con tu búsqueda.
-                    <a href="{% url 'inventario:lista' %}">Ver todo el inventario</a>
-                    {% else %}
-                    No hay productos registrados en el inventario actualmente.
-                    {% endif %}
-                </p>
-            </div>
-        {% endif %}
+      <div class="card-body">
+        <div id="inventario-table-container">
+            {% include "inventario/partials/inventario_table.html" %}
+        </div>
     </div>
 </div>
 

@@ -1,0 +1,300 @@
+<!-- Summary Cards Row -->
+<div class="row g-3 mb-4">
+    <!-- Total Cajas Card -->
+    <div class="col-xl-3 col-md-6">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <div class="text-xs fw-bold text-primary text-uppercase mb-1">
+                            Total Cajas
+                        </div>
+                        <div class="h5 mb-0 fw-bold text-gray-800">{{ total_cajas }}</div>
+                        <div class="text-xs text-muted">
+                            <i class="fas fa-check-circle text-success"></i> {{ cajas_cerradas_count }} cerradas
+                            <i class="fas fa-clock text-warning ms-2"></i> {{ cajas_abiertas_count }} abiertas
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-cash-register fa-2x text-primary"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ingresos Card -->
+    <div class="col-xl-3 col-md-6">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <div class="text-xs fw-bold text-success text-uppercase mb-1">
+                            Total Ingresos
+                        </div>
+                        <div class="h5 mb-0 fw-bold text-gray-800">
+                            ${{ total_ingresos|floatformat:2 }}
+                        </div>
+                        <div class="text-xs text-success">
+                            <i class="fas fa-arrow-up"></i> {{ fecha }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-dollar-sign fa-2x text-success"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Egresos Card -->
+    <div class="col-xl-3 col-md-6">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <div class="text-xs fw-bold text-danger text-uppercase mb-1">
+                            Total Egresos
+                        </div>
+                        <div class="h5 mb-0 fw-bold text-gray-800">
+                            ${{ total_egresos|floatformat:2 }}
+                        </div>
+                        <div class="text-xs text-danger">
+                            <i class="fas fa-arrow-down"></i> {{ fecha }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-minus-circle fa-2x text-danger"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Saldo Total Card -->
+    <div class="col-xl-3 col-md-6">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <div class="text-xs fw-bold text-info text-uppercase mb-1">
+                            Saldo Total
+                        </div>
+                        <div class="h5 mb-0 fw-bold text-gray-800">
+                            ${{ saldo_total_proyectado|floatformat:2 }}
+                        </div>
+                        <div class="text-xs text-muted">
+                            {% if saldo_proyectado > 0 %}
+                                <i class="fas fa-clock text-warning"></i> +${{ saldo_proyectado|floatformat:2 }} proyectado
+                            {% else %}
+                                <i class="fas fa-check-circle text-success"></i> Todo cerrado
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-wallet fa-2x text-info"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Activity Summary Row -->
+<div class="row g-3 mb-4">
+    <!-- Movement Activity Card -->
+    <div class="col-lg-6">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-header py-3 bg-light">
+                <h6 class="m-0 fw-bold text-primary">
+                    <i class="fas fa-exchange-alt"></i> Actividad de Movimientos
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <div class="border-end">
+                            <div class="h4 mb-1 fw-bold text-primary">{{ movimientos_count }}</div>
+                            <div class="text-xs text-muted">Movimientos Hoy</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="h6 mb-1 fw-bold text-secondary">
+                            {% if ultimo_movimiento %}
+                                {{ ultimo_movimiento.created_at|time:"H:i" }}
+                            {% else %}
+                                --:--
+                            {% endif %}
+                        </div>
+                        <div class="text-xs text-muted">Último Movimiento</div>
+                    </div>
+                </div>
+                {% if ultimo_movimiento %}
+                <hr class="my-3">
+                <div class="small text-muted">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <strong>{{ ultimo_movimiento.tipo_movimiento }}</strong>: 
+                            ${{ ultimo_movimiento.monto|floatformat:2 }}
+                        </div>
+                        <div class="col-auto">
+                            <span class="badge badge-{{ ultimo_movimiento.tipo_movimiento|lower }} rounded-pill">
+                                {{ ultimo_movimiento.caja.tienda.nombre }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Store Activity Card -->
+    <div class="col-lg-6">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-header py-3 bg-light">
+                <h6 class="m-0 fw-bold text-primary">
+                    <i class="fas fa-store"></i> Actividad por Tienda
+                </h6>
+            </div>
+            <div class="card-body">
+                {% if tiendas_con_caja %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-borderless">
+                            <tbody>
+                                {% for tienda in tiendas_con_caja|slice:":4" %}
+                                <tr>
+                                    <td class="py-1">
+                                        <div class="small fw-bold">{{ tienda.tienda__nombre }}</div>
+                                    </td>
+                                    <td class="py-1 text-end">
+                                        <span class="badge bg-primary rounded-pill">{{ tienda.cajas_count }}</span>
+                                    </td>
+                                    <td class="py-1 text-end">
+                                        <div class="small text-success">${{ tienda.ingresos_total|floatformat:0 }}</div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center text-muted py-3">
+                        <i class="fas fa-info-circle fa-2x mb-2"></i>
+                        <div>No hay actividad registrada</div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Real-time Status Indicators -->
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center">
+                <!-- Live Indicator -->
+                <div class="me-3">
+                    <span class="badge bg-success rounded-pill position-relative">
+                        <span class="position-absolute top-0 start-100 translate-middle p-1 bg-success border border-light rounded-circle">
+                            <span class="visually-hidden">Live indicator</span>
+                        </span>
+                        <i class="fas fa-satellite-dish"></i> En Vivo
+                    </span>
+                </div>
+                
+                <!-- Status Messages -->
+                {% if cajas_abiertas_count > 0 %}
+                    <div class="alert alert-warning py-1 px-2 mb-0 me-2" role="alert">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>{{ cajas_abiertas_count }}</strong> caja{{ cajas_abiertas_count|pluralize:"s" }} abierta{{ cajas_abiertas_count|pluralize:"s" }}
+                    </div>
+                {% else %}
+                    <div class="alert alert-success py-1 px-2 mb-0 me-2" role="alert">
+                        <i class="fas fa-check-circle"></i>
+                        Todas las cajas están cerradas
+                    </div>
+                {% endif %}
+            </div>
+            
+            <!-- Last Update Time -->
+            <div class="text-muted small">
+                <i class="fas fa-sync-alt"></i>
+                Actualizado: <span id="last-update-time">{{ "now"|date:"H:i:s" }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Open Cash Registers Alert -->
+{% if cajas_abiertas %}
+<div class="alert alert-info" role="alert">
+    <div class="d-flex align-items-center">
+        <div class="alert-icon me-3">
+            <i class="fas fa-cash-register fa-lg"></i>
+        </div>
+        <div class="flex-grow-1">
+            <h6 class="alert-heading mb-1">Cajas Abiertas</h6>
+            <div class="row">
+                {% for caja in cajas_abiertas %}
+                <div class="col-md-6 col-lg-4 mb-2">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="fw-bold">{{ caja.tienda.nombre }}</span>
+                        <span class="badge bg-warning">Abierta desde {{ caja.created_at|time:"H:i" }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Custom Styles -->
+<style>
+.badge-ingreso {
+    background-color: #198754 !important;
+}
+.badge-egreso {
+    background-color: #dc3545 !important;
+}
+
+/* Live indicator styling (pulse animation removed to prevent visual discomfort) */
+.badge.bg-success .position-absolute {
+    /* Static styling instead of pulsing animation */
+    opacity: 0.9;
+}
+
+/* Card hover effects - subtle without movement */
+.card:hover {
+    /* Removed transform to prevent visual discomfort */
+    transition: box-shadow 0.2s ease-in-out;
+    box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1) !important;
+}
+</style>
+
+<!-- JavaScript for real-time updates -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Update the timestamp
+    function updateTimestamp() {
+        const now = new Date();
+        const timeString = now.toLocaleTimeString('es-ES', { 
+            hour: '2-digit', 
+            minute: '2-digit', 
+            second: '2-digit' 
+        });
+        document.getElementById('last-update-time').textContent = timeString;
+    }
+      // Update timestamp every 30 seconds to reduce visual distraction
+    setInterval(updateTimestamp, 30000);
+    
+    // Listen for HTMX after settle events to update timestamp
+    document.body.addEventListener('htmx:afterSettle', function(evt) {
+        if (evt.detail.target.id === 'caja-summary') {
+            updateTimestamp();
+        }
+    });
+});
+</script>

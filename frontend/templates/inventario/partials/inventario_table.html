@@ -1,0 +1,244 @@
+<!-- Template parcial para tabla de inventario -->
+{% if inventario %}
+    <div class="table-responsive">
+        <table class="table table-hover table-sm">
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Producto</th>
+                    <th>Tienda</th>
+                    <th class="text-center">Cantidad</th>
+                    <th class="text-center">Estado</th>
+                    <th>Última Actualización</th>
+                    <th class="text-center">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in inventario %}
+                <tr class="inventario-row" data-producto-id="{{ item.producto.id }}" data-tienda-id="{{ item.tienda.id }}">
+                    <td>
+                        <code class="text-primary">{{ item.producto.codigo }}</code>
+                    </td>
+                    <td>
+                        <a href="{% url 'productos:detalle' item.producto.id %}" 
+                           class="text-decoration-none fw-semibold">
+                            {{ item.producto.nombre }}
+                        </a>
+                        {% if item.producto.descripcion %}
+                        <br><small class="text-muted">{{ item.producto.descripcion|truncatechars:50 }}</small>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge bg-secondary">{{ item.tienda.nombre }}</span>
+                    </td>
+                    <td class="text-center">
+                        <span class="fw-bold 
+                        {% if item.cantidad_actual <= 0 %}
+                            text-danger
+                        {% elif item.cantidad_actual < item.producto.stock_minimo %}
+                            text-warning
+                        {% else %}
+                            text-success
+                        {% endif %}">
+                            {{ item.cantidad_actual }}
+                        </span>
+                        {% if item.producto.stock_minimo %}
+                        <br><small class="text-muted">Min: {{ item.producto.stock_minimo }}</small>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if item.cantidad_actual <= 0 %}
+                            <span class="badge bg-danger">
+                                <i class="bi bi-x-circle me-1"></i>Sin Stock
+                            </span>
+                        {% elif item.cantidad_actual < item.producto.stock_minimo %}
+                            <span class="badge bg-warning text-dark">
+                                <i class="bi bi-exclamation-triangle me-1"></i>Stock Bajo
+                            </span>
+                        {% else %}
+                            <span class="badge bg-success">
+                                <i class="bi bi-check-circle me-1"></i>Disponible
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <small class="text-muted">
+                            {{ item.updated_at|date:"d/m/Y" }}<br>
+                            {{ item.updated_at|date:"H:i" }}
+                        </small>
+                    </td>
+                    <td class="text-center">
+                        <div class="btn-group" role="group">
+                            <button type="button" 
+                                    class="btn btn-sm btn-outline-info" 
+                                    data-bs-toggle="tooltip" 
+                                    title="Ajustar Inventario"
+                                    onclick="ajustarInventario('{{ item.id }}', '{{ item.producto.nombre }}', {{ item.cantidad_actual }})">
+                                <i class="bi bi-pencil-square"></i>
+                            </button>
+                            <a href="{% url 'inventario:nuevo_traspaso' %}?producto={{ item.producto.id }}&origen={{ item.tienda.id }}" 
+                               class="btn btn-sm btn-outline-primary" 
+                               data-bs-toggle="tooltip" 
+                               title="Crear Traspaso">
+                                <i class="bi bi-arrow-left-right"></i>
+                            </a>
+                            <button type="button" 
+                                    class="btn btn-sm btn-outline-secondary" 
+                                    data-bs-toggle="tooltip" 
+                                    title="Historial de Movimientos"
+                                    onclick="verHistorial('{{ item.producto.id }}', '{{ item.tienda.id }}')">
+                                <i class="bi bi-clock-history"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <!-- Información de resultados -->
+        <div class="d-flex justify-content-between align-items-center mt-3">            <small class="text-muted">
+                Mostrando {{ inventario|length }} producto{{ inventario|length|pluralize }} en inventario
+                {% if search_query %}para "{{ search_query }}"{% endif %}
+                {% if tienda_seleccionada %}
+                    {% for tienda in tiendas %}
+                        {% if tienda.id == tienda_seleccionada|add:0 %}en {{ tienda.nombre }}{% endif %}
+                    {% endfor %}
+                {% endif %}
+                {% if stock_bajo %}con stock bajo{% endif %}
+            </small>
+            
+            {% if inventario|length > 20 %}
+            <nav aria-label="Paginación inventario">
+                <ul class="pagination pagination-sm mb-0">
+                    <!-- Paginación pendiente de implementar -->
+                    <li class="page-item disabled">
+                        <span class="page-link">Página 1</span>
+                    </li>
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Métricas rápidas -->
+    <div class="row mt-4">
+        <div class="col-md-3">
+            <div class="card border-primary text-center">
+                <div class="card-body py-2">
+                    <h6 class="text-primary mb-1">{{ inventario|length }}</h6>
+                    <small class="text-muted">Items Mostrados</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-success text-center">
+                <div class="card-body py-2">                    <h6 class="text-success mb-1">
+                        {{ stock_normal_count|default:0 }}
+                    </h6>
+                    <small class="text-muted">Stock Normal</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-warning text-center">
+                <div class="card-body py-2">
+                    <h6 class="text-warning mb-1">
+                        {{ stock_bajo_count|default:0 }}
+                    </h6>
+                    <small class="text-muted">Stock Bajo</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-danger text-center">
+                <div class="card-body py-2">
+                    <h6 class="text-danger mb-1">
+                        {{ sin_stock|default:0 }}
+                    </h6>
+                    <small class="text-muted">Sin Stock</small>
+                </div>
+            </div>
+        </div>
+    </div>
+{% else %}
+    <div class="text-center my-5">
+        <div class="mb-3">
+            <i class="bi bi-boxes text-muted" style="font-size: 4rem;"></i>
+        </div>
+        <h5>No hay productos en inventario</h5>
+        <p class="text-muted">
+            {% if search_query or tienda_seleccionada or stock_bajo %}
+            No se encontraron productos que coincidan con los filtros aplicados.
+            <a href="{% url 'inventario:lista' %}" 
+               hx-get="{% url 'inventario:lista' %}"
+               hx-target="#inventario-table-container"
+               class="btn btn-sm btn-outline-primary">Ver todo el inventario</a>
+            {% else %}
+            No hay productos registrados en el inventario actualmente.
+            <a href="{% url 'productos:lista' %}" class="btn btn-primary btn-sm mt-2">
+                <i class="bi bi-plus-circle me-1"></i> Gestionar Productos
+            </a>
+            {% endif %}
+        </p>
+    </div>
+{% endif %}
+
+<script>
+// Función para ajustar inventario con SweetAlert2
+function ajustarInventario(inventarioId, productoNombre, cantidadActual) {
+    Swal.fire({
+        title: 'Ajustar Inventario',
+        html: `
+            <div class="text-start">
+                <p><strong>Producto:</strong> ${productoNombre}</p>
+                <p><strong>Cantidad actual:</strong> ${cantidadActual}</p>
+                <label class="form-label">Nueva cantidad:</label>
+                <input type="number" id="nuevaCantidad" class="form-control" value="${cantidadActual}" min="0">
+                <small class="text-muted">Ingresa la cantidad correcta en inventario</small>
+            </div>
+        `,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#0d6efd',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Ajustar Inventario',
+        cancelButtonText: 'Cancelar',
+        preConfirm: () => {
+            const nuevaCantidad = document.getElementById('nuevaCantidad').value;
+            if (!nuevaCantidad || nuevaCantidad < 0) {
+                Swal.showValidationMessage('Ingresa una cantidad válida');
+                return false;
+            }
+            return nuevaCantidad;
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Realizar ajuste con HTMX
+            // TODO: Implementar endpoint de ajuste de inventario
+            Swal.fire({
+                title: 'Función en desarrollo',
+                text: 'El ajuste de inventario será implementado en la siguiente fase.',
+                icon: 'info'
+            });
+        }
+    });
+}
+
+// Función para ver historial de movimientos
+function verHistorial(productoId, tiendaId) {
+    Swal.fire({
+        title: 'Historial de Movimientos',
+        text: 'Esta funcionalidad será implementada en la siguiente fase.',
+        icon: 'info'
+    });
+}
+
+// Inicializar tooltips
+document.addEventListener('DOMContentLoaded', function() {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>

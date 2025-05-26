@@ -22,6 +22,14 @@
 {% endblock %}
 
 {% block content %}
+<!-- Summary Cards Container with real-time updates -->
+<div id="caja-summary" 
+     hx-get="{% url 'caja:summary' %}"
+     hx-trigger="every 60s"
+     hx-include="[name='fecha'], [name='historial'], [name='tienda']">
+    <!-- Summary will be loaded here -->
+</div>
+
 <!-- Filtros -->
 <div class="card shadow mb-4">
     <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
@@ -32,26 +40,36 @@
                 Cajas del Día
             {% endif %}
         </h6>
-        
-        <div class="d-flex">
-            <form class="form-inline me-2" method="GET">
+          <div class="d-flex">
+            <div class="input-group me-2" x-data="{ loading: false }" @htmx:request.start="loading = true" @htmx:request.end="loading = false">
                 {% if ver_historial %}
                 <input type="hidden" name="historial" value="True">
                 {% endif %}
-                <div class="input-group">
-                    <input type="date" class="form-control" name="fecha" value="{{ fecha }}" {% if not ver_historial %}max="{{ fecha }}"{% endif %}>
-                    <button class="btn btn-outline-primary" type="submit">
-                        <i class="bi bi-calendar-check"></i>
-                    </button>
-                </div>
-            </form>
+                <input type="date" 
+                       class="form-control" 
+                       name="fecha" 
+                       value="{{ fecha }}" 
+                       {% if not ver_historial %}max="{{ fecha }}"{% endif %}
+                       hx-get="{% url 'caja:lista' %}"
+                       hx-trigger="change"
+                       hx-target="#caja-content-container"
+                       hx-indicator="#loading-spinner"
+                       hx-include="[name='historial'], [name='tienda']">
+                <span class="input-group-text">
+                    <div id="loading-spinner" class="htmx-indicator">
+                        <div class="spinner-border spinner-border-sm" role="status">
+                            <span class="visually-hidden">Cargando...</span>
+                        </div>
+                    </div>
+                    <i class="bi bi-calendar-check" x-show="!loading"></i>
+                </span>
+            </div>
             
             <div class="dropdown">
                 <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="filterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                     <i class="bi bi-funnel me-1"></i> Filtros
-                </button>
-                <div class="dropdown-menu dropdown-menu-end p-3" style="width: 300px;">
-                    <form method="GET">
+                </button>                <div class="dropdown-menu dropdown-menu-end p-3" style="width: 300px;">
+                    <div x-data="{ loading: false }" @htmx:request.start="loading = true" @htmx:request.end="loading = false">
                         <input type="hidden" name="fecha" value="{{ fecha }}">
                         {% if ver_historial %}
                         <input type="hidden" name="historial" value="True">
@@ -59,7 +77,12 @@
                         
                         <div class="mb-3">
                             <label class="form-label">Tienda</label>
-                            <select name="tienda" class="form-select">
+                            <select name="tienda" 
+                                    class="form-select"
+                                    hx-get="{% url 'caja:lista' %}"
+                                    hx-trigger="change"
+                                    hx-target="#caja-content-container"
+                                    hx-include="[name='fecha'], [name='historial']">
                                 <option value="">Todas las tiendas</option>
                                 {% for tienda in tiendas %}
                                 <option value="{{ tienda.id }}" {% if tienda_seleccionada == tienda.id|stringformat:"i" %}selected{% endif %}>{{ tienda.nombre }}</option>
@@ -68,10 +91,16 @@
                         </div>
                         
                         <div class="d-flex justify-content-between">
-                            <a href="{% url 'caja:lista' %}" class="btn btn-sm btn-outline-secondary">Limpiar</a>
-                            <button type="submit" class="btn btn-sm btn-primary">Aplicar</button>
+                            <a href="{% url 'caja:lista' %}" 
+                               class="btn btn-sm btn-outline-secondary"
+                               hx-get="{% url 'caja:lista' %}"
+                               hx-target="#caja-content-container">Limpiar</a>
+                            <div x-show="loading" class="btn btn-sm btn-primary disabled">
+                                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                Aplicando...
+                            </div>
                         </div>
-                    </form>
+                    </div>
                 </div>
             </div>
             
@@ -86,143 +115,26 @@
             </div>
         </div>
     </div>
-    
-    <div class="card-body">
-        {% if cajas %}
-            <div class="table-responsive">
-                <table class="table table-hover table-sm">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Tienda</th>
-                            <th>Fecha</th>
-                            <th class="text-end">Fondo Inicial</th>
-                            <th class="text-end">Ingresos</th>
-                            <th class="text-end">Egresos</th>
-                            <th class="text-end">Saldo Final</th>
-                            <th>Estado</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for caja in cajas %}
-                        <tr>
-                            <td>{{ caja.id }}</td>
-                            <td>{{ caja.tienda.nombre }}</td>
-                            <td>{{ caja.fecha|date:"d/m/Y" }}</td>
-                            <td class="text-end">${{ caja.fondo_inicial|floatformat:2 }}</td>
-                            <td class="text-end">${{ caja.ingresos|floatformat:2 }}</td>
-                            <td class="text-end">${{ caja.egresos|floatformat:2 }}</td>
-                            <td class="text-end">${{ caja.saldo_final|floatformat:2 }}</td>
-                            <td>
-                                {% if caja.cerrada %}
-                                <span class="badge bg-secondary">Cerrada</span>
-                                {% else %}
-                                <span class="badge bg-success">Abierta</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if not caja.cerrada %}
-                                <a href="{% url 'caja:cerrar' caja.id %}" class="btn btn-sm btn-warning" data-bs-toggle="tooltip" title="Cerrar Caja">
-                                    <i class="bi bi-lock"></i>
-                                </a>
-                                <a href="{% url 'caja:nueva_nota_cargo' %}?caja={{ caja.id }}" class="btn btn-sm btn-danger" data-bs-toggle="tooltip" title="Registrar Gasto">
-                                    <i class="bi bi-dash-circle"></i>
-                                </a>
-                                {% else %}
-                                <button class="btn btn-sm btn-secondary" disabled>
-                                    <i class="bi bi-lock-fill"></i>
-                                </button>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        {% else %}
-            <div class="text-center my-5">
-                <div class="mb-3">
-                    <i class="bi bi-cash-register text-muted" style="font-size: 4rem;"></i>
-                </div>
-                <h5>No hay cajas para mostrar</h5>
-                <p class="text-muted">
-                    {% if ver_historial %}
-                    No se encontraron cajas en el rango de fechas seleccionado.
-                    {% else %}
-                    No hay cajas abiertas actualmente.
-                    <a href="{% url 'caja:abrir' %}" class="btn btn-success btn-sm mt-2">
-                        <i class="bi bi-plus-circle me-1"></i> Abrir Nueva Caja
-                    </a>
-                    {% endif %}
-                </p>
-            </div>
-        {% endif %}
+      <div class="card-body">
+        <div id="caja-content-container" 
+             hx-get="{% url 'caja:lista' %}"
+             hx-trigger="every 30s"
+             hx-include="[name='fecha'], [name='historial'], [name='tienda']">
+            {% include "caja/partials/caja_table.html" %}
+        </div>
     </div>
 </div>
 
-<!-- Summary Cards -->
-<div class="row">
-    <!-- Cajas Abiertas -->
-    <div class="col-xl-4 col-md-6 mb-4">
-        <div class="card border-left-success shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                            Cajas Abiertas
-                        </div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">
-                            {{ cajas_abiertas_count }}
-                        </div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="bi bi-unlock fa-2x text-gray-300"></i>
-                    </div>
-                </div>
-            </div>
+<!-- Auto-refresh notification -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1050;">
+    <div id="refresh-toast" class="toast hide" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header">
+            <i class="bi bi-arrow-clockwise text-primary me-2"></i>
+            <strong class="me-auto">Actualización automática</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
         </div>
-    </div>
-
-    <!-- Ingresos del Día -->
-    <div class="col-xl-4 col-md-6 mb-4">
-        <div class="card border-left-primary shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
-                            Ingresos del Día
-                        </div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">
-                            ${{ ingresos_dia|floatformat:2 }}
-                        </div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="bi bi-graph-up-arrow fa-2x text-gray-300"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Saldo Total -->
-    <div class="col-xl-4 col-md-6 mb-4">
-        <div class="card border-left-info shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
-                            Saldo Total
-                        </div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">
-                            ${{ saldo_total|floatformat:2 }}
-                        </div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="bi bi-cash-coin fa-2x text-gray-300"></i>
-                    </div>
-                </div>
-            </div>
+        <div class="toast-body">
+            Los datos se actualizan cada 30 segundos
         </div>
     </div>
 </div>
@@ -236,6 +148,23 @@
         var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
           return new bootstrap.Tooltip(tooltipTriggerEl)
         });
+        
+        // Load initial summary
+        const summaryContainer = document.getElementById('caja-summary');
+        if (summaryContainer) {
+            htmx.trigger(summaryContainer, 'htmx:trigger');
+        }
+        
+        // Show refresh notification on auto-refresh
+        document.body.addEventListener('htmx:beforeRequest', function(evt) {
+            if (evt.detail.elt.getAttribute('hx-trigger') && evt.detail.elt.getAttribute('hx-trigger').includes('every')) {
+                const toastEl = document.getElementById('refresh-toast');
+                if (toastEl) {
+                    const toast = new bootstrap.Toast(toastEl, { delay: 2000 });
+                    toast.show();
+                }
+            }
+        });
     });
 </script>
-{% endblock %} 
+{% endblock %}

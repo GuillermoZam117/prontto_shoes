@@ -99,11 +99,10 @@
                                 {% endif %}
                                 <small class="text-muted ms-2">{{ modelo.cached_count }} / {{ modelo.total_count }} registros</small>
                             </td>
-                            <td>
-                                <div class="progress cache-progress">
-                                    {% with progress=modelo.cached_count|divisibleby:modelo.total_count|floatformat:0 %}
-                                    <div class="progress-bar" role="progressbar" style="width: {% if modelo.total_count > 0 %}{{ modelo.cached_count|multiply:100|divide:modelo.total_count|floatformat:0 }}{% else %}0{% endif %}%"></div>
-                                    {% endwith %}
+                            <td>                                <div class="progress cache-progress">
+                                    <div class="progress-bar" role="progressbar" 
+                                         style="width: {% if modelo.total_count > 0 %}{% widthratio modelo.cached_count modelo.total_count 100 %}{% else %}0{% endif %}%">
+                                    </div>
                                 </div>
                             </td>
                             <td>

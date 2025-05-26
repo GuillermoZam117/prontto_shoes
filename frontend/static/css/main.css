@@ -194,7 +194,7 @@ body {
 .badge-sync-syncing {
     background-color: #ffc107;
     color: #212529;
-    animation: pulse 2s infinite;
+    /* Removed pulse animation to prevent visual discomfort */
 }
 
 .badge-sync-error {
@@ -202,11 +202,7 @@ body {
     color: white;
 }
 
-@keyframes pulse {
-    0% { opacity: 0.5; }
-    50% { opacity: 1; }
-    100% { opacity: 0.5; }
-}
+/* Pulse animation removed to prevent screen vibration effect */
 
 /* Estilos para POS */
 .pos-container {
@@ -279,13 +275,13 @@ body {
 
 .product-card {
     height: 100%;
-    transition: transform 0.2s;
+    /* Removed transform transition to prevent visual discomfort */
     cursor: pointer;
 }
 
 .product-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    /* Subtle hover effect without movement */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 /* Utilitarios */
@@ -319,4 +315,59 @@ body {
     .card-header, .card-footer {
         background-color: transparent !important;
     }
-} 
+}
+
+/* Visual comfort improvements to prevent screen vibration effects */
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* Prevent table flicker and smooth transitions */
+.table {
+    transform: translateZ(0); /* Force hardware acceleration */
+    backface-visibility: hidden; /* Prevent flickering */
+}
+
+/* Smooth HTMX transitions without jarring effects */
+.htmx-swapping {
+    opacity: 0.8;
+    transition: opacity 0.1s ease-out;
+}
+
+/* Stable card styling */
+.card {
+    transform: translateZ(0); /* Force hardware acceleration */
+    will-change: box-shadow; /* Optimize for shadow changes only */
+}
+
+/* Gentle hover effects without movement */
+.card:hover,
+.btn:hover {
+    transform: none !important; /* Prevent any movement */
+}
+
+/* Anti-flicker for dynamic content */
+[hx-trigger] {
+    transform: translateZ(0);
+}
+
+/* Smooth indicators without pulsing */
+.badge {
+    transition: background-color 0.2s ease;
+}
+
+/* Prevent content jumping during updates */
+.container-fluid {
+    min-height: 0;
+}
+
+/* End of visual comfort improvements */

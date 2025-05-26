@@ -9,7 +9,9 @@ urlpatterns = [
     path('', login_required(views.caja_list), name='lista'),
     path('abrir/', login_required(views.abrir_caja), name='abrir'),
     path('cerrar/<int:pk>/', login_required(views.cerrar_caja), name='cerrar'),
+    path('<int:pk>/movimientos-realtime/', login_required(views.movimientos_realtime), name='movimientos_realtime'),
     path('movimientos/', login_required(views.movimientos_list), name='movimientos'),
+    path('summary/', login_required(views.caja_summary), name='summary'),
     path('nota-cargo/nueva/', login_required(views.nota_cargo_create), name='nueva_nota_cargo'),
     
     # Facturación URLs

@@ -8,7 +8,8 @@ urlpatterns = [
     path('nuevo/', views.proveedor_create, name='nuevo'),
     path('<int:pk>/', views.proveedor_detail, name='detalle'),
     path('<int:pk>/editar/', views.proveedor_edit, name='editar'),
+    path('<int:pk>/eliminar/', views.proveedor_delete, name='eliminar'),
     path('purchase_orders/', views.purchase_order_list, name='purchase_orders'),
     path('purchase_orders/nuevo/', views.purchase_order_create, name='nueva_purchase_order'),
     path('purchase_orders/<int:pk>/', views.purchase_order_detail, name='detalle_purchase_order'),
-] 
+]

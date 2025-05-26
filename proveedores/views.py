@@ -1,4 +1,14 @@
 from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.db.models import Q, Sum, F, Count
+from django.utils import timezone
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
+from django.db import transaction
+from decimal import Decimal
+from datetime import date
+
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
@@ -7,22 +17,18 @@ from .serializers import ProveedorSerializer, PurchaseOrderSerializer, PurchaseO
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from django.db import transaction
 from requisiciones.models import DetalleRequisicion
-from django.db.models import Sum, F, Q, Count
 from inventario.models import Inventario
 from tiendas.models import Tienda
 from productos.models import Producto
-from django.contrib.auth.decorators import login_required
-from django.contrib import messages
 
 # Frontend views
 @login_required
 def proveedor_list(request):
-    """Vista para listar proveedores"""
+    """Vista para listar proveedores con soporte para HTMX"""
     # Get filter parameters
     search_query = request.GET.get('q', '')
-    requiere_anticipo = request.GET.get('requiere_anticipo', False)
+    requiere_anticipo = request.GET.get('requiere_anticipo', '') == 'true'
     
     # Base query
     proveedores = Proveedor.objects.all()
@@ -37,6 +43,20 @@ def proveedor_list(request):
     if requiere_anticipo:
         proveedores = proveedores.filter(requiere_anticipo=True)
     
+    # Order results
+    proveedores = proveedores.order_by('nombre')
+    
+    # Check if this is an HTMX request
+    if request.headers.get('HX-Request'):
+        # Return only the table partial for HTMX requests
+        context = {
+            'proveedores': proveedores,
+            'search_query': search_query,
+            'requiere_anticipo': requiere_anticipo,
+        }
+        return render(request, 'proveedores/partials/proveedor_table.html', context)
+    
+    # Full page render for regular requests
     # Calculate metrics for summary cards
     proveedores_anticipo = Proveedor.objects.filter(requiere_anticipo=True).count()
     proveedores_devolucion = Proveedor.objects.filter(max_return_days__gt=0).count()
@@ -226,6 +246,65 @@ def purchase_order_create(request):
     }
     
     return render(request, 'proveedores/purchase_order_form.html', context)
+
+@login_required
+@require_http_methods(["POST", "DELETE"])
+def proveedor_delete(request, pk):
+    """Vista para eliminar un proveedor con validaciones"""
+    proveedor = get_object_or_404(Proveedor, pk=pk)
+    
+    try:
+        # Check if provider has active products
+        productos_activos = Producto.objects.filter(proveedor=proveedor, activo=True).count()
+        
+        if productos_activos > 0:
+            if request.headers.get('HX-Request'):
+                return JsonResponse({
+                    'success': False,
+                    'message': f'No se puede eliminar el proveedor {proveedor.nombre}. Tiene {productos_activos} producto(s) activo(s).'
+                }, status=400)
+            else:
+                messages.error(request, f'No se puede eliminar el proveedor {proveedor.nombre}. Tiene {productos_activos} producto(s) activo(s).')
+                return redirect('proveedores:lista')
+        
+        # Check if provider has pending purchase orders
+        ordenes_pendientes = PurchaseOrder.objects.filter(
+            proveedor=proveedor, 
+            estado__in=['pendiente', 'enviado']
+        ).count()
+        
+        if ordenes_pendientes > 0:
+            if request.headers.get('HX-Request'):
+                return JsonResponse({
+                    'success': False,
+                    'message': f'No se puede eliminar el proveedor {proveedor.nombre}. Tiene {ordenes_pendientes} orden(es) de compra pendiente(s).'
+                }, status=400)
+            else:
+                messages.error(request, f'No se puede eliminar el proveedor {proveedor.nombre}. Tiene {ordenes_pendientes} orden(es) de compra pendiente(s).')
+                return redirect('proveedores:lista')
+        
+        # If all validations pass, delete the provider
+        nombre_proveedor = proveedor.nombre
+        proveedor.delete()
+        
+        if request.headers.get('HX-Request'):
+            return JsonResponse({
+                'success': True,
+                'message': f'Proveedor {nombre_proveedor} eliminado exitosamente.'
+            })
+        else:
+            messages.success(request, f'Proveedor {nombre_proveedor} eliminado exitosamente.')
+            return redirect('proveedores:lista')
+            
+    except Exception as e:
+        if request.headers.get('HX-Request'):
+            return JsonResponse({
+                'success': False,
+                'message': f'Error al eliminar el proveedor: {str(e)}'
+            }, status=500)
+        else:
+            messages.error(request, f'Error al eliminar el proveedor: {str(e)}')
+            return redirect('proveedores:lista')
 
 # API viewsets
 @extend_schema(tags=["Proveedores"])

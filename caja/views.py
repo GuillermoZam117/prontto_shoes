@@ -11,7 +11,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from django.db import transaction, IntegrityError
-from django.db.models import Sum, Q
+from django.db.models import Sum, Q, Count
 from datetime import date, datetime
 from django.contrib.auth import get_user_model
 from tiendas.models import Tienda
@@ -38,10 +38,11 @@ def caja_list(request):
     
     # Get tiendas for filter dropdown
     tiendas = Tienda.objects.all()
-    
-    # Calculate statistics
+      # Calculate statistics
     cajas_abiertas_count = cajas.filter(cerrada=False).count()
+    cajas_cerradas_count = cajas.filter(cerrada=True).count()
     ingresos_dia = cajas.aggregate(total=Sum('ingresos'))['total'] or 0
+    egresos_dia = cajas.aggregate(total=Sum('egresos'))['total'] or 0
     saldo_total = cajas.aggregate(total=Sum('saldo_final'))['total'] or 0
     
     context = {
@@ -51,7 +52,9 @@ def caja_list(request):
         'tienda_seleccionada': tienda_id,
         'ver_historial': ver_historial,
         'cajas_abiertas_count': cajas_abiertas_count,
+        'cajas_cerradas_count': cajas_cerradas_count,
         'ingresos_dia': ingresos_dia,
+        'egresos_dia': egresos_dia,
         'saldo_total': saldo_total,
     }
     
@@ -185,9 +188,36 @@ def movimientos_list(request):
         'total_ingresos': total_ingresos,
         'total_egresos': total_egresos,
         'saldo_neto': saldo_neto,
+    }    
+    return render(request, 'caja/movimientos_list.html', context)
+
+def movimientos_realtime(request, pk):
+    """Vista para mostrar movimientos en tiempo real de una caja específica"""
+    try:
+        caja = Caja.objects.select_related('tienda').get(pk=pk)
+    except Caja.DoesNotExist:
+        return render(request, 'caja/caja_not_found.html', {'caja_id': pk})
+    
+    # Get all movements for this specific caja
+    movimientos = TransaccionCaja.objects.filter(caja=caja).select_related(
+        'caja', 'caja__tienda', 'pedido', 'anticipo', 'nota_cargo', 'created_by'
+    ).order_by('-created_at')
+    
+    # Calculate totals
+    total_ingresos = movimientos.filter(tipo_movimiento='INGRESO').aggregate(Sum('monto'))['monto__sum'] or 0
+    total_egresos = movimientos.filter(tipo_movimiento='EGRESO').aggregate(Sum('monto'))['monto__sum'] or 0
+    saldo_actual = total_ingresos - total_egresos
+    
+    context = {
+        'caja': caja,
+        'movimientos': movimientos,
+        'total_ingresos': total_ingresos,
+        'total_egresos': total_egresos,
+        'saldo_actual': saldo_actual,
+        'es_realtime': True,  # Flag to distinguish from regular movimientos view
     }
     
-    return render(request, 'caja/movimientos_list.html', context)
+    return render(request, 'caja/movimientos_realtime.html', context)
 
 def nota_cargo_create(request):
     """Vista para crear una nueva nota de cargo"""
@@ -355,6 +385,89 @@ def reporte_caja(request):
     }
     
     return render(request, 'caja/reporte.html', context)
+
+def caja_summary(request):
+    """Vista para obtener resumen de cajas - usado por HTMX para actualizaciones en tiempo real"""
+    # Get filter parameters (same as caja_list)
+    fecha = request.GET.get('fecha', date.today().isoformat())
+    tienda_id = request.GET.get('tienda', '')
+    ver_historial = request.GET.get('historial', False)
+    
+    # Base query
+    cajas = Caja.objects.select_related('tienda', 'created_by')
+    
+    # Apply filters
+    if not ver_historial:
+        cajas = cajas.filter(fecha=fecha)
+    
+    if tienda_id:
+        cajas = cajas.filter(tienda_id=tienda_id)
+    
+    # Calculate real-time summary statistics
+    cajas_abiertas = cajas.filter(cerrada=False)
+    cajas_cerradas = cajas.filter(cerrada=True)
+    
+    total_cajas = cajas.count()
+    cajas_abiertas_count = cajas_abiertas.count()
+    cajas_cerradas_count = cajas_cerradas.count()
+    
+    # Financial summaries
+    total_ingresos = cajas.aggregate(Sum('ingresos'))['ingresos__sum'] or 0
+    total_egresos = cajas.aggregate(Sum('egresos'))['egresos__sum'] or 0
+    saldo_total = cajas_cerradas.aggregate(Sum('saldo_final'))['saldo_final__sum'] or 0
+    
+    # Calculate projected totals for open cash registers
+    saldo_proyectado = 0
+    for caja in cajas_abiertas:
+        ingresos_temp = caja.transacciones.filter(tipo_movimiento='INGRESO').aggregate(Sum('monto'))['monto__sum'] or 0
+        egresos_temp = caja.transacciones.filter(tipo_movimiento='EGRESO').aggregate(Sum('monto'))['monto__sum'] or 0
+        saldo_proyectado += caja.fondo_inicial + ingresos_temp - egresos_temp
+    
+    # Total projected (closed + projected open)
+    saldo_total_proyectado = saldo_total + saldo_proyectado
+    
+    # Movements summary for today
+    movimientos_hoy = TransaccionCaja.objects.filter(
+        caja__fecha=fecha if not ver_historial else None
+    )
+    if tienda_id:
+        movimientos_hoy = movimientos_hoy.filter(caja__tienda_id=tienda_id)
+    
+    movimientos_count = movimientos_hoy.count()
+    ultimo_movimiento = movimientos_hoy.order_by('-created_at').first()
+    
+    # Tiendas activity summary
+    tiendas_con_caja = cajas.values('tienda__nombre').annotate(
+        cajas_count=Count('id'),
+        ingresos_total=Sum('ingresos'),
+        egresos_total=Sum('egresos')
+    ).order_by('-ingresos_total')
+    
+    context = {
+        'fecha': fecha,
+        'ver_historial': ver_historial,
+        'tienda_seleccionada': tienda_id,
+        'total_cajas': total_cajas,
+        'cajas_abiertas_count': cajas_abiertas_count,
+        'cajas_cerradas_count': cajas_cerradas_count,
+        'total_ingresos': total_ingresos,
+        'total_egresos': total_egresos,
+        'saldo_total': saldo_total,
+        'saldo_proyectado': saldo_proyectado,
+        'saldo_total_proyectado': saldo_total_proyectado,
+        'movimientos_count': movimientos_count,
+        'ultimo_movimiento': ultimo_movimiento,
+        'tiendas_con_caja': tiendas_con_caja,
+        'cajas_abiertas': cajas_abiertas,
+        'cajas_cerradas': cajas_cerradas,
+    }
+    
+    # For HTMX requests, return only the partial template
+    if request.headers.get('HX-Request'):
+        return render(request, 'caja/partials/caja_summary.html', context)
+    
+    # For normal requests, return full page (fallback)
+    return render(request, 'caja/caja_summary.html', context)
 
 # API viewsets
 @extend_schema(tags=["Caja"])

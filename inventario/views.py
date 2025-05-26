@@ -113,7 +113,8 @@ class InventarioActualReporteAPIView(APIView):
 @login_required
 def inventario_list(request):
     """
-    Display inventory levels across stores. Allows filtering by product, store, or low stock status.
+    Display inventory levels across stores with HTMX support.
+    Allows filtering by product, store, or low stock status.
     """
     # Get filter parameters
     search_query = request.GET.get('q', '')
@@ -122,13 +123,13 @@ def inventario_list(request):
     
     # Base query
     inventario = Inventario.objects.select_related('tienda', 'producto')
-    
-    # Apply filters
+      # Apply filters
     if search_query:
         inventario = inventario.filter(
             Q(producto__codigo__icontains=search_query) | 
             Q(producto__marca__icontains=search_query) |
             Q(producto__modelo__icontains=search_query) |
+            Q(producto__color__icontains=search_query) |
             Q(tienda__nombre__icontains=search_query)
         )
     
@@ -138,18 +139,41 @@ def inventario_list(request):
     if stock_bajo:
         # Filter products with stock below minimum level
         inventario = inventario.filter(cantidad_actual__lt=F('producto__stock_minimo'))
-    
-    # Calculate inventory metrics
-    # All inventory items (for filtering purposes)
+      # Order results
+    inventario = inventario.order_by('producto__marca', 'producto__modelo', 'tienda__nombre')
+      # Check if this is an HTMX request
+    if request.headers.get('HX-Request'):
+        # Calculate metrics for the filtered results
+        sin_stock = inventario.filter(cantidad_actual__lte=0).count()
+        stock_bajo_count = inventario.filter(
+            cantidad_actual__gt=0,
+            cantidad_actual__lt=F('producto__stock_minimo')
+        ).count()
+        stock_normal_count = inventario.filter(
+            cantidad_actual__gte=F('producto__stock_minimo')
+        ).count()
+        
+        # Return only the table partial for HTMX requests
+        context = {
+            'inventario': inventario,
+            'search_query': search_query,
+            'tienda_seleccionada': tienda_id,
+            'stock_bajo': stock_bajo,
+            'sin_stock': sin_stock,
+            'stock_bajo_count': stock_bajo_count,
+            'stock_normal_count': stock_normal_count,
+        }
+        return render(request, 'inventario/partials/inventario_table.html', context)
+      # Full page render for regular requests
+    # Calculate inventory metrics for all items
     all_inventory = Inventario.objects.all()
-    
-    # Count products with zero or negative stock
     sin_stock = all_inventory.filter(cantidad_actual__lte=0).count()
-    
-    # Count products with low stock (greater than 0 but less than minimum)
     stock_bajo_count = all_inventory.filter(
-        cantidad_actual__gt=0, 
+        cantidad_actual__gt=0,
         cantidad_actual__lt=F('producto__stock_minimo')
+    ).count()
+    stock_normal_count = all_inventory.filter(
+        cantidad_actual__gte=F('producto__stock_minimo')
     ).count()
     
     # Get stores for filter dropdown
@@ -163,6 +187,7 @@ def inventario_list(request):
         'stock_bajo': stock_bajo,
         'sin_stock': sin_stock,
         'stock_bajo_count': stock_bajo_count,
+        'stock_normal_count': stock_normal_count,
     }
     
     return render(request, 'inventario/inventario_list.html', context)

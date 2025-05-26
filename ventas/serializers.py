@@ -1,14 +1,14 @@
 from rest_framework import serializers
 from .models import Pedido, DetallePedido
-from productos.models import Producto # Import Producto for validation
-from clientes.models import Cliente, DescuentoCliente, ReglaProgramaLealtad # Import Cliente, DescuentoCliente, and ReglaProgramaLealtad
+from productos.models import Producto
+from clientes.models import Cliente, DescuentoCliente, ReglaProgramaLealtad
 from rest_framework.exceptions import ValidationError
 from django.db import transaction
-from datetime import date # Import date
-from inventario.models import Inventario # Import Inventario model
-from caja.models import Caja, TransaccionCaja # Import Caja and TransaccionCaja models
-from django.db.models import F # Import F object for atomic updates
-from decimal import Decimal # Import Decimal
+from datetime import date
+from inventario.models import Inventario
+from caja.models import Caja, TransaccionCaja
+from django.db.models import F
+from decimal import Decimal
 
 class DetallePedidoSerializer(serializers.ModelSerializer):
     class Meta:
@@ -21,7 +21,7 @@ class PedidoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Pedido
         fields = '__all__'
-        read_only_fields = ('estado', 'total', 'descuento_aplicado') # estado, total, and descuento_aplicado will be calculated
+        read_only_fields = ('created_by', 'created_at', 'updated_at')
         
     def validate(self, attrs):
         """
@@ -77,25 +77,44 @@ class PedidoSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         with transaction.atomic():
             detalles_data = validated_data.pop('detalles')
-            cliente = validated_data.get('cliente') # Get the client from validated data
-            tienda = validated_data.get('tienda') # Get the store from validated data
-            user = self.context['request'].user # Assuming user is in serializer context
-            tipo_pedido = validated_data.get('tipo', 'venta') # Get order type, default to 'venta'
-
+            cliente = validated_data.get('cliente')  # Get the client from validated data
+            tienda = validated_data.get('tienda')  # Get the store from validated data
+            user = self.context['request'].user  # Assuming user is in serializer context
+            tipo_pedido = validated_data.get('tipo', 'venta')  # Get order type, default to 'venta'
+            
+            # Handle "público en general" when no client is selected
+            if not cliente:
+                try:
+                    # Look for a default "Público en General" client
+                    cliente, created = Cliente.objects.get_or_create(
+                        nombre='Público en General',
+                        defaults={
+                            'apellido': '',
+                            'telefono': '0000000000',
+                            'email': 'publico@general.com',
+                            'direccion': 'N/A'
+                        }
+                    )
+                    validated_data['cliente'] = cliente
+                except Exception as e:
+                    raise ValidationError("Error al crear cliente 'Público en General'")
+            
             # Create the Pedido instance without total and discount initially
             pedido = Pedido.objects.create(**validated_data)
 
             total_pedido = Decimal('0.00')
             for detalle_data in detalles_data:
-                producto = detalle_data['producto']
+                producto_id = detalle_data['producto']
                 cantidad = detalle_data['cantidad']
                 
-                # Basic validation: check if product exists (more complex validation might be needed, e.g., inventory)
+                # Basic validation: check if product exists
                 try:
-                    producto_instance = Producto.objects.get(id=producto.id)
+                    producto_instance = Producto.objects.get(id=producto_id)
                 except Producto.DoesNotExist:
-                    raise ValidationError(f"Producto con ID {producto.id} no encontrado.")                # Check inventory availability before creating order item, only for 'venta' type orders
-                inventario_tienda = None  # Initialize to None to avoid 'possibly unbound' error
+                    raise ValidationError(f"Producto con ID {producto_id} no encontrado.")
+                
+                # Check inventory availability before creating order item, only for 'venta' type orders
+                inventario_tienda = None
                 if tipo_pedido == 'venta':
                     try:
                         inventario_tienda = Inventario.objects.select_for_update().get(
@@ -108,9 +127,7 @@ class PedidoSerializer(serializers.ModelSerializer):
                         raise ValidationError(f"Producto {producto_instance.codigo} no encontrado en el inventario de la tienda {tienda.nombre}.")
                 
                 # Calculate subtotal and add to total
-                # Assuming precio_unitario is provided in the details or fetched from product
-                # For simplicity, using price from product model; adjust if price comes from input
-                precio_unitario = producto_instance.precio # Using product's current price
+                precio_unitario = producto_instance.precio
                 subtotal = precio_unitario * cantidad
                 total_pedido += subtotal
                 
@@ -121,18 +138,18 @@ class PedidoSerializer(serializers.ModelSerializer):
                     precio_unitario=precio_unitario,
                     subtotal=subtotal
                 )
-                  # Decrement inventory after creating order item, only for 'venta' type orders
+                
+                # Decrement inventory after creating order item, only for 'venta' type orders
                 if tipo_pedido == 'venta' and inventario_tienda is not None:
                     inventario_tienda.cantidad_actual = F('cantidad_actual') - cantidad
                     inventario_tienda.save()
                     
             # Apply discounts based on the client, only for 'venta' type orders and if payment is received
             descuento_aplicado = Decimal('0.00')
-            total_con_descuento = total_pedido # Initialize with total before discount
-            if cliente and tipo_pedido == 'venta':
+            total_con_descuento = total_pedido
+            if cliente and tipo_pedido == 'venta' and cliente.nombre != 'Público en General':
                 today = date.today()
                 current_month = today.strftime('%Y-%m')
-                # Check if payment is received - use the 'pagado' field if included in validated_data
                 pago_recibido = validated_data.get('pagado', False)
                 
                 # Only apply discount if order is paid
@@ -143,38 +160,34 @@ class PedidoSerializer(serializers.ModelSerializer):
                         descuento_aplicado = descuento_cliente.porcentaje
                     except DescuentoCliente.DoesNotExist:
                         # No specific discount for this client this month
-                        pass # descuento_aplicado remains 0
+                        pass
                 
                 pedido.descuento_aplicado = descuento_aplicado
-            
                 # Calculate final total after discount
                 total_con_descuento = total_pedido * (1 - (descuento_aplicado / Decimal('100')))
 
             pedido.total = total_con_descuento
 
-            # Award loyalty points, only for 'venta' type orders and if a client is linked
-            if cliente and tipo_pedido == 'venta':
+            # Award loyalty points, only for 'venta' type orders and if a client is linked (not public)
+            if cliente and tipo_pedido == 'venta' and cliente.nombre != 'Público en General':
                 try:
-                    # Get the active loyalty rule (assuming only one active rule for simplicity)
+                    # Get the active loyalty rule
                     regla_lealtad = ReglaProgramaLealtad.objects.get(activo=True)
                     
                     # Calculate points earned
-                    # Ensure monto_compra_requerido is not zero to avoid division by zero
                     if regla_lealtad.monto_compra_requerido > 0:
                         puntos_ganados = int((total_con_descuento / regla_lealtad.monto_compra_requerido) * regla_lealtad.puntos_otorgados)
                         cliente.puntos_lealtad = F('puntos_lealtad') + puntos_ganados
                         cliente.save()
-                        self.context['request']._rebuild_authtoken() # To refresh user data if needed
 
                 except ReglaProgramaLealtad.DoesNotExist:
                     # No active loyalty rule found
-                    pass # No points are awarded
+                    pass
                 except ReglaProgramaLealtad.MultipleObjectsReturned:
-                    # Handle case where multiple active rules exist (e.g., log a warning)
-                    pass # No points are awarded to be safe
+                    # Handle case where multiple active rules exist
+                    pass
 
             # Set initial state and save
-            # Assuming status is 'surtido' immediately for a sale fulfilled from inventory, 'pendiente' for preventative
             pedido.estado = 'surtido' if tipo_pedido == 'venta' else 'pendiente'
             pedido.save()
 
@@ -185,18 +198,15 @@ class PedidoSerializer(serializers.ModelSerializer):
                 try:
                     caja_abierta = Caja.objects.select_for_update().get(tienda=tienda, fecha=today, cerrada=False)
                 except Caja.DoesNotExist:
-                     raise ValidationError(f"No hay una caja abierta para la tienda {tienda.nombre} en la fecha actual para registrar la venta.")
+                    raise ValidationError(f"No hay una caja abierta para la tienda {tienda.nombre} en la fecha actual para registrar la venta.")
                 
                 TransaccionCaja.objects.create(
-                    caja=caja_abierta,                    tipo_movimiento='ingreso',
+                    caja=caja_abierta,
+                    tipo_movimiento='ingreso',
                     monto=total_con_descuento,
                     descripcion=f'Venta Pedido #{pedido.pk}',
-                    pedido=pedido, # Link to the sale order
-                    created_by=user # Assuming user is the cashier/admin
+                    pedido=pedido,
+                    created_by=user
                 )
 
             return pedido
-            
-    # You might also need an update method if updating orders is allowed, but often sales are immutable
-    # def update(self, instance, validated_data):
-    #     raise serializers.ValidationError("Updates to sales orders are not allowed via this endpoint.")

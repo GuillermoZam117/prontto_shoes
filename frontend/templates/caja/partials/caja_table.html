@@ -1,0 +1,312 @@
+<!-- Template parcial para tabla de cajas -->
+{% if cajas %}
+    <div class="table-responsive">
+        <table class="table table-hover table-sm">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Tienda</th>
+                    <th>Fecha</th>
+                    <th class="text-end">Fondo Inicial</th>
+                    <th class="text-end">Ingresos</th>
+                    <th class="text-end">Egresos</th>
+                    <th class="text-end">Saldo Final</th>
+                    <th class="text-center">Estado</th>
+                    <th class="text-center">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for caja in cajas %}
+                <tr class="caja-row" data-caja-id="{{ caja.id }}">
+                    <td>
+                        <code class="text-primary">#{{ caja.id }}</code>
+                    </td>
+                    <td>
+                        <span class="badge bg-secondary">{{ caja.tienda.nombre }}</span>
+                    </td>                    <td>
+                        <span class="fw-semibold">{{ caja.fecha|date:"d/m/Y" }}</span>
+                        <br><small class="text-muted">{{ caja.created_at|date:"H:i" }}</small>
+                    </td>
+                    <td class="text-end">
+                        <span class="fw-bold text-info">${{ caja.fondo_inicial|floatformat:2 }}</span>
+                    </td>
+                    <td class="text-end">
+                        {% if caja.ingresos > 0 %}
+                            <span class="fw-bold text-success">${{ caja.ingresos|floatformat:2 }}</span>
+                        {% else %}
+                            <span class="text-muted">${{ caja.ingresos|floatformat:2 }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        {% if caja.egresos > 0 %}
+                            <span class="fw-bold text-danger">${{ caja.egresos|floatformat:2 }}</span>
+                        {% else %}
+                            <span class="text-muted">${{ caja.egresos|floatformat:2 }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        <span class="fw-bold h6 
+                        {% if caja.saldo_final > caja.fondo_inicial %}
+                            text-success
+                        {% elif caja.saldo_final == caja.fondo_inicial %}
+                            text-warning
+                        {% else %}
+                            text-danger
+                        {% endif %}">
+                            ${{ caja.saldo_final|floatformat:2 }}
+                        </span>
+                    </td>
+                    <td class="text-center">
+                        {% if caja.cerrada %}
+                            <span class="badge bg-secondary">
+                                <i class="bi bi-lock-fill me-1"></i>Cerrada
+                            </span>
+                        {% else %}
+                            <span class="badge bg-success pulse">
+                                <i class="bi bi-unlock me-1"></i>Abierta
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        <div class="btn-group" role="group">
+                            <button type="button" 
+                                    class="btn btn-sm btn-outline-info" 
+                                    data-bs-toggle="tooltip" 
+                                    title="Ver Detalles"
+                                    onclick="verDetallesCaja('{{ caja.id }}')">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                            
+                            {% if not caja.cerrada %}
+                                <button type="button" 
+                                        class="btn btn-sm btn-outline-warning" 
+                                        data-bs-toggle="tooltip" 
+                                        title="Cerrar Caja"
+                                        onclick="confirmarCierreCaja('{{ caja.id }}', '{{ caja.tienda.nombre }}', {{ caja.saldo_final }})">
+                                    <i class="bi bi-lock"></i>
+                                </button>
+                                
+                                <a href="{% url 'caja:nueva_nota_cargo' %}?caja={{ caja.id }}" 
+                                   class="btn btn-sm btn-outline-danger" 
+                                   data-bs-toggle="tooltip" 
+                                   title="Registrar Gasto">
+                                    <i class="bi bi-dash-circle"></i>
+                                </a>
+                                
+                                <button type="button" 
+                                        class="btn btn-sm btn-outline-primary" 
+                                        data-bs-toggle="tooltip" 
+                                        title="Movimientos en Tiempo Real"
+                                        onclick="abrirMovimientosRealTime('{{ caja.id }}')">
+                                    <i class="bi bi-activity"></i>
+                                </button>
+                            {% else %}
+                                <a href="{% url 'caja:reporte' %}?caja={{ caja.id }}" 
+                                   class="btn btn-sm btn-outline-primary" 
+                                   data-bs-toggle="tooltip" 
+                                   title="Ver Reporte">
+                                    <i class="bi bi-file-text"></i>
+                                </a>
+                                
+                                <button class="btn btn-sm btn-secondary" disabled>
+                                    <i class="bi bi-lock-fill"></i>
+                                </button>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <!-- Información de resultados -->
+        <div class="d-flex justify-content-between align-items-center mt-3">
+            <small class="text-muted">                Mostrando {{ cajas|length }} caja{{ cajas|length|pluralize }} 
+                {% if ver_historial %}en el historial{% else %}del día{% endif %}
+                {% if tienda_seleccionada %}
+                    {% for tienda in tiendas %}
+                        {% if tienda.id == tienda_seleccionada|add:0 %}en {{ tienda.nombre }}{% endif %}
+                    {% endfor %}
+                {% endif %}
+            </small>
+            
+            <div class="d-flex align-items-center">
+                <small class="text-muted me-2">Actualización automática cada 30s</small>
+                <div class="spinner-border spinner-border-sm text-primary htmx-indicator" role="status">
+                    <span class="visually-hidden">Actualizando...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Quick Stats Row -->
+    <div class="row mt-3">
+        <div class="col-md-2">
+            <div class="card border-success text-center">
+                <div class="card-body py-2">
+                    <h6 class="text-success mb-1">{{ cajas|length }}</h6>
+                    <small class="text-muted">Total Cajas</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-primary text-center">                <div class="card-body py-2">
+                    <h6 class="text-primary mb-1">
+                        {{ cajas_abiertas_count|default:0 }}
+                    </h6>
+                    <small class="text-muted">Abiertas</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-secondary text-center">                <div class="card-body py-2">
+                    <h6 class="text-secondary mb-1">
+                        {{ cajas_cerradas_count|default:0 }}
+                    </h6>
+                    <small class="text-muted">Cerradas</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-info text-center">                <div class="card-body py-2">
+                    <h6 class="text-info mb-1">
+                        ${{ ingresos_dia|floatformat:2|default:"0.00" }}
+                    </h6>
+                    <small class="text-muted">Ingresos Total</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-warning text-center">                <div class="card-body py-2">
+                    <h6 class="text-warning mb-1">
+                        ${{ egresos_dia|floatformat:2|default:"0.00" }}
+                    </h6>
+                    <small class="text-muted">Egresos Total</small>
+                </div>
+            </div>
+        </div>
+    </div>
+{% else %}
+    <div class="text-center my-5">
+        <div class="mb-3">
+            <i class="bi bi-cash-register text-muted" style="font-size: 4rem;"></i>
+        </div>
+        <h5>No hay cajas para mostrar</h5>
+        <p class="text-muted">
+            {% if ver_historial %}
+            No se encontraron cajas en el rango de fechas seleccionado.
+            <a href="{% url 'caja:lista' %}" 
+               hx-get="{% url 'caja:lista' %}"
+               hx-target="#caja-content-container"
+               class="btn btn-sm btn-outline-primary">Ver cajas del día</a>
+            {% else %}
+            No hay cajas abiertas actualmente.
+            <a href="{% url 'caja:abrir' %}" class="btn btn-success btn-sm mt-2">
+                <i class="bi bi-plus-circle me-1"></i> Abrir Nueva Caja
+            </a>
+            {% endif %}
+        </p>
+    </div>
+{% endif %}
+
+<script>
+// Función para ver detalles de caja
+function verDetallesCaja(cajaId) {
+    // Usar HTMX para cargar modal con detalles
+    htmx.ajax('GET', `/caja/${cajaId}/detalles/`, {
+        target: '#modal-container',
+        swap: 'innerHTML'
+    }).then(() => {
+        // Mostrar modal después de cargar contenido
+        const modal = new bootstrap.Modal(document.getElementById('detallesCajaModal'));
+        modal.show();
+    });
+}
+
+// Función para confirmar cierre de caja
+function confirmarCierreCaja(cajaId, tiendaNombre, saldoFinal) {
+    Swal.fire({
+        title: '¿Cerrar Caja?',
+        html: `
+            <div class="text-start">
+                <p><strong>Tienda:</strong> ${tiendaNombre}</p>
+                <p><strong>Saldo Final:</strong> $${saldoFinal}</p>
+                <div class="alert alert-warning">
+                    <small><i class="bi bi-exclamation-triangle me-1"></i>
+                    Una vez cerrada la caja no se podrán realizar más movimientos.</small>
+                </div>
+            </div>
+        `,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ffc107',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, cerrar caja',
+        cancelButtonText: 'Cancelar',
+        reverseButtons: true
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Realizar cierre con HTMX
+            htmx.ajax('POST', `/caja/${cajaId}/cerrar/`, {
+                target: '#caja-content-container',
+                swap: 'innerHTML'
+            }).then(() => {
+                Swal.fire({
+                    title: 'Caja Cerrada',
+                    text: `La caja de ${tiendaNombre} ha sido cerrada exitosamente.`,
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+                
+                // Actualizar también el resumen
+                htmx.ajax('GET', '/caja/summary/', {
+                    target: '#caja-summary-container',
+                    swap: 'innerHTML'
+                });
+            }).catch(() => {
+                Swal.fire({
+                    title: 'Error',
+                    text: 'No se pudo cerrar la caja. Inténtalo de nuevo.',
+                    icon: 'error'
+                });
+            });
+        }
+    });
+}
+
+// Función para abrir movimientos en tiempo real
+function abrirMovimientosRealTime(cajaId) {
+    // Abrir modal con movimientos en tiempo real
+    window.open(`/caja/${cajaId}/movimientos-realtime/`, '_blank', 'width=800,height=600');
+}
+
+// Inicializar tooltips
+document.addEventListener('DOMContentLoaded', function() {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+
+// CSS for improved visual comfort (pulse animation removed)
+const style = document.createElement('style');
+style.textContent = `
+    .pulse {
+        /* Pulse animation disabled to prevent visual discomfort */
+        opacity: 0.9;
+    }
+    
+    /* Pulse keyframes removed to prevent screen vibration effect */
+    
+    .htmx-indicator {
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+    
+    .htmx-request .htmx-indicator {
+        opacity: 1;
+    }
+`;
+document.head.appendChild(style);
+</script>

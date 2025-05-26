@@ -100,4 +100,4 @@ def tienda_delete(request, pk):
 @login_required
 def tienda_sync_dashboard(request):
     """Vista que redirige al dashboard de sincronización de la tienda"""
-    return redirect('sincronizacion_dashboard')
+    return redirect('sincronizacion:sincronizacion_dashboard')

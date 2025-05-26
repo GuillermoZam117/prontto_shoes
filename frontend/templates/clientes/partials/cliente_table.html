@@ -1,0 +1,167 @@
+<!-- Template parcial para tabla de clientes -->
+{% if clientes %}
+    <div class="table-responsive">
+        <table class="table table-hover table-sm">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nombre</th>
+                    <th>Contacto</th>
+                    <th>Tienda</th>
+                    <th class="text-end">Saldo a Favor</th>
+                    <th class="text-end">Monto Acumulado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cliente in clientes %}
+                <tr class="cliente-row" data-cliente-id="{{ cliente.id }}">
+                    <td>{{ cliente.id }}</td>
+                    <td>
+                        <a href="{% url 'clientes:detalle' cliente.id %}" class="text-decoration-none fw-semibold">
+                            {{ cliente.nombre }}
+                        </a>
+                    </td>
+                    <td>{{ cliente.contacto|default:"-" }}</td>
+                    <td>
+                        <span class="badge bg-secondary">{{ cliente.tienda.nombre }}</span>
+                    </td>
+                    <td class="text-end">
+                        {% if cliente.saldo_a_favor > 0 %}
+                            <span class="text-success fw-bold">${{ cliente.saldo_a_favor|floatformat:2 }}</span>
+                        {% else %}
+                            <span class="text-muted">${{ cliente.saldo_a_favor|floatformat:2 }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        {% if cliente.monto_acumulado > 0 %}
+                            <span class="text-info fw-bold">${{ cliente.monto_acumulado|floatformat:2 }}</span>
+                        {% else %}
+                            <span class="text-muted">${{ cliente.monto_acumulado|floatformat:2 }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="btn-group" role="group">
+                            <a href="{% url 'clientes:detalle' cliente.id %}" 
+                               class="btn btn-sm btn-outline-info" 
+                               data-bs-toggle="tooltip" 
+                               title="Ver Detalles">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            <a href="{% url 'clientes:editar' cliente.id %}" 
+                               class="btn btn-sm btn-outline-primary" 
+                               data-bs-toggle="tooltip" 
+                               title="Editar">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <button type="button" 
+                                    class="btn btn-sm btn-outline-danger" 
+                                    data-bs-toggle="tooltip" 
+                                    title="Eliminar"
+                                    onclick="confirmarEliminacion('{{ cliente.id }}', '{{ cliente.nombre }}')">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <!-- Información de resultados -->
+        <div class="d-flex justify-content-between align-items-center mt-3">
+            <small class="text-muted">
+                Mostrando {{ clientes|length }} cliente{{ clientes|length|pluralize }}
+                {% if search_query %}para "{{ search_query }}"{% endif %}
+            </small>
+        </div>
+    </div>
+{% else %}
+    <div class="text-center my-5">
+        <div class="mb-3">
+            <i class="bi bi-people text-muted" style="font-size: 4rem;"></i>
+        </div>
+        <h5>No hay clientes para mostrar</h5>
+        <p class="text-muted">
+            {% if search_query or tienda_seleccionada %}
+            No se encontraron clientes que coincidan con tu búsqueda.
+            <a href="{% url 'clientes:lista' %}" 
+               hx-get="{% url 'clientes:lista' %}"
+               hx-target="#clientes-table-container"
+               class="btn btn-sm btn-outline-primary">Ver todos los clientes</a>
+            {% else %}
+            No hay clientes registrados actualmente.
+            <a href="{% url 'clientes:nuevo' %}" class="btn btn-primary btn-sm mt-2">
+                <i class="bi bi-plus-circle me-1"></i> Crear Primer Cliente
+            </a>
+            {% endif %}
+        </p>
+    </div>
+{% endif %}
+
+<script>
+// Función para confirmar eliminación con SweetAlert2
+function confirmarEliminacion(clienteId, clienteNombre) {
+    Swal.fire({
+        title: '¿Eliminar Cliente?',
+        html: `¿Estás seguro de que deseas eliminar a <strong>${clienteNombre}</strong>?<br><small class="text-muted">Esta acción no se puede deshacer.</small>`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar',
+        reverseButtons: true
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Realizar eliminación con HTMX
+            fetch(`/clientes/${clienteId}/eliminar/`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    'HX-Request': 'true'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Refresh the table
+                    htmx.ajax('GET', window.location.pathname + window.location.search, {
+                        target: '#clientes-table-container',
+                        swap: 'innerHTML'
+                    });
+                    
+                    Swal.fire({
+                        title: 'Eliminado',
+                        text: data.message,
+                        icon: 'success',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                } else {
+                    Swal.fire({
+                        title: 'Error',
+                        text: data.message,
+                        icon: 'error'
+                    });
+                }
+            })
+            .catch(error => {
+                Swal.fire({
+                    title: 'Error',
+                    text: 'No se pudo eliminar el cliente. Inténtalo de nuevo.',
+                    icon: 'error'
+                });
+            });
+        }
+    });
+}
+
+// Inicializar tooltips
+document.addEventListener('DOMContentLoaded', function() {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>

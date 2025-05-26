@@ -16,17 +16,28 @@
 {% endblock %}
 
 {% block content %}
-<div class="card shadow mb-4">
+<div class="card shadow mb-4" x-data="{ loading: false }" @htmx:request.start="loading = true" @htmx:request.end="loading = false">
     <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
         <h6 class="m-0 font-weight-bold text-primary">Lista de Proveedores</h6>
         
         <div class="d-flex">
             <form class="form-inline me-2" method="GET">
                 <div class="input-group">
-                    <input type="text" class="form-control" name="q" value="{{ search_query }}" placeholder="Buscar...">
-                    <button class="btn btn-outline-primary" type="submit">
-                        <i class="bi bi-search"></i>
-                    </button>
+                    <input type="text" 
+                           class="form-control" 
+                           name="q" 
+                           value="{{ search_query }}" 
+                           placeholder="Buscar proveedores..."
+                           hx-get="{% url 'proveedores:lista' %}"
+                           hx-target="#proveedores-table-container"
+                           hx-trigger="keyup changed delay:300ms"
+                           hx-indicator="#search-loading">
+                    <div class="input-group-text">
+                        <i class="bi bi-search" id="search-icon"></i>
+                        <div id="search-loading" class="htmx-indicator spinner-border spinner-border-sm text-primary" role="status" style="display: none;">
+                            <span class="visually-hidden">Buscando...</span>
+                        </div>
+                    </div>
                 </div>
             </form>
             
@@ -42,7 +53,16 @@
                         
                         <div class="mb-3">
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="requiereAnticipo" name="requiere_anticipo" value="true" {% if requiere_anticipo %}checked{% endif %}>
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="requiereAnticipo" 
+                                       name="requiere_anticipo" 
+                                       value="true" 
+                                       {% if requiere_anticipo %}checked{% endif %}
+                                       hx-get="{% url 'proveedores:lista' %}"
+                                       hx-target="#proveedores-table-container"
+                                       hx-trigger="change"
+                                       hx-include="[name='q']">
                                 <label class="form-check-label" for="requiereAnticipo">
                                     Requiere anticipo
                                 </label>
@@ -50,8 +70,10 @@
                         </div>
                         
                         <div class="d-flex justify-content-between">
-                            <a href="{% url 'proveedores:lista' %}" class="btn btn-sm btn-outline-secondary">Limpiar</a>
-                            <button type="submit" class="btn btn-sm btn-primary">Aplicar</button>
+                            <a href="{% url 'proveedores:lista' %}" 
+                               class="btn btn-sm btn-outline-secondary"
+                               hx-get="{% url 'proveedores:lista' %}"
+                               hx-target="#proveedores-table-container">Limpiar</a>
                         </div>
                     </form>
                 </div>
@@ -60,71 +82,17 @@
     </div>
     
     <div class="card-body">
-        {% if proveedores %}
-            <div class="table-responsive">
-                <table class="table table-hover table-sm">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Nombre</th>
-                            <th>Contacto</th>
-                            <th>Requiere Anticipo</th>
-                            <th>Días para Devolución</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for proveedor in proveedores %}
-                        <tr>
-                            <td>{{ proveedor.id }}</td>
-                            <td><a href="{% url 'proveedores:detalle' proveedor.id %}">{{ proveedor.nombre }}</a></td>
-                            <td>{{ proveedor.contacto }}</td>
-                            <td>
-                                {% if proveedor.requiere_anticipo %}
-                                <span class="badge bg-warning text-dark">Sí</span>
-                                {% else %}
-                                <span class="badge bg-success">No</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if proveedor.max_return_days > 0 %}
-                                {{ proveedor.max_return_days }} días
-                                {% else %}
-                                <span class="text-muted">No acepta</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <a href="{% url 'proveedores:detalle' proveedor.id %}" class="btn btn-sm btn-info" data-bs-toggle="tooltip" title="Ver Detalles">
-                                    <i class="bi bi-eye"></i>
-                                </a>
-                                <a href="{% url 'proveedores:editar' proveedor.id %}" class="btn btn-sm btn-primary" data-bs-toggle="tooltip" title="Editar">
-                                    <i class="bi bi-pencil"></i>
-                                </a>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+        <!-- Loading indicator -->
+        <div x-show="loading" class="text-center py-3">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Cargando...</span>
             </div>
-        {% else %}
-            <div class="text-center my-5">
-                <div class="mb-3">
-                    <i class="bi bi-building text-muted" style="font-size: 4rem;"></i>
-                </div>
-                <h5>No hay proveedores para mostrar</h5>
-                <p class="text-muted">
-                    {% if search_query or requiere_anticipo %}
-                    No se encontraron proveedores que coincidan con tu búsqueda.
-                    <a href="{% url 'proveedores:lista' %}">Ver todos los proveedores</a>
-                    {% else %}
-                    No hay proveedores registrados actualmente.
-                    <a href="{% url 'proveedores:nuevo' %}" class="btn btn-primary btn-sm mt-2">
-                        <i class="bi bi-plus-circle me-1"></i> Crear Primer Proveedor
-                    </a>
-                    {% endif %}
-                </p>
-            </div>
-        {% endif %}
+        </div>
+        
+        <!-- Table container for HTMX updates -->
+        <div id="proveedores-table-container">
+            {% include 'proveedores/partials/proveedor_table.html' %}
+        </div>
     </div>
 </div>
 

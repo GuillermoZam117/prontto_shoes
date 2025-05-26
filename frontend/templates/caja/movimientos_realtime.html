@@ -1,0 +1,338 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movimientos en Tiempo Real - Caja {{ caja.numero }}</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .header-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+        
+        .stats-card {
+            background: white;
+            border-radius: 8px;
+            padding: 1rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 1rem;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        
+        .stat-item {
+            text-align: center;
+            padding: 0.5rem;
+        }
+        
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 0.25rem;
+        }
+        
+        .stat-label {
+            color: #6c757d;
+            font-size: 0.875rem;
+        }
+        
+        .ingreso { color: #28a745; }
+        .egreso { color: #dc3545; }
+        .saldo { color: #007bff; }
+        
+        .movement-table {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .table-header {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .movement-row {
+            border-bottom: 1px solid #f0f0f0;
+            transition: background-color 0.2s;
+        }
+        
+        .movement-row:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .auto-refresh-indicator {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #28a745;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            z-index: 1000;
+        }
+        
+        .auto-refresh-indicator.updating {
+            background: #ffc107;
+            color: #212529;
+        }
+        
+        .close-window-btn {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <!-- Auto-refresh indicator -->
+    <div class="auto-refresh-indicator" id="refreshIndicator">
+        <i class="fas fa-sync-alt me-1"></i>
+        Actualización automática cada 10s
+    </div>
+    
+    <!-- Close window button -->
+    <button class="btn btn-secondary close-window-btn" onclick="window.close()">
+        <i class="fas fa-times me-1"></i>
+        Cerrar
+    </button>
+
+    <div class="container-fluid p-3">
+        <!-- Header -->
+        <div class="header-section">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h4 class="mb-1">
+                        <i class="fas fa-cash-register me-2"></i>
+                        Movimientos en Tiempo Real
+                    </h4>
+                    <p class="mb-0 opacity-75">
+                        Caja #{{ caja.numero }} - {{ caja.tienda.nombre }}
+                        {% if caja.cerrada %}
+                            <span class="badge bg-danger ms-2">CERRADA</span>
+                        {% else %}
+                            <span class="badge bg-success ms-2">ABIERTA</span>
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="text-end">
+                    <div class="fw-bold">{{ caja.fecha|date:"d/m/Y" }}</div>
+                    <div class="opacity-75">Última actualización: <span id="lastUpdate">{{ "now"|date:"H:i:s" }}</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="stats-card">
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-value ingreso">
+                        ${{ total_ingresos|floatformat:0 }}
+                    </div>
+                    <div class="stat-label">
+                        <i class="fas fa-arrow-up me-1"></i>
+                        Total Ingresos
+                    </div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value egreso">
+                        ${{ total_egresos|floatformat:0 }}
+                    </div>
+                    <div class="stat-label">
+                        <i class="fas fa-arrow-down me-1"></i>
+                        Total Egresos
+                    </div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value saldo">
+                        ${{ saldo_actual|floatformat:0 }}
+                    </div>
+                    <div class="stat-label">
+                        <i class="fas fa-wallet me-1"></i>
+                        Saldo Actual
+                    </div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">
+                        {{ movimientos|length }}
+                    </div>
+                    <div class="stat-label">
+                        <i class="fas fa-list me-1"></i>
+                        Total Movimientos
+                    </div>
+                </div>
+            </div>
+        </div>        <!-- Movements Table -->
+        <div class="movement-table" 
+             hx-get="{% url 'caja:movimientos_realtime' caja.pk %}" 
+             hx-trigger="every 30s"
+             hx-target="#movimientos-content"
+             hx-indicator="#refreshIndicator">
+            
+            <div class="table-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-exchange-alt me-2"></i>
+                    Historial de Movimientos
+                </h5>
+            </div>
+
+            <div id="movimientos-content">
+                {% if movimientos %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th width="10%">Hora</th>
+                                    <th width="15%">Tipo</th>
+                                    <th width="15%">Monto</th>
+                                    <th width="25%">Descripción</th>
+                                    <th width="20%">Referencia</th>
+                                    <th width="15%">Usuario</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for movimiento in movimientos %}
+                                <tr class="movement-row">
+                                    <td>
+                                        <small class="text-muted">
+                                            {{ movimiento.created_at|date:"H:i:s" }}
+                                        </small>
+                                    </td>
+                                    <td>
+                                        {% if movimiento.tipo_movimiento == 'INGRESO' %}
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-arrow-up me-1"></i>
+                                                Ingreso
+                                            </span>
+                                        {% elif movimiento.tipo_movimiento == 'EGRESO' %}
+                                            <span class="badge bg-danger">
+                                                <i class="fas fa-arrow-down me-1"></i>
+                                                Egreso
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="fw-bold {% if movimiento.tipo_movimiento == 'INGRESO' %}text-success{% else %}text-danger{% endif %}">
+                                            ${{ movimiento.monto|floatformat:0 }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {{ movimiento.descripcion|default:"Sin descripción" }}
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">
+                                            {% if movimiento.pedido %}
+                                                <i class="fas fa-shopping-cart me-1"></i>
+                                                Pedido #{{ movimiento.pedido.numero }}
+                                            {% elif movimiento.anticipo %}
+                                                <i class="fas fa-hand-holding-usd me-1"></i>
+                                                Anticipo #{{ movimiento.anticipo.id }}
+                                            {% elif movimiento.nota_cargo %}
+                                                <i class="fas fa-file-invoice me-1"></i>
+                                                Nota #{{ movimiento.nota_cargo.numero }}
+                                            {% else %}
+                                                <i class="fas fa-money-bill-wave me-1"></i>
+                                                Manual
+                                            {% endif %}
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">
+                                            {% if movimiento.created_by %}
+                                                <i class="fas fa-user me-1"></i>
+                                                {{ movimiento.created_by.get_full_name|default:movimiento.created_by.username }}
+                                            {% else %}
+                                                Sistema
+                                            {% endif %}
+                                        </small>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No hay movimientos registrados</h5>
+                        <p class="text-muted mb-0">Los movimientos aparecerán aquí automáticamente</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Update last refresh time
+        document.body.addEventListener('htmx:afterRequest', function(event) {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('es-ES', { 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                second: '2-digit' 
+            });
+            document.getElementById('lastUpdate').textContent = timeString;
+            
+            // Visual feedback for refresh
+            const indicator = document.getElementById('refreshIndicator');
+            indicator.classList.add('updating');
+            setTimeout(() => {
+                indicator.classList.remove('updating');
+            }, 500);
+        });
+        
+        // Handle errors
+        document.body.addEventListener('htmx:responseError', function(event) {
+            console.error('Error al actualizar movimientos:', event.detail);
+            const indicator = document.getElementById('refreshIndicator');
+            indicator.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>Error de conexión';
+            indicator.style.background = '#dc3545';
+        });
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(event) {
+            // ESC to close window
+            if (event.key === 'Escape') {
+                window.close();
+            }
+            // F5 to force refresh
+            if (event.key === 'F5') {
+                event.preventDefault();
+                htmx.trigger('#movimientos-content', 'htmx:trigger');
+            }
+        });
+        
+        // Auto-focus window when opened
+        window.focus();
+    </script>
+</body>
+</html>
