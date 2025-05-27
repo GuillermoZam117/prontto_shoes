@@ -10,11 +10,13 @@ from caja.models import Caja, TransaccionCaja
 from django.db.models import F
 from decimal import Decimal
 
+
 class DetallePedidoSerializer(serializers.ModelSerializer):
     class Meta:
         model = DetallePedido
         fields = '__all__'
-        
+
+
 class PedidoSerializer(serializers.ModelSerializer):
     detalles = DetallePedidoSerializer(many=True)
 
@@ -22,7 +24,7 @@ class PedidoSerializer(serializers.ModelSerializer):
         model = Pedido
         fields = '__all__'
         read_only_fields = ('created_by', 'created_at', 'updated_at')
-        
+
     def validate(self, attrs):
         """
         Validate the order to prevent duplicate orders and implement essential business rules

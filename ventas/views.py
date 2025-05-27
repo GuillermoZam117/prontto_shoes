@@ -143,6 +143,10 @@ class PedidoViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['cliente', 'fecha', 'estado', 'tienda', 'tipo']
+    
+    def perform_create(self, serializer):
+        """Override to set the created_by field"""
+        serializer.save(created_by=self.request.user)
 
 @extend_schema(tags=["Ventas"])
 class DetallePedidoViewSet(viewsets.ModelViewSet):

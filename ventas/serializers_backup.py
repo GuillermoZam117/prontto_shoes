@@ -77,14 +77,15 @@ class PedidoSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         with transaction.atomic():
             detalles_data = validated_data.pop('detalles')
-            cliente = validated_data.get('cliente')
-            tienda = validated_data.get('tienda')
-            user = self.context['request'].user
-            tipo_pedido = validated_data.get('tipo', 'venta')
+            cliente = validated_data.get('cliente')  # Get the client from validated data
+            tienda = validated_data.get('tienda')  # Get the store from validated data
+            user = self.context['request'].user  # Assuming user is in serializer context
+            tipo_pedido = validated_data.get('tipo', 'venta')  # Get order type, default to 'venta'
             
             # Handle "público en general" when no client is selected
             if not cliente:
                 try:
+                    # Look for a default "Público en General" client
                     cliente, created = Cliente.objects.get_or_create(
                         nombre='Público en General',
                         defaults={
@@ -98,7 +99,7 @@ class PedidoSerializer(serializers.ModelSerializer):
                 except Exception as e:
                     raise ValidationError("Error al crear cliente 'Público en General'")
             
-            # Create the Pedido instance
+            # Create the Pedido instance without total and discount initially
             pedido = Pedido.objects.create(**validated_data)
 
             total_pedido = Decimal('0.00')
