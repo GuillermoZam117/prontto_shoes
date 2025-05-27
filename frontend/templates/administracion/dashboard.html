@@ -1,0 +1,290 @@
+{% extends 'layouts/base.html' %}
+{% load static %}
+
+{% block title %}Dashboard de Administración - Pronto Shoes POS{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    .stat-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        transition: transform 0.2s;
+    }
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 25px rgba(0,0,0,0.15);
+    }
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+    .stat-label {
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+    .admin-card {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        margin-bottom: 1.5rem;
+    }
+    .admin-card-header {
+        background: #f8f9fa;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #dee2e6;
+        border-radius: 10px 10px 0 0;
+    }
+    .admin-card-body {
+        padding: 1.5rem;
+    }
+    .quick-action-btn {
+        background: linear-gradient(45deg, #28a745, #20c997);
+        border: none;
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        margin: 0.25rem;
+        transition: all 0.2s;
+    }
+    .quick-action-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
+        color: white;
+    }
+    .recent-log {
+        border-left: 4px solid #007bff;
+        padding: 0.75rem;
+        margin-bottom: 0.5rem;
+        background: #f8f9fa;
+        border-radius: 0 8px 8px 0;
+    }
+    .recent-log.warning {
+        border-left-color: #ffc107;
+        background: #fff3cd;
+    }
+    .recent-log.danger {
+        border-left-color: #dc3545;
+        background: #f8d7da;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0 text-gray-800">
+                <i class="fas fa-user-shield me-2"></i>
+                Dashboard de Administración
+            </h1>
+            <p class="text-muted mb-0">Gestión centralizada del sistema POS</p>
+        </div>
+        <div>
+            <a href="{% url 'administracion:lista_usuarios' %}" class="btn quick-action-btn">
+                <i class="fas fa-users me-1"></i> Gestionar Usuarios
+            </a>
+            <a href="{% url 'administracion:auditoria_dashboard' %}" class="btn quick-action-btn">
+                <i class="fas fa-search me-1"></i> Ver Auditoría
+            </a>
+        </div>
+    </div>
+
+    <!-- Estadísticas principales -->
+    <div class="row">
+        <div class="col-xl-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-number">{{ total_usuarios }}</div>
+                <div class="stat-label">
+                    <i class="fas fa-users me-1"></i>
+                    Total de Usuarios
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                <div class="stat-number">{{ usuarios_activos }}</div>
+                <div class="stat-label">
+                    <i class="fas fa-user-check me-1"></i>
+                    Usuarios Activos
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                <div class="stat-number">{{ usuarios_staff }}</div>
+                <div class="stat-label">
+                    <i class="fas fa-user-tie me-1"></i>
+                    Personal Administrativo
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="stat-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+                <div class="stat-number">{{ total_grupos }}</div>
+                <div class="stat-label">
+                    <i class="fas fa-layer-group me-1"></i>
+                    Grupos de Permisos
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Gráfico de actividad -->
+        <div class="col-xl-8">
+            <div class="admin-card">
+                <div class="admin-card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-line me-2"></i>
+                        Actividad del Sistema (Últimos 7 días)
+                    </h5>
+                </div>
+                <div class="admin-card-body">
+                    <canvas id="activityChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Acciones rápidas -->
+        <div class="col-xl-4">
+            <div class="admin-card">
+                <div class="admin-card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-bolt me-2"></i>
+                        Acciones Rápidas
+                    </h5>
+                </div>
+                <div class="admin-card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'administracion:crear_usuario' %}" class="btn quick-action-btn">
+                            <i class="fas fa-user-plus me-2"></i>
+                            Crear Nuevo Usuario
+                        </a>
+                        <a href="{% url 'administracion:crear_grupo' %}" class="btn quick-action-btn">
+                            <i class="fas fa-plus-circle me-2"></i>
+                            Crear Grupo
+                        </a>
+                        <a href="{% url 'administracion:configuracion_sistema' %}" class="btn quick-action-btn">
+                            <i class="fas fa-cog me-2"></i>
+                            Configuración
+                        </a>
+                        <a href="{% url 'administracion:backup_sistema' %}" class="btn quick-action-btn">
+                            <i class="fas fa-download me-2"></i>
+                            Generar Respaldo
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actividad reciente -->
+    <div class="row">
+        <div class="col-12">
+            <div class="admin-card">
+                <div class="admin-card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-history me-2"></i>
+                            Actividad Reciente
+                        </h5>
+                        <a href="{% url 'administracion:logs_auditoria' %}" class="btn btn-sm btn-outline-primary">
+                            Ver Todo
+                        </a>
+                    </div>
+                </div>
+                <div class="admin-card-body">
+                    {% if logs_recientes %}
+                        {% for log in logs_recientes %}
+                        <div class="recent-log 
+                            {% if log.accion == 'DELETE' %}danger
+                            {% elif log.accion == 'LOGIN' or log.accion == 'LOGOUT' %}warning
+                            {% endif %}">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <strong>
+                                        {% if log.usuario %}
+                                            {{ log.usuario.username }}
+                                        {% else %}
+                                            Sistema
+                                        {% endif %}
+                                    </strong>
+                                    <span class="text-muted">{{ log.get_accion_display }}</span>
+                                    <div class="small text-muted mt-1">{{ log.descripcion }}</div>
+                                </div>
+                                <small class="text-muted">
+                                    {{ log.fecha|date:"d/m/Y H:i" }}
+                                </small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted text-center py-3">
+                            <i class="fas fa-info-circle me-2"></i>
+                            No hay actividad reciente
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Gráfico de actividad
+    const ctx = document.getElementById('activityChart').getContext('2d');
+    const activityData = {{ actividad_diaria|safe }};
+    
+    const labels = activityData.map(item => {
+        const date = new Date(item.fecha_solo);
+        return date.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' });
+    });
+    
+    const data = activityData.map(item => item.total);
+    
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Eventos de Auditoría',
+                data: data,
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                tension: 0.3,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+    
+    // Auto-refresh cada 5 minutos
+    setInterval(function() {
+        location.reload();
+    }, 300000);
+});
+</script>
+{% endblock %}

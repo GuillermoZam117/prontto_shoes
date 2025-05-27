@@ -1,0 +1,59 @@
+/* Critical styles to prevent FOUC */
+/* This file should be inlined in the head to prevent flash of unstyled content */
+
+/* Hide body until fonts and styles are loaded */
+body {
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+}
+
+/* Show body when fully loaded */
+body.loaded {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Critical layout styles */
+.navbar {
+    background-color: #0d6efd !important;
+}
+
+.bg-dark {
+    background-color: #212529 !important;
+}
+
+.bg-primary {
+    background-color: #0d6efd !important;
+}
+
+/* Loading spinner for WebSocket connection */
+.websocket-status {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    z-index: 1050;
+}
+
+.websocket-status.connecting {
+    background-color: #ffc107;
+    color: #000;
+}
+
+.websocket-status.connected {
+    background-color: #198754;
+    color: #fff;
+}
+
+.websocket-status.disconnected {
+    background-color: #dc3545;
+    color: #fff;
+}
+
+.websocket-status.error {
+    background-color: #dc3545;
+    color: #fff;
+}

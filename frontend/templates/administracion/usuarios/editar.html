@@ -1,0 +1,488 @@
+{% extends 'layouts/base.html' %}
+{% load static %}
+
+{% block title %}Editar Usuario: {{ usuario.username }} - Pronto Shoes POS{% endblock %}
+
+{% block extra_head %}
+<style>
+    .form-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        margin-bottom: 2rem;
+    }
+    .form-card-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1.5rem;
+        border-radius: 15px 15px 0 0;
+    }
+    .form-card-body {
+        padding: 2rem;
+    }
+    .user-info-card {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    .user-avatar {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: linear-gradient(45deg, #007bff, #0056b3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 2rem;
+    }
+    .form-floating > .form-control {
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        transition: all 0.2s;
+    }
+    .form-floating > .form-control:focus {
+        border-color: #007bff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+    .grupo-card {
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        transition: all 0.2s;
+    }
+    .grupo-card:hover {
+        border-color: #007bff;
+        background: #f8f9fa;
+    }
+    .grupo-card.selected {
+        border-color: #007bff;
+        background: #e3f2fd;
+    }
+    .password-toggle {
+        cursor: pointer;
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        transition: all 0.2s;
+    }
+    .password-toggle:hover {
+        background: #e9ecef;
+    }
+    .password-section {
+        display: none;
+        animation: slideDown 0.3s ease-out;
+    }
+    .password-section.show {
+        display: block;
+    }
+    @keyframes slideDown {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0 text-gray-800">
+                <i class="fas fa-user-edit me-2"></i>
+                Editar Usuario
+            </h1>
+            <p class="text-muted mb-0">Modifica la información de {{ usuario.username }}</p>
+        </div>
+        <div>
+            <a href="{% url 'administracion:lista_usuarios' %}" class="btn btn-outline-secondary me-2">
+                <i class="fas fa-arrow-left me-1"></i> Volver a la Lista
+            </a>
+            <a href="{% url 'administracion:gestionar_permisos_usuario' usuario.id %}" class="btn btn-outline-info">
+                <i class="fas fa-key me-1"></i> Gestionar Permisos
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Información actual del usuario -->
+        <div class="col-xl-4 col-lg-5 mb-4">
+            <div class="user-info-card">
+                <div class="text-center mb-3">
+                    <div class="user-avatar mx-auto mb-3">
+                        {{ usuario.first_name|first|default:usuario.username|first|upper }}
+                    </div>
+                    <h4>{{ usuario.first_name }} {{ usuario.last_name }}</h4>
+                    <p class="text-muted">@{{ usuario.username }}</p>
+                </div>
+                
+                <div class="row text-center">
+                    <div class="col-6">
+                        <div class="border-end">
+                            <h6 class="mb-1">Estado</h6>
+                            {% if usuario.is_active %}
+                                <span class="badge bg-success">Activo</span>
+                            {% else %}
+                                <span class="badge bg-danger">Inactivo</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <h6 class="mb-1">Tipo</h6>
+                        {% if usuario.is_superuser %}
+                            <span class="badge bg-warning">Superusuario</span>
+                        {% elif usuario.is_staff %}
+                            <span class="badge bg-info">Staff</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Usuario</span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <div class="small">
+                    <p class="mb-1">
+                        <i class="fas fa-calendar me-2"></i>
+                        <strong>Registrado:</strong> {{ usuario.date_joined|date:"d/m/Y H:i" }}
+                    </p>
+                    {% if usuario.last_login %}
+                    <p class="mb-1">
+                        <i class="fas fa-clock me-2"></i>
+                        <strong>Último acceso:</strong> {{ usuario.last_login|date:"d/m/Y H:i" }}
+                    </p>
+                    {% else %}
+                    <p class="mb-1">
+                        <i class="fas fa-clock me-2"></i>
+                        <strong>Último acceso:</strong> Nunca
+                    </p>
+                    {% endif %}
+                    {% if usuario.email %}
+                    <p class="mb-0">
+                        <i class="fas fa-envelope me-2"></i>
+                        <strong>Email:</strong> {{ usuario.email }}
+                    </p>
+                    {% endif %}
+                </div>
+                
+                {% if usuario.groups.all %}
+                <hr>
+                <div>
+                    <h6 class="mb-2">Grupos Actuales:</h6>
+                    {% for grupo in usuario.groups.all %}
+                        <span class="badge bg-primary me-1 mb-1">{{ grupo.name }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Formulario de edición -->
+        <div class="col-xl-8 col-lg-7">
+            <div class="form-card">
+                <div class="form-card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-edit me-2"></i>
+                        Editar Información
+                    </h4>
+                </div>
+                <div class="form-card-body">
+                    <form method="post" id="editUserForm">
+                        {% csrf_token %}
+                        
+                        <!-- Información básica -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="text-muted mb-3">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    Información Básica
+                                </h5>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="form-floating">
+                                    {{ form.username }}
+                                    <label for="{{ form.username.id_for_label }}">
+                                        <i class="fas fa-user me-1"></i>
+                                        Nombre de Usuario *
+                                    </label>
+                                </div>
+                                {% if form.username.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {{ form.username.errors.0 }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="form-floating">
+                                    {{ form.email }}
+                                    <label for="{{ form.email.id_for_label }}">
+                                        <i class="fas fa-envelope me-1"></i>
+                                        Correo Electrónico
+                                    </label>
+                                </div>
+                                {% if form.email.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {{ form.email.errors.0 }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-md-6 mb-3">
+                                <div class="form-floating">
+                                    {{ form.first_name }}
+                                    <label for="{{ form.first_name.id_for_label }}">
+                                        <i class="fas fa-id-card me-1"></i>
+                                        Nombre(s)
+                                    </label>
+                                </div>
+                                {% if form.first_name.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {{ form.first_name.errors.0 }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="form-floating">
+                                    {{ form.last_name }}
+                                    <label for="{{ form.last_name.id_for_label }}">
+                                        <i class="fas fa-id-card me-1"></i>
+                                        Apellido(s)
+                                    </label>
+                                </div>
+                                {% if form.last_name.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {{ form.last_name.errors.0 }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Cambiar contraseña -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="text-muted mb-3">
+                                    <i class="fas fa-lock me-2"></i>
+                                    Cambiar Contraseña
+                                </h5>
+                                <div class="password-toggle" onclick="togglePasswordSection()">
+                                    <i class="fas fa-key me-2"></i>
+                                    <span id="passwordToggleText">Cambiar Contraseña</span>
+                                    <i class="fas fa-chevron-down float-end" id="passwordToggleIcon"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="password-section" id="passwordSection">
+                            <div class="row mb-4">
+                                <div class="col-md-6 mb-3">
+                                    <div class="form-floating">
+                                        {{ form.password1 }}
+                                        <label for="{{ form.password1.id_for_label }}">
+                                            <i class="fas fa-key me-1"></i>
+                                            Nueva Contraseña
+                                        </label>
+                                    </div>
+                                    <small class="text-muted">
+                                        Déjalo vacío si no quieres cambiar la contraseña
+                                    </small>
+                                    {% if form.password1.errors %}
+                                        <div class="text-danger small mt-1">
+                                            {{ form.password1.errors.0 }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <div class="form-floating">
+                                        {{ form.password2 }}
+                                        <label for="{{ form.password2.id_for_label }}">
+                                            <i class="fas fa-check me-1"></i>
+                                            Confirmar Nueva Contraseña
+                                        </label>
+                                    </div>
+                                    {% if form.password2.errors %}
+                                        <div class="text-danger small mt-1">
+                                            {{ form.password2.errors.0 }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Permisos y estado -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="text-muted mb-3">
+                                    <i class="fas fa-shield-alt me-2"></i>
+                                    Permisos y Estado
+                                </h5>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check form-switch">
+                                    {{ form.is_active }}
+                                    <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                        <i class="fas fa-toggle-on me-1"></i>
+                                        Usuario Activo
+                                    </label>
+                                </div>
+                                <small class="text-muted">
+                                    El usuario podrá iniciar sesión en el sistema
+                                </small>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check form-switch">
+                                    {{ form.is_staff }}
+                                    <label class="form-check-label" for="{{ form.is_staff.id_for_label }}">
+                                        <i class="fas fa-user-tie me-1"></i>
+                                        Personal Administrativo
+                                    </label>
+                                </div>
+                                <small class="text-muted">
+                                    Acceso al panel de administración de Django
+                                </small>
+                            </div>
+                        </div>
+
+                        <!-- Grupos -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="text-muted mb-3">
+                                    <i class="fas fa-users me-2"></i>
+                                    Asignación de Grupos
+                                </h5>
+                                <p class="text-muted small">
+                                    Modifica los grupos a los que pertenece este usuario.
+                                </p>
+                            </div>
+                            <div class="col-12">
+                                <div class="row">
+                                    {% for choice in form.grupos %}
+                                    <div class="col-md-6 col-lg-4 mb-2">
+                                        <div class="grupo-card">
+                                            <div class="form-check">
+                                                {{ choice.tag }}
+                                                <label class="form-check-label" for="{{ choice.choice_label }}">
+                                                    <strong>{{ choice.choice_label }}</strong>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Botones de acción -->
+                        <div class="row">
+                            <div class="col-12">
+                                <hr class="my-4">
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        {% if not usuario.is_superuser and usuario != request.user %}
+                                        <button type="button" class="btn btn-outline-danger" 
+                                                onclick="confirmDelete('{{ usuario.username }}', {{ usuario.id }})">
+                                            <i class="fas fa-trash me-1"></i>
+                                            Eliminar Usuario
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <a href="{% url 'administracion:lista_usuarios' %}" class="btn btn-outline-secondary">
+                                            <i class="fas fa-times me-1"></i>
+                                            Cancelar
+                                        </a>
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="fas fa-save me-1"></i>
+                                            Guardar Cambios
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de confirmación para eliminar -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Confirmar Eliminación
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Estás seguro de que quieres eliminar al usuario <strong id="deleteUsername"></strong>?</p>
+                <p class="text-muted small">Esta acción desactivará al usuario pero mantendrá sus registros en el sistema.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form id="deleteForm" method="post" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-1"></i>
+                        Eliminar Usuario
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Interactividad para las tarjetas de grupo
+    document.querySelectorAll('.grupo-card input[type="checkbox"]').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const card = this.closest('.grupo-card');
+            if (this.checked) {
+                card.classList.add('selected');
+            } else {
+                card.classList.remove('selected');
+            }
+        });
+        
+        // Estado inicial
+        if (checkbox.checked) {
+            checkbox.closest('.grupo-card').classList.add('selected');
+        }
+    });
+});
+
+function togglePasswordSection() {
+    const section = document.getElementById('passwordSection');
+    const icon = document.getElementById('passwordToggleIcon');
+    const text = document.getElementById('passwordToggleText');
+    
+    if (section.classList.contains('show')) {
+        section.classList.remove('show');
+        icon.classList.remove('fa-chevron-up');
+        icon.classList.add('fa-chevron-down');
+        text.textContent = 'Cambiar Contraseña';
+    } else {
+        section.classList.add('show');
+        icon.classList.remove('fa-chevron-down');
+        icon.classList.add('fa-chevron-up');
+        text.textContent = 'Ocultar Cambio de Contraseña';
+    }
+}
+
+function confirmDelete(username, userId) {
+    document.getElementById('deleteUsername').textContent = username;
+    document.getElementById('deleteForm').action = `/administracion/usuarios/${userId}/eliminar/`;
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+</script>
+{% endblock %}

@@ -97,9 +97,6 @@ def devolucion_detail(request, pk):
             'fecha': pedido.fecha,
             'total': pedido.total,
         }
-        print(f"DEBUG: compra_original created with id: {pedido.id}")  # Debug line
-    else:
-        print(f"DEBUG: No detalle_pedido or pedido found for devolution {pk}")  # Debug line
     
     # Get timeline data (for status tracking)
     timeline_data = [

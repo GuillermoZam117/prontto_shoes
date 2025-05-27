@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontend Error Test</title>
+</head>
+<body>
+    <h1>Frontend Error Testing</h1>
+    <div id="test-results"></div>
+    
+    <script>
+        // Capture and log all JavaScript errors
+        window.addEventListener('error', function(e) {
+            console.error('JavaScript Error:', {
+                message: e.message,
+                filename: e.filename,
+                lineno: e.lineno,
+                colno: e.colno,
+                error: e.error
+            });
+            
+            const testResults = document.getElementById('test-results');
+            testResults.innerHTML += `
+                <div style="color: red; border: 1px solid red; padding: 10px; margin: 5px;">
+                    <strong>Error:</strong> ${e.message}<br>
+                    <strong>File:</strong> ${e.filename}<br>
+                    <strong>Line:</strong> ${e.lineno}<br>
+                    <strong>Column:</strong> ${e.colno}
+                </div>
+            `;
+        });
+
+        // Test WebSocket connection
+        console.log('Testing WebSocket connection...');
+        try {
+            const ws = new WebSocket('ws://127.0.0.1:8000/ws/sincronizacion/');
+            
+            ws.onopen = function(e) {
+                console.log('WebSocket connection opened successfully');
+                document.getElementById('test-results').innerHTML += `
+                    <div style="color: green; border: 1px solid green; padding: 10px; margin: 5px;">
+                        <strong>Success:</strong> WebSocket connection opened
+                    </div>
+                `;
+            };
+            
+            ws.onerror = function(e) {
+                console.error('WebSocket error:', e);
+                document.getElementById('test-results').innerHTML += `
+                    <div style="color: red; border: 1px solid red; padding: 10px; margin: 5px;">
+                        <strong>WebSocket Error:</strong> ${e.type}
+                    </div>
+                `;
+            };
+            
+            ws.onclose = function(e) {
+                console.log('WebSocket connection closed:', e);
+                document.getElementById('test-results').innerHTML += `
+                    <div style="color: orange; border: 1px solid orange; padding: 10px; margin: 5px;">
+                        <strong>WebSocket Closed:</strong> Code ${e.code}, Reason: ${e.reason}
+                    </div>
+                `;
+            };
+        } catch (error) {
+            console.error('Failed to create WebSocket:', error);
+            document.getElementById('test-results').innerHTML += `
+                <div style="color: red; border: 1px solid red; padding: 10px; margin: 5px;">
+                    <strong>WebSocket Creation Failed:</strong> ${error.message}
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

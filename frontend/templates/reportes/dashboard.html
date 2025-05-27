@@ -1,0 +1,518 @@
+{% extends "layouts/base.html" %}
+{% load static %}
+
+{% block title %}Dashboard de Reportes Avanzados{% endblock %}
+
+{% block page_title %}Reportes Avanzados{% endblock %}
+
+{% block breadcrumbs_content %}
+    <li class="breadcrumb-item active">Reportes Avanzados</li>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .report-card {
+        transition: transform 0.2s;
+        cursor: pointer;
+        border-left: 4px solid #4e73df;
+    }
+    .report-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+    }
+    .report-icon {
+        font-size: 2rem;
+        color: #4e73df;
+    }
+    .stats-card {
+        border-left: 4px solid;
+    }
+    .stats-card.primary {
+        border-left-color: #4e73df;
+    }
+    .stats-card.success {
+        border-left-color: #1cc88a;
+    }
+    .stats-card.info {
+        border-left-color: #36b9cc;
+    }
+    .stats-card.warning {
+        border-left-color: #f6c23e;
+    }
+    .recent-reports {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Estadísticas principales -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stats-card primary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            Reportes Disponibles
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ reportes_disponibles|length }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-file-earmark-text fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stats-card success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Reportes Personalizados
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ total_reportes }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-gear fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stats-card info shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            Total Ejecuciones
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ total_ejecuciones }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-play-circle fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stats-card warning shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            Reportes Hoy
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ reportes_recientes|length }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-calendar-day fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reportes Disponibles -->
+<div class="row mb-4">
+    <div class="col-lg-8">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-primary">Reportes Disponibles</h6>
+                <div class="dropdown no-arrow">
+                    <a class="dropdown-toggle" href="#" role="button" id="dropdownMenuLink"
+                        data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <i class="fas fa-ellipsis-v fa-sm fa-fw text-gray-400"></i>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-right shadow animated--fade-in"
+                        aria-labelledby="dropdownMenuLink">
+                        <div class="dropdown-header">Acciones:</div>
+                        <a class="dropdown-item" href="#" onclick="ejecutarTodosReportes()">Ejecutar Todos</a>
+                        <a class="dropdown-item" href="#" onclick="exportarCatalogo()">Exportar Catálogo</a>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for tipo_key, tipo_nombre in reportes_disponibles %}
+                    <div class="col-md-6 mb-3">
+                        <div class="card report-card h-100" onclick="ejecutarReporte('{{ tipo_key }}')">
+                            <div class="card-body text-center">
+                                <div class="report-icon mb-3">
+                                    {% if 'clientes' in tipo_key %}
+                                        <i class="bi bi-people"></i>
+                                    {% elif 'precio' in tipo_key %}
+                                        <i class="bi bi-currency-dollar"></i>
+                                    {% elif 'inventario' in tipo_key %}
+                                        <i class="bi bi-box-seam"></i>
+                                    {% elif 'descuento' in tipo_key %}
+                                        <i class="bi bi-percent"></i>
+                                    {% elif 'venta' in tipo_key %}
+                                        <i class="bi bi-graph-up-arrow"></i>
+                                    {% elif 'producto' in tipo_key %}
+                                        <i class="bi bi-bag"></i>
+                                    {% elif 'rentabilidad' in tipo_key %}
+                                        <i class="bi bi-pie-chart"></i>
+                                    {% elif 'stock' in tipo_key %}
+                                        <i class="bi bi-exclamation-triangle"></i>
+                                    {% elif 'tendencia' in tipo_key %}
+                                        <i class="bi bi-graph-up"></i>
+                                    {% else %}
+                                        <i class="bi bi-file-earmark-bar-graph"></i>
+                                    {% endif %}
+                                </div>
+                                <h6 class="card-title">{{ tipo_nombre }}</h6>
+                                <p class="card-text text-muted small">
+                                    {% if 'clientes' in tipo_key %}
+                                        Identifica clientes sin actividad reciente
+                                    {% elif 'precio' in tipo_key %}
+                                        Rastrea cambios de precios en productos
+                                    {% elif 'inventario' in tipo_key %}
+                                        Analiza movimientos de inventario y traspasos
+                                    {% elif 'descuento' in tipo_key %}
+                                        Analiza descuentos aplicados mensualmente
+                                    {% elif 'cumplimiento' in tipo_key %}
+                                        Evalúa cumplimiento de metas del tabulador
+                                    {% elif 'vendedor' in tipo_key %}
+                                        Rendimiento individual de vendedores
+                                    {% elif 'productos' in tipo_key %}
+                                        Top de productos más vendidos
+                                    {% elif 'rentabilidad' in tipo_key %}
+                                        Análisis de márgenes y ganancias
+                                    {% elif 'stock' in tipo_key %}
+                                        Alertas de stock bajo y crítico
+                                    {% elif 'tendencia' in tipo_key %}
+                                        Tendencias y patrones de ventas
+                                    {% else %}
+                                        Reporte de análisis avanzado
+                                    {% endif %}
+                                </p>
+                                <button class="btn btn-primary btn-sm">
+                                    <i class="bi bi-play me-1"></i> Ejecutar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ejecuciones Recientes -->
+    <div class="col-lg-4">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-primary">Ejecuciones Recientes</h6>
+                <button class="btn btn-sm btn-outline-primary" onclick="actualizarRecientes()">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </button>
+            </div>
+            <div class="card-body recent-reports">
+                {% if reportes_recientes %}
+                    {% for ejecucion in reportes_recientes %}
+                    <div class="d-flex align-items-center mb-3 p-2 border-left border-primary">
+                        <div class="mr-3">
+                            <div class="icon-circle bg-primary">
+                                <i class="bi bi-file-earmark-text text-white"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1">
+                            <div class="small text-gray-500">{{ ejecucion.fecha_ejecucion|timesince }} ago</div>
+                            <div class="font-weight-bold">{{ ejecucion.reporte.nombre }}</div>
+                            <div class="small text-muted">
+                                Por: {{ ejecucion.ejecutado_por.username }}
+                                {% if ejecucion.tiempo_ejecucion %}
+                                    • {{ ejecucion.tiempo_ejecucion|floatformat:2 }}s
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <span class="badge badge-light">{{ ejecucion.registros_encontrados }} registros</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-inbox display-4 d-block mb-3"></i>
+                        <p>No hay ejecuciones recientes</p>
+                        <p class="small">Los reportes ejecutados aparecerán aquí</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Acciones Rápidas -->
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Acciones Rápidas</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <button class="btn btn-outline-primary btn-block" onclick="programarReporte()">
+                            <i class="bi bi-calendar-plus me-1"></i>
+                            Programar Reporte
+                        </button>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <button class="btn btn-outline-success btn-block" onclick="exportarResultados()">
+                            <i class="bi bi-download me-1"></i>
+                            Exportar Resultados
+                        </button>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <button class="btn btn-outline-info btn-block" onclick="configurarAlertas()">
+                            <i class="bi bi-bell me-1"></i>
+                            Configurar Alertas
+                        </button>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <button class="btn btn-outline-warning btn-block" onclick="verHistorial()">
+                            <i class="bi bi-clock-history me-1"></i>
+                            Ver Historial
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function ejecutarReporte(tipoReporte) {
+    // Mostrar modal de configuración de parámetros
+    $('#modalParametros').modal('show');
+    $('#tipoReporteSeleccionado').val(tipoReporte);
+    $('#nombreReporte').text(tipoReporte.replace('_', ' ').toUpperCase());
+}
+
+function ejecutarReporteConParametros() {
+    const tipoReporte = $('#tipoReporteSeleccionado').val();
+    const parametros = {
+        fecha_desde: $('#fechaDesde').val(),
+        fecha_hasta: $('#fechaHasta').val(),
+        tienda_id: $('#tienda').val(),
+        cliente_id: $('#cliente').val(),
+        formato: $('#formato').val()
+    };
+    
+    // Mostrar indicador de carga
+    Swal.fire({
+        title: 'Generando Reporte',
+        text: 'Por favor espere mientras se procesa el reporte...',
+        allowOutsideClick: false,
+        showConfirmButton: false,
+        willOpen: () => {
+            Swal.showLoading()
+        }
+    });
+    
+    // Hacer petición AJAX
+    fetch(`/reportes/api/avanzados/?tipo_reporte=${tipoReporte}&${new URLSearchParams(parametros)}`)
+        .then(response => response.json())
+        .then(data => {
+            Swal.close();
+            if (data.error) {
+                Swal.fire('Error', data.error, 'error');
+            } else {
+                mostrarResultadosReporte(data);
+            }
+        })
+        .catch(error => {
+            Swal.close();
+            Swal.fire('Error', 'Ocurrió un error al generar el reporte', 'error');
+            console.error('Error:', error);
+        });
+    
+    $('#modalParametros').modal('hide');
+}
+
+function mostrarResultadosReporte(data) {
+    // Crear modal con resultados
+    const modalHtml = `
+        <div class="modal fade" id="modalResultados" tabindex="-1">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">${data.titulo}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <strong>Período:</strong> ${data.periodo || 'N/A'}
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Registros:</strong> ${data.metadatos?.total_registros || data.datos?.length || 0}
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead class="table-dark">
+                                    <tr id="tableHeaders"></tr>
+                                </thead>
+                                <tbody id="tableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                        <button type="button" class="btn btn-success" onclick="exportarResultados()">
+                            <i class="bi bi-download me-1"></i> Exportar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remover modal anterior si existe
+    $('#modalResultados').remove();
+    
+    // Agregar nuevo modal
+    $('body').append(modalHtml);
+    
+    // Llenar tabla con datos
+    if (data.datos && data.datos.length > 0) {
+        const headers = Object.keys(data.datos[0]);
+        $('#tableHeaders').html(headers.map(h => `<th>${h.replace('_', ' ').toUpperCase()}</th>`).join(''));
+        
+        const rows = data.datos.slice(0, 100).map(row => // Limitar a 100 filas para evitar problemas de rendimiento
+            `<tr>${headers.map(h => `<td>${row[h] || ''}</td>`).join('')}</tr>`
+        ).join('');
+        
+        $('#tableBody').html(rows);
+        
+        if (data.datos.length > 100) {
+            $('#tableBody').append(`<tr><td colspan="${headers.length}" class="text-center text-muted">... y ${data.datos.length - 100} registros más</td></tr>`);
+        }
+    }
+    
+    // Mostrar modal
+    $('#modalResultados').modal('show');
+}
+
+function actualizarRecientes() {
+    location.reload();
+}
+
+function programarReporte() {
+    Swal.fire('Programar Reporte', 'Funcionalidad en desarrollo', 'info');
+}
+
+function exportarResultados() {
+    Swal.fire('Exportar', 'Funcionalidad en desarrollo', 'info');
+}
+
+function configurarAlertas() {
+    Swal.fire('Configurar Alertas', 'Funcionalidad en desarrollo', 'info');
+}
+
+function verHistorial() {
+    Swal.fire('Ver Historial', 'Funcionalidad en desarrollo', 'info');
+}
+
+function ejecutarTodosReportes() {
+    Swal.fire({
+        title: '¿Ejecutar todos los reportes?',
+        text: 'Esta operación puede tomar varios minutos',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, ejecutar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            Swal.fire('En proceso', 'Ejecutando todos los reportes...', 'info');
+        }
+    });
+}
+
+function exportarCatalogo() {
+    window.open('/reportes/api/avanzados/?formato=csv', '_blank');
+}
+</script>
+
+<!-- Modal de Parámetros -->
+<div class="modal fade" id="modalParametros" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Configurar Reporte: <span id="nombreReporte"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form>
+                    <input type="hidden" id="tipoReporteSeleccionado">
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Fecha Desde</label>
+                            <input type="date" class="form-control" id="fechaDesde">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Fecha Hasta</label>
+                            <input type="date" class="form-control" id="fechaHasta">
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Tienda</label>
+                            <select class="form-select" id="tienda">
+                                <option value="">Todas las tiendas</option>
+                                <!-- Opciones se cargarían dinámicamente -->
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Cliente</label>
+                            <select class="form-select" id="cliente">
+                                <option value="">Todos los clientes</option>
+                                <!-- Opciones se cargarían dinámicamente -->
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Formato de Salida</label>
+                        <select class="form-select" id="formato">
+                            <option value="json">Ver en Pantalla</option>
+                            <option value="csv">Descargar CSV</option>
+                            <option value="excel">Descargar Excel</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="ejecutarReporteConParametros()">
+                    <i class="bi bi-play me-1"></i> Ejecutar Reporte
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

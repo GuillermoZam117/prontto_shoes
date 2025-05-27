@@ -22,15 +22,34 @@
     
     <!-- SweetAlert2 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css" rel="stylesheet">
-    
-    <!-- Custom CSS -->
+      <!-- Custom CSS -->
     <link rel="stylesheet" href="{% static 'css/main.css' %}">
     
-    <!-- HTMX -->
+    <!-- Critical CSS to prevent FOUC -->
+    <style>
+        /* Critical styles inlined to prevent FOUC */
+        body { visibility: hidden; opacity: 0; transition: opacity 0.3s ease-in-out; }
+        body.loaded { visibility: visible; opacity: 1; }
+        .navbar { background-color: #0d6efd !important; }
+        .bg-dark { background-color: #212529 !important; }
+        .bg-primary { background-color: #0d6efd !important; }
+        .websocket-status { 
+            position: fixed; top: 10px; right: 10px; padding: 5px 10px; 
+            border-radius: 4px; font-size: 0.8rem; z-index: 1050; 
+        }
+        .websocket-status.connecting { background-color: #ffc107; color: #000; }
+        .websocket-status.connected { background-color: #198754; color: #fff; }
+        .websocket-status.disconnected { background-color: #dc3545; color: #fff; }
+        .websocket-status.error { background-color: #dc3545; color: #fff; }
+    </style>
+      <!-- HTMX -->
     <script src="https://unpkg.com/htmx.org@1.9.6"></script>
     
     <!-- Alpine.js -->
     <script defer src="https://unpkg.com/alpinejs@3.13.0/dist/cdn.min.js"></script>
+    
+    <!-- Frontend Fix Manager - Load early to handle errors -->
+    <script src="{% static 'js/frontend-fix.js' %}"></script>
     
     {% block extra_css %}{% endblock %}
 </head>
@@ -133,13 +152,12 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.all.min.js"></script>
     
     <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    
-    <!-- Custom JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>    <!-- Custom JavaScript -->
+    <script src="{% static 'js/error-tracker.js' %}"></script>
+    <script src="{% static 'js/sincronizacion-websocket.js' %}"></script>
     <script src="{% static 'js/main.js' %}"></script>
     <script src="{% static 'js/sync.js' %}"></script>
-    
-    <script>
+      <script>
         // Initialize Select2
         $(document).ready(function() {
             $('.select2').select2({
@@ -151,6 +169,11 @@
         var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
         var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
             return new bootstrap.Tooltip(tooltipTriggerEl)
+        });
+        
+        // Mark page as fully loaded to prevent FOUC
+        $(window).on('load', function() {
+            document.body.classList.add('loaded');
         });
     </script>
     
