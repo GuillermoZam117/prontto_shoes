@@ -88,15 +88,18 @@ def devolucion_detail(request, pk):
     devolucion = get_object_or_404(Devolucion, pk=pk)
     
     # Get related data
-    if devolucion.detalle_pedido:
+    compra_original = None
+    if devolucion.detalle_pedido and devolucion.detalle_pedido.pedido:
         pedido = devolucion.detalle_pedido.pedido
         compra_original = {
+            'id': pedido.id,
             'pedido': pedido,
             'fecha': pedido.fecha,
             'total': pedido.total,
         }
+        print(f"DEBUG: compra_original created with id: {pedido.id}")  # Debug line
     else:
-        compra_original = None
+        print(f"DEBUG: No detalle_pedido or pedido found for devolution {pk}")  # Debug line
     
     # Get timeline data (for status tracking)
     timeline_data = [
@@ -309,12 +312,80 @@ def devolucion_validate(request, pk):
     """Vista para validar una devolución"""
     devolucion = get_object_or_404(Devolucion, pk=pk)
     
-    # Only allow validation for pending returns
-    if devolucion.estado != 'pendiente':
-        messages.error(request, "Solo se pueden validar devoluciones en estado 'pendiente'.")
-        return redirect('devoluciones:detalle', pk=pk)
+    # Handle AJAX requests for status changes
+    if request.method == 'POST' and request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        from django.http import JsonResponse
+        
+        nuevo_estado = request.POST.get('estado')
+        comentario = request.POST.get('comentario', '')
+        
+        try:
+            with transaction.atomic():
+                # Validate state transition
+                estado_actual = devolucion.estado
+                
+                if estado_actual == 'pendiente' and nuevo_estado in ['validada', 'rechazada']:
+                    devolucion.estado = nuevo_estado
+                elif estado_actual == 'validada' and nuevo_estado == 'completada':
+                    devolucion.estado = nuevo_estado
+                else:
+                    return JsonResponse({
+                        'success': False,
+                        'message': f'No se puede cambiar de estado {estado_actual} a {nuevo_estado}'
+                    }, status=400)
+                
+                # Process state-specific logic
+                if nuevo_estado == 'validada':
+                    # Process inventory update if applicable
+                    if devolucion.afecta_inventario:
+                        # Logic to return product to inventory would go here
+                        pass
+                    
+                    # Process customer credit if applicable
+                    if devolucion.saldo_a_favor_generado > 0:
+                        cliente = devolucion.cliente
+                        cliente.saldo_a_favor += devolucion.saldo_a_favor_generado
+                        cliente.save()
+                        
+                        # Record transaction in Caja if needed
+                        try:
+                            # Find open cash register
+                            today = timezone.now().date()
+                            user = request.user
+                            
+                            if hasattr(user, 'tienda') and user.tienda:
+                                try:
+                                    caja_abierta = Caja.objects.get(tienda=user.tienda, fecha=today, cerrada=False)
+                                    
+                                    # Register transaction
+                                    TransaccionCaja.objects.create(
+                                        caja=caja_abierta,
+                                        tipo_movimiento='egreso',  # Refunds are expenses for the store
+                                        monto=devolucion.saldo_a_favor_generado,
+                                        descripcion=f'Devolución #{devolucion.id} - Cliente: {devolucion.cliente.nombre}',
+                                        created_by=user
+                                    )
+                                except Caja.DoesNotExist:
+                                    # No open cash register, just log the error
+                                    pass
+                        except Exception as e:
+                            # Log error but continue processing
+                            pass
+                
+                devolucion.save()
+                
+                return JsonResponse({
+                    'success': True,
+                    'message': f'Estado cambiado a {devolucion.get_estado_display()}'
+                })
+                
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': f'Error al cambiar el estado: {str(e)}'
+            }, status=500)
     
-    # Check if validation action is submitted
+    # Handle regular form requests
     if request.method == 'POST':
         action = request.POST.get('action')
         

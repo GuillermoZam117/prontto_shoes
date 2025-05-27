@@ -32,13 +32,12 @@
                     </div>
                 </h6>
             </div>
-            <div class="card-body">
-                <!-- Tienda Selector -->
+            <div class="card-body">                <!-- Tienda Selector -->
                 <div class="mb-3">
                     <label for="tienda-select" class="form-label">Seleccionar Tienda</label>
                     <select class="form-select" id="tienda-select">
                         {% for tienda in tiendas %}
-                        <option value="{{ tienda.id }}">{{ tienda.nombre }} ({{ tienda.productos|length }} productos)</option>
+                        <option value="{{ tienda.id }}" {% if tienda.id == 1 %}selected{% endif %}>{{ tienda.nombre }} ({{ tienda.productos|length }} productos)</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -491,46 +490,50 @@
             const subtotal = cart.reduce((sum, item) => sum + item.subtotal, 0);
             const discountRate = parseFloat(discountRateEl.textContent) || 0;
             const discountAmount = subtotal * (discountRate / 100);
-            const total = subtotal - discountAmount;
-            
-            // Prepare data for API request
+            const total = subtotal - discountAmount;              // Prepare data for API request - Match backend expected structure
             const data = {
-                cliente: clienteId,
+                fecha: new Date().toISOString().split('T')[0], // YYYY-MM-DD format
                 tipo: tipoVenta,
-                descuento_aplicado: discountRate,
-                total: total,
-                tienda: tiendaSelect.value,
-                fecha: new Date().toISOString(),
-                estado: tipoVenta === 'venta' ? 'completado' : 'pendiente',
+                tienda: parseInt(tiendaSelect.value),
+                pagado: tipoVenta === 'venta', // Only paid if it's a sale
+                total: total, // Required by backend
                 detalles: cart.map(item => ({
-                    producto: item.id,
-                    cantidad: item.cantidad,
-                    precio_unitario: item.precio,
-                    subtotal: item.subtotal
+                    producto: parseInt(item.id), // Product ID as integer
+                    cantidad: parseInt(item.cantidad), // Quantity as integer
+                    precio_unitario: parseFloat(item.precio), // Required by backend
+                    subtotal: parseFloat(item.subtotal) // Required by backend
                 }))
             };
+            
+            // Add cliente only if not "Público en General" (backend handles this automatically)
+            if (clienteId && clienteId !== '' && clienteId !== '0') {
+                data.cliente = parseInt(clienteId);
+            }
             
             const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
             if (!csrfToken) {
                 console.warn('CSRF token not found');
                 ProntoApp.notify('Error', 'Error de seguridad. Por favor, recarga la página.', 'error');
                 return;
-            }
-              // Make API request
+            }            // Make API request
             fetch('/api/pedidos/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': csrfToken.value
                 },
+                credentials: 'same-origin',  // Include session cookies
                 body: JSON.stringify(data)
-            })
-            .then(response => {
+            })            .then(response => {
                 if (!response.ok) {
-                    throw new Error('Error al procesar la venta');
+                    // Log response details for debugging
+                    return response.text().then(text => {
+                        console.error('API Error Response:', response.status, response.statusText, text);
+                        throw new Error(`Error ${response.status}: ${response.statusText}`);
+                    });
                 }
                 return response.json();
-            })            .then(data => {
+            }).then(data => {
                 // Close modal
                 const checkoutModal = document.getElementById('checkoutModal');
                 if (checkoutModal) {

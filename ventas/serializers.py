@@ -14,6 +14,7 @@ class DetallePedidoSerializer(serializers.ModelSerializer):
     class Meta:
         model = DetallePedido
         fields = '__all__'
+        read_only_fields = ('pedido',)
         
 class PedidoSerializer(serializers.ModelSerializer):
     detalles = DetallePedidoSerializer(many=True)
@@ -97,20 +98,17 @@ class PedidoSerializer(serializers.ModelSerializer):
                     validated_data['cliente'] = cliente
                 except Exception as e:
                     raise ValidationError("Error al crear cliente 'Público en General'")
-            
-            # Create the Pedido instance
+              # Create the Pedido instance
             pedido = Pedido.objects.create(**validated_data)
 
             total_pedido = Decimal('0.00')
             for detalle_data in detalles_data:
-                producto_id = detalle_data['producto']
+                producto = detalle_data['producto']
                 cantidad = detalle_data['cantidad']
                 
-                # Basic validation: check if product exists
-                try:
-                    producto_instance = Producto.objects.get(id=producto_id)
-                except Producto.DoesNotExist:
-                    raise ValidationError(f"Producto con ID {producto_id} no encontrado.")
+                # The producto field comes as a Producto instance after serializer validation
+                # So we can use it directly instead of querying the database again
+                producto_instance = producto
                 
                 # Check inventory availability before creating order item, only for 'venta' type orders
                 inventario_tienda = None

@@ -313,22 +313,9 @@ def cliente_delete(request, pk):
             else:
                 messages.error(request, f'No se puede eliminar el cliente {cliente.nombre}. Tiene un saldo a favor de ${cliente.saldo_a_favor}.')
                 return redirect('clientes:lista')
-        
-        # Check if client has unused advances
-        anticipos_no_utilizados = Anticipo.objects.filter(
-            cliente=cliente, 
-            utilizado=False
-        ).count()
-        
-        if anticipos_no_utilizados > 0:
-            if request.headers.get('HX-Request'):
-                return JsonResponse({
-                    'success': False,
-                    'message': f'No se puede eliminar el cliente {cliente.nombre}. Tiene {anticipos_no_utilizados} anticipo(s) no utilizado(s).'
-                }, status=400)
-            else:
-                messages.error(request, f'No se puede eliminar el cliente {cliente.nombre}. Tiene {anticipos_no_utilizados} anticipo(s) no utilizado(s).')
-                return redirect('clientes:lista')
+          # Check if client has any advances (always allow deletion for now)
+        # anticipos = Anticipo.objects.filter(cliente=cliente).count()
+        # Note: In the future, you might want to add business logic here
         
         # If all validations pass, delete the client
         nombre_cliente = cliente.nombre
@@ -363,9 +350,9 @@ class ClienteViewSet(viewsets.ModelViewSet):
     serializer_class = ClienteSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['tienda', 'activo']
+    filterset_fields = ['tienda']
     search_fields = ['nombre', 'contacto']
-    ordering_fields = ['nombre', 'fecha_creacion', 'saldo_a_favor']
+    ordering_fields = ['nombre', 'created_at', 'saldo_a_favor']
     ordering = ['nombre']
 
     @extend_schema(
@@ -399,7 +386,7 @@ class AnticipoViewSet(viewsets.ModelViewSet):
     serializer_class = AnticipoSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['cliente', 'utilizado']
+    filterset_fields = ['cliente']
     ordering = ['-fecha']
 
 class DescuentoClienteViewSet(viewsets.ModelViewSet):
