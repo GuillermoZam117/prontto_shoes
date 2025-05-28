@@ -24,6 +24,17 @@ def index(request):
     }
     return render(request, 'dashboard/index.html', context)
 
+@login_required
+def sidebar_demo(request):
+    """
+    Demo page to showcase the new sidebar functionality
+    """
+    context = {
+        'page_title': 'Sidebar Demo',
+        'mobile_title': 'Sidebar Demo',
+    }
+    return render(request, 'sidebar_demo.html', context)
+
 # API endpoint to get dashboard data for real-time updates
 @login_required
 def dashboard_data(request):

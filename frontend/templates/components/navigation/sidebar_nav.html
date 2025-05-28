@@ -1,0 +1,146 @@
+{% comment %}
+Sidebar Navigation Component for POS System
+{% endcomment %}
+
+<nav class="sidebar-nav">
+    {% if user.is_authenticated %}
+        <!-- Main Navigation Items -->
+        <div class="nav-item">
+            <a class="nav-link {% if request.resolver_match.app_name == 'dashboard' %}active{% endif %}" href="{% url 'dashboard:index' %}">
+                <i class="bi bi-speedometer2 nav-icon"></i>
+                <span class="nav-text">Dashboard</span>
+                <span class="sidebar-tooltip">Dashboard</span>
+            </a>
+        </div>
+
+        <div class="nav-item">
+            <a class="nav-link {% if request.resolver_match.app_name == 'ventas' %}active{% endif %}" href="{% url 'ventas:pos' %}">
+                <i class="bi bi-cart nav-icon"></i>
+                <span class="nav-text">Ventas</span>
+                <span class="sidebar-tooltip">Ventas</span>
+            </a>
+        </div>
+
+        <div class="nav-item">
+            <a class="nav-link {% if request.resolver_match.app_name == 'clientes' %}active{% endif %}" href="{% url 'clientes:lista' %}">
+                <i class="bi bi-people nav-icon"></i>
+                <span class="nav-text">Clientes</span>
+                <span class="sidebar-tooltip">Clientes</span>
+            </a>
+        </div>
+
+        <div class="nav-item">
+            <a class="nav-link {% if request.resolver_match.app_name == 'productos' %}active{% endif %}" href="{% url 'productos:lista' %}">
+                <i class="bi bi-box-seam nav-icon"></i>
+                <span class="nav-text">Productos</span>
+                <span class="sidebar-tooltip">Productos</span>
+            </a>
+        </div>
+
+        <div class="nav-item">
+            <a class="nav-link {% if request.resolver_match.app_name == 'inventario' %}active{% endif %}" href="{% url 'inventario:lista' %}">
+                <i class="bi bi-stack nav-icon"></i>
+                <span class="nav-text">Inventario</span>
+                <span class="sidebar-tooltip">Inventario</span>
+            </a>
+        </div>
+
+        <div class="nav-item">
+            <a class="nav-link {% if request.resolver_match.app_name == 'caja' %}active{% endif %}" href="{% url 'caja:lista' %}">
+                <i class="bi bi-cash-register nav-icon"></i>
+                <span class="nav-text">Caja</span>
+                <span class="sidebar-tooltip">Caja</span>
+            </a>
+        </div>
+
+        <div class="nav-item">
+            <a class="nav-link {% if request.resolver_match.app_name == 'devoluciones' %}active{% endif %}" href="{% url 'devoluciones:lista' %}">
+                <i class="bi bi-arrow-return-left nav-icon"></i>
+                <span class="nav-text">Devoluciones</span>
+                <span class="sidebar-tooltip">Devoluciones</span>
+            </a>
+        </div>
+
+        <div class="nav-item">
+            <a class="nav-link {% if request.resolver_match.app_name == 'requisiciones' %}active{% endif %}" href="{% url 'requisiciones:lista' %}">
+                <i class="bi bi-list-check nav-icon"></i>
+                <span class="nav-text">Requisiciones</span>
+                <span class="sidebar-tooltip">Requisiciones</span>
+            </a>
+        </div>
+
+        <!-- Reportes Dropdown -->
+        <div class="nav-item nav-dropdown">
+            <a href="#" class="nav-link nav-dropdown-toggle">
+                <i class="bi bi-graph-up nav-icon"></i>
+                <span class="nav-text">Reportes</span>
+                <i class="bi bi-chevron-down nav-dropdown-arrow"></i>
+                <span class="sidebar-tooltip">Reportes</span>
+            </a>
+            <div class="nav-dropdown-menu">
+                <div class="nav-item">
+                    <a class="nav-link nav-dropdown-item" href="{% url 'ventas:pedidos' %}">
+                        <span class="nav-text">Pedidos</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a class="nav-link nav-dropdown-item" href="#">
+                        <span class="nav-text">Inventario</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a class="nav-link nav-dropdown-item" href="#">
+                        <span class="nav-text">Compras</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a class="nav-link nav-dropdown-item" href="#">
+                        <span class="nav-text">Personalizado</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Administración Dropdown -->
+        <div class="nav-item nav-dropdown">
+            <a href="#" class="nav-link nav-dropdown-toggle">
+                <i class="bi bi-gear nav-icon"></i>
+                <span class="nav-text">Administración</span>
+                <i class="bi bi-chevron-down nav-dropdown-arrow"></i>
+                <span class="sidebar-tooltip">Administración</span>
+            </a>
+            <div class="nav-dropdown-menu">
+                <div class="nav-item">
+                    <a class="nav-link nav-dropdown-item" href="{% url 'proveedores:lista' %}">
+                        <span class="nav-text">Proveedores</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a class="nav-link nav-dropdown-item" href="{% url 'descuentos:lista' %}">
+                        <span class="nav-text">Tabulador de Descuentos</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a class="nav-link nav-dropdown-item" href="{% url 'tiendas:lista' %}">
+                        <span class="nav-text">Tiendas</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a class="nav-link nav-dropdown-item" href="{% url 'sincronizacion:sincronizacion_dashboard' %}">
+                        <span class="nav-text">Sincronización</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a class="nav-link nav-dropdown-item" href="#">
+                        <span class="nav-text">Usuarios</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a class="nav-link nav-dropdown-item" href="{% url 'logout' %}">
+                        <span class="nav-text">Cerrar Sesión</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</nav>

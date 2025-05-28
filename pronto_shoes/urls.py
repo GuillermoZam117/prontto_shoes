@@ -91,6 +91,8 @@ urlpatterns = [
     path('tiendas/', include('tiendas.urls')),    # Sincronizacion application
     path('sincronizacion/', include('sincronizacion.urls')),    # Administracion application
     path('administracion/', include('administracion.urls')),
+    # Configuracion application
+    path('', include('configuracion.urls')),
     # Reportes application
     path('reportes/', include('reportes.urls')),
     path('api/', include(router.urls)),

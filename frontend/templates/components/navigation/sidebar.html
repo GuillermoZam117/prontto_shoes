@@ -1,0 +1,38 @@
+{% comment %}
+Complete Sidebar Component for POS System
+{% endcomment %}
+{% load static %}
+
+<aside class="pos-sidebar" id="posSidebar">
+    <!-- Sidebar Header -->
+    <div class="sidebar-header">
+        <a href="{% url 'dashboard:index' %}" class="sidebar-logo">
+            <img src="{% static 'images/logo-placeholder.png' %}" alt="Logo" id="sidebarLogoImg">
+            <span class="sidebar-brand" id="sidebarBrand">POS System</span>
+        </a>
+        <button type="button" class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle Sidebar">
+            <i class="bi bi-list"></i>
+        </button>
+    </div>
+
+    <!-- Sidebar Navigation -->
+    {% include "components/navigation/sidebar_nav.html" %}
+
+    <!-- User Information -->
+    {% if user.is_authenticated %}
+    <div class="user-info">
+        <div class="user-info-content">
+            <div class="user-avatar">
+                {{ user.first_name|first|default:user.username|first|upper }}
+            </div>
+            <div class="user-details">
+                <p class="user-name">{{ user.get_full_name|default:user.username }}</p>
+                <p class="user-store">{{ request.user.tienda.nombre|default:"Sin tienda asignada" }}</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</aside>
+
+<!-- Mobile Overlay -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
