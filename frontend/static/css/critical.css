@@ -1,11 +1,11 @@
 /* Critical styles to prevent FOUC */
 /* This file should be inlined in the head to prevent flash of unstyled content */
 
-/* Hide body until fonts and styles are loaded */
+/* Prevent FOUC while maintaining usability */
 body {
-    visibility: hidden;
-    opacity: 0;
-    transition: opacity 0.3s ease-in-out;
+    visibility: visible;
+    opacity: 1;
+    transition: opacity 0.15s ease-in-out;
 }
 
 /* Show body when fully loaded */
