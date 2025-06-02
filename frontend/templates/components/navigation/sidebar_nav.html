@@ -77,25 +77,29 @@ Sidebar Navigation Component for POS System
                 <i class="bi bi-chevron-down nav-dropdown-arrow"></i>
                 <span class="sidebar-tooltip">Reportes</span>
             </a>
-            <div class="nav-dropdown-menu">
+            <div class="nav-dropdown-menu">                <div class="nav-item">
+                    <a class="nav-link nav-dropdown-item" href="{% url 'reportes:dashboard' %}">
+                        <span class="nav-text">Dashboard de Reportes</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a class="nav-link nav-dropdown-item" href="{% url 'reportes:ejecutar' 'inventario' %}">
+                        <span class="nav-text">Reporte de Inventario</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a class="nav-link nav-dropdown-item" href="{% url 'reportes:ejecutar' 'compras' %}">
+                        <span class="nav-text">Reporte de Compras</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a class="nav-link nav-dropdown-item" href="{% url 'reportes:ejecutar' 'personalizado' %}">
+                        <span class="nav-text">Reporte Personalizado</span>
+                    </a>
+                </div>
                 <div class="nav-item">
                     <a class="nav-link nav-dropdown-item" href="{% url 'ventas:pedidos' %}">
                         <span class="nav-text">Pedidos</span>
-                    </a>
-                </div>
-                <div class="nav-item">
-                    <a class="nav-link nav-dropdown-item" href="#">
-                        <span class="nav-text">Inventario</span>
-                    </a>
-                </div>
-                <div class="nav-item">
-                    <a class="nav-link nav-dropdown-item" href="#">
-                        <span class="nav-text">Compras</span>
-                    </a>
-                </div>
-                <div class="nav-item">
-                    <a class="nav-link nav-dropdown-item" href="#">
-                        <span class="nav-text">Personalizado</span>
                     </a>
                 </div>
             </div>
@@ -109,10 +113,14 @@ Sidebar Navigation Component for POS System
                 <i class="bi bi-chevron-down nav-dropdown-arrow"></i>
                 <span class="sidebar-tooltip">Administración</span>
             </a>
-            <div class="nav-dropdown-menu">
-                <div class="nav-item">
+            <div class="nav-dropdown-menu">                <div class="nav-item">
                     <a class="nav-link nav-dropdown-item" href="{% url 'proveedores:lista' %}">
                         <span class="nav-text">Proveedores</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a class="nav-link nav-dropdown-item" href="{% url 'configuracion:gestion_configuracion' %}">
+                        <span class="nav-text">Configuración del Negocio</span>
                     </a>
                 </div>
                 <div class="nav-item">
@@ -129,16 +137,17 @@ Sidebar Navigation Component for POS System
                     <a class="nav-link nav-dropdown-item" href="{% url 'sincronizacion:sincronizacion_dashboard' %}">
                         <span class="nav-text">Sincronización</span>
                     </a>
-                </div>
-                <div class="nav-item">
-                    <a class="nav-link nav-dropdown-item" href="#">
+                </div>                <div class="nav-item">
+                    <a class="nav-link nav-dropdown-item" href="{% url 'administracion:lista_usuarios' %}">
                         <span class="nav-text">Usuarios</span>
                     </a>
-                </div>
-                <div class="nav-item">
-                    <a class="nav-link nav-dropdown-item" href="{% url 'logout' %}">
-                        <span class="nav-text">Cerrar Sesión</span>
-                    </a>
+                </div>                <div class="nav-item">
+                    <form method="post" action="{% url 'logout' %}" style="margin: 0;">
+                        {% csrf_token %}
+                        <button type="submit" class="nav-link nav-dropdown-item" style="background: none; border: none; color: inherit; font: inherit; padding: inherit; text-align: left; width: 100%; cursor: pointer;">
+                            <span class="nav-text">Cerrar Sesión</span>
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>

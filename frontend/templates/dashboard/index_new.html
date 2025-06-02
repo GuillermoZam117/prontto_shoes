@@ -1,0 +1,657 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Dashboard - POS System{% endblock %}
+
+{% block extra_css %}
+<style>
+    body {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    
+    .dashboard-container {
+        padding: 2rem;
+        margin-top: -1rem;
+    }
+    
+    .welcome-card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(15px);
+        border-radius: 20px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    }
+    
+    .welcome-title {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+    
+    .stat-card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(15px);
+        border: none;
+        border-radius: 20px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+        height: 140px;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+    }
+    
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        border-radius: 20px 20px 0 0;
+    }
+    
+    .stat-card.sales::before { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    .stat-card.products::before { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+    .stat-card.orders::before { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+    .stat-card.customers::before { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+    
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        color: white;
+        margin-bottom: 1rem;
+        float: right;
+    }
+    
+    .stat-icon.sales { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    .stat-icon.products { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+    .stat-icon.orders { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+    .stat-icon.customers { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+    
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #2d3748;
+        margin-bottom: 0.25rem;
+    }
+    
+    .stat-label {
+        font-size: 0.9rem;
+        color: #718096;
+        font-weight: 500;
+    }
+    
+    .modern-card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(15px);
+        border: none;
+        border-radius: 20px;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        margin-bottom: 2rem;
+    }
+    
+    .modern-card-header {
+        padding: 1.5rem 1.5rem 1rem 1.5rem;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    }
+    
+    .modern-card-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 0;
+    }
+    
+    .modern-card-body {
+        padding: 1.5rem;
+    }
+    
+    .quick-action-btn {
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 15px;
+        padding: 1.5rem 1rem;
+        text-align: center;
+        text-decoration: none;
+        color: #2d3748;
+        transition: all 0.3s ease;
+        display: block;
+        height: 100px;
+    }
+    
+    .quick-action-btn:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        background: rgba(255, 255, 255, 1);
+        color: #2d3748;
+        text-decoration: none;
+    }
+    
+    .action-icon {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+    
+    .action-text {
+        font-size: 0.9rem;
+        font-weight: 600;
+    }
+    
+    .activity-item {
+        padding: 1rem 0;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    }
+    
+    .activity-item:last-child {
+        border-bottom: none;
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 300px;
+    }
+    
+    .floating-action {
+        position: fixed;
+        bottom: 2rem;
+        right: 2rem;
+        z-index: 1000;
+    }
+    
+    .fab {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        color: white;
+        font-size: 1.5rem;
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        transition: all 0.3s ease;
+    }
+    
+    .fab:hover {
+        transform: scale(1.1);
+        box-shadow: 0 12px 35px rgba(102, 126, 234, 0.6);
+    }
+    
+    @media (max-width: 768px) {
+        .dashboard-container {
+            padding: 1rem;
+        }
+        
+        .welcome-title {
+            font-size: 2rem;
+        }
+        
+        .stat-card {
+            height: auto;
+            padding: 1rem;
+        }
+        
+        .stat-icon {
+            float: none;
+            margin-bottom: 0.5rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <!-- Welcome Section -->
+    <div class="welcome-card">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="welcome-title">¡Bienvenido al POS System!</h1>
+                <p class="text-muted mb-0 fs-5">Gestiona tu tienda de manera eficiente</p>
+                <small class="text-secondary">Última actualización: {% now "d/m/Y - H:i" %}</small>
+            </div>
+            <div class="col-md-4 text-end">
+                <i class="bi bi-shop text-primary" style="font-size: 4rem; opacity: 0.6;"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row">
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="stat-card sales">
+                <div class="stat-icon sales">
+                    <i class="bi bi-currency-dollar"></i>
+                </div>
+                <div class="stat-value">$12,450</div>
+                <div class="stat-label">Ventas de Hoy</div>
+                <div class="text-success small mt-1">
+                    <i class="bi bi-arrow-up"></i> +15% vs ayer
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="stat-card products">
+                <div class="stat-icon products">
+                    <i class="bi bi-box"></i>
+                </div>
+                <div class="stat-value">1,247</div>
+                <div class="stat-label">Productos Activos</div>
+                <div class="text-info small mt-1">
+                    <i class="bi bi-info-circle"></i> 23 con stock bajo
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="stat-card orders">
+                <div class="stat-icon orders">
+                    <i class="bi bi-clipboard-check"></i>
+                </div>
+                <div class="stat-value">45</div>
+                <div class="stat-label">Pedidos Pendientes</div>
+                <div class="text-warning small mt-1">
+                    <i class="bi bi-clock"></i> 12 urgentes
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="stat-card customers">
+                <div class="stat-icon customers">
+                    <i class="bi bi-people"></i>
+                </div>
+                <div class="stat-value">89</div>
+                <div class="stat-label">Clientes Nuevos</div>
+                <div class="text-success small mt-1">
+                    <i class="bi bi-arrow-up"></i> +8% este mes
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="modern-card">
+                <div class="modern-card-header">
+                    <h6 class="modern-card-title">
+                        <i class="bi bi-lightning me-2"></i>
+                        Acciones Rápidas
+                    </h6>
+                </div>
+                <div class="modern-card-body">
+                    <div class="row">
+                        <div class="col-lg-3 col-md-6 mb-3">
+                            <a href="#" class="quick-action-btn">
+                                <i class="bi bi-cart-plus action-icon text-primary"></i>
+                                <div class="action-text">Nueva Venta</div>
+                            </a>
+                        </div>
+                        <div class="col-lg-3 col-md-6 mb-3">
+                            <a href="#" class="quick-action-btn">
+                                <i class="bi bi-plus-circle action-icon text-success"></i>
+                                <div class="action-text">Agregar Producto</div>
+                            </a>
+                        </div>
+                        <div class="col-lg-3 col-md-6 mb-3">
+                            <a href="#" class="quick-action-btn">
+                                <i class="bi bi-person-plus action-icon text-info"></i>
+                                <div class="action-text">Nuevo Cliente</div>
+                            </a>
+                        </div>
+                        <div class="col-lg-3 col-md-6 mb-3">
+                            <a href="#" class="quick-action-btn">
+                                <i class="bi bi-graph-up action-icon text-warning"></i>
+                                <div class="action-text">Ver Reportes</div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts and Recent Activity -->
+    <div class="row">
+        <!-- Sales Chart -->
+        <div class="col-xl-8 col-lg-7 mb-4">
+            <div class="modern-card">
+                <div class="modern-card-header">
+                    <h6 class="modern-card-title">
+                        <i class="bi bi-graph-up me-2"></i>
+                        Ventas de los Últimos 7 Días
+                    </h6>
+                </div>
+                <div class="modern-card-body">
+                    <div class="chart-container">
+                        <canvas id="sales-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Activities -->
+        <div class="col-xl-4 col-lg-5 mb-4">
+            <div class="modern-card">
+                <div class="modern-card-header">
+                    <h6 class="modern-card-title">
+                        <i class="bi bi-clock-history me-2"></i>
+                        Actividad Reciente
+                    </h6>
+                </div>
+                <div class="modern-card-body">
+                    <div class="activity-item">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="mb-1">Nueva venta registrada</h6>
+                                <p class="mb-1 text-muted small">Venta #VT-2024-001</p>
+                                <small class="text-secondary">Admin</small>
+                            </div>
+                            <small class="text-muted">10:30 AM</small>
+                        </div>
+                    </div>
+                    
+                    <div class="activity-item">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="mb-1">Producto agregado</h6>
+                                <p class="mb-1 text-muted small">Zapato Deportivo Nike</p>
+                                <small class="text-secondary">Manager</small>
+                            </div>
+                            <small class="text-muted">09:45 AM</small>
+                        </div>
+                    </div>
+                    
+                    <div class="activity-item">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="mb-1">Cliente registrado</h6>
+                                <p class="mb-1 text-muted small">María González</p>
+                                <small class="text-secondary">Vendedor</small>
+                            </div>
+                            <small class="text-muted">09:15 AM</small>
+                        </div>
+                    </div>
+                    
+                    <div class="activity-item">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="mb-1">Stock actualizado</h6>
+                                <p class="mb-1 text-muted small">15 productos afectados</p>
+                                <small class="text-secondary">Sistema</small>
+                            </div>
+                            <small class="text-muted">08:30 AM</small>
+                        </div>
+                    </div>
+
+                    <div class="text-center mt-3">
+                        <a href="#" class="btn btn-outline-primary btn-sm rounded-pill">
+                            <i class="bi bi-eye me-1"></i>
+                            Ver todas las actividades
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Orders and Products -->
+    <div class="row">
+        <!-- Recent Orders -->
+        <div class="col-xl-6 col-lg-6 mb-4">
+            <div class="modern-card">
+                <div class="modern-card-header">
+                    <h6 class="modern-card-title">
+                        <i class="bi bi-bag me-2"></i>
+                        Pedidos Recientes
+                    </h6>
+                </div>
+                <div class="modern-card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Pedido</th>
+                                    <th>Cliente</th>
+                                    <th>Estado</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>#PED-001</strong></td>
+                                    <td>Juan Pérez</td>
+                                    <td><span class="badge bg-success">Completado</span></td>
+                                    <td>$150.00</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>#PED-002</strong></td>
+                                    <td>Ana García</td>
+                                    <td><span class="badge bg-warning">Pendiente</span></td>
+                                    <td>$89.50</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>#PED-003</strong></td>
+                                    <td>Carlos López</td>
+                                    <td><span class="badge bg-info">Procesando</span></td>
+                                    <td>$234.75</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>#PED-004</strong></td>
+                                    <td>Elena Martínez</td>
+                                    <td><span class="badge bg-danger">Cancelado</span></td>
+                                    <td>$67.25</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Products -->
+        <div class="col-xl-6 col-lg-6 mb-4">
+            <div class="modern-card">
+                <div class="modern-card-header">
+                    <h6 class="modern-card-title">
+                        <i class="bi bi-star me-2"></i>
+                        Productos Más Vendidos
+                    </h6>
+                </div>
+                <div class="modern-card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Producto</th>
+                                    <th>Categoría</th>
+                                    <th>Ventas</th>
+                                    <th>Stock</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>Nike Air Max</strong></td>
+                                    <td>Deportivos</td>
+                                    <td>45</td>
+                                    <td><span class="badge bg-success">120</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Adidas Superstar</strong></td>
+                                    <td>Casual</td>
+                                    <td>38</td>
+                                    <td><span class="badge bg-warning">15</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Converse Chuck</strong></td>
+                                    <td>Lifestyle</td>
+                                    <td>32</td>
+                                    <td><span class="badge bg-success">67</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Vans Old Skool</strong></td>
+                                    <td>Skate</td>
+                                    <td>28</td>
+                                    <td><span class="badge bg-danger">8</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Floating Action Button -->
+<div class="floating-action">
+    <button class="btn fab" type="button" data-bs-toggle="offcanvas" data-bs-target="#quickActionsOffcanvas">
+        <i class="bi bi-plus"></i>
+    </button>
+</div>
+
+<!-- Quick Actions Offcanvas -->
+<div class="offcanvas offcanvas-end" tabindex="-1" id="quickActionsOffcanvas">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title">Acciones Rápidas</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+    </div>
+    <div class="offcanvas-body">
+        <div class="d-grid gap-2">
+            <button class="btn btn-primary" type="button">
+                <i class="bi bi-cart-plus me-2"></i>Nueva Venta
+            </button>
+            <button class="btn btn-success" type="button">
+                <i class="bi bi-plus-circle me-2"></i>Agregar Producto
+            </button>
+            <button class="btn btn-info" type="button">
+                <i class="bi bi-person-plus me-2"></i>Nuevo Cliente
+            </button>
+            <button class="btn btn-warning" type="button">
+                <i class="bi bi-graph-up me-2"></i>Ver Reportes
+            </button>
+        </div>
+        
+        <hr class="my-4">
+        
+        <h6>Estado del Sistema</h6>
+        <div class="list-group list-group-flush">
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+                <span>Base de Datos</span>
+                <span class="badge bg-success rounded-pill">Conectado</span>
+            </div>
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+                <span>Servidor</span>
+                <span class="badge bg-success rounded-pill">Online</span>
+            </div>
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+                <span>Backup</span>
+                <span class="badge bg-warning rounded-pill">Programado</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Sales Chart
+    const ctx = document.getElementById('sales-chart');
+    if (ctx) {
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
+                datasets: [{
+                    label: 'Ventas ($)',
+                    data: [1200, 1900, 3000, 5000, 2300, 3200, 4100],
+                    borderColor: 'rgb(102, 126, 234)',
+                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Auto-refresh stats every 5 minutes
+    setInterval(function() {
+        console.log('Refreshing dashboard data...');
+        // Here you would typically make an AJAX call to update the stats
+    }, 300000); // 5 minutes
+
+    // Add animation to stat cards on scroll
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+                entry.target.style.animation = 'fadeInUp 0.6s ease forwards';
+            }
+        });
+    });
+
+    document.querySelectorAll('.stat-card').forEach((card) => {
+        observer.observe(card);
+    });
+});
+
+// CSS animation keyframes
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+`;
+document.head.appendChild(style);
+</script>
+{% endblock %}

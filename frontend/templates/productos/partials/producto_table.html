@@ -1,0 +1,231 @@
+<!-- filepath: c:\catalog_pos\frontend\templates\productos\partials\producto_table.html -->
+<!-- Template parcial para tabla de productos -->
+{% if productos %}
+    <div class="table-responsive">
+        <table class="table table-hover table-sm">
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Producto</th>
+                    <th>Color</th>
+                    <th>Precio</th>
+                    <th>Temporada</th>
+                    <th>Proveedor</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for producto in productos %}
+                <tr class="producto-row" data-producto-id="{{ producto.id }}">
+                    <td>
+                        <code class="text-primary">{{ producto.codigo }}</code>
+                    </td>
+                    <td>
+                        <a href="{% url 'productos:detalle' producto.id %}" class="text-decoration-none fw-semibold">
+                            {{ producto.marca }} {{ producto.modelo }}
+                        </a>
+                        {% if producto.propiedad %}
+                            <small class="text-muted d-block">{{ producto.propiedad }}</small>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge bg-secondary">{{ producto.color }}</span>
+                    </td>
+                    <td>
+                        <strong class="text-success">${{ producto.precio|floatformat:2 }}</strong>
+                        {% if producto.costo %}
+                            <small class="text-muted d-block">Costo: ${{ producto.costo|floatformat:2 }}</small>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge bg-info">{{ producto.temporada }}</span>
+                    </td>
+                    <td>
+                        {% if producto.proveedor %}
+                            <small>{{ producto.proveedor.nombre }}</small>
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if producto.oferta %}
+                            <span class="badge bg-warning text-dark">
+                                <i class="bi bi-tag me-1"></i>Oferta
+                            </span>
+                        {% else %}
+                            <span class="badge bg-success">
+                                <i class="bi bi-check-circle me-1"></i>Normal
+                            </span>
+                        {% endif %}
+                        {% if not producto.admite_devolucion %}
+                            <br><small class="text-danger">
+                                <i class="bi bi-x-circle me-1"></i>No acepta devolución
+                            </small>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="btn-group" role="group">
+                            <a href="{% url 'productos:detalle' producto.id %}" 
+                               class="btn btn-sm btn-outline-info" 
+                               data-bs-toggle="tooltip"
+                               title="Ver detalles">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            <a href="{% url 'productos:editar' producto.id %}" 
+                               class="btn btn-sm btn-outline-primary"
+                               data-bs-toggle="tooltip"
+                               title="Editar producto">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <button type="button" 
+                                    class="btn btn-sm btn-outline-danger" 
+                                    data-bs-toggle="tooltip"
+                                    title="Eliminar producto"
+                                    onclick="confirmarEliminacion({{ producto.id }}, '{{ producto.codigo }} - {{ producto.marca }} {{ producto.modelo }}')">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination info -->
+    {% if productos.has_other_pages %}
+    <div class="row">
+        <div class="col-sm-12 col-md-5">
+            <div class="dataTables_info">
+                Mostrando productos del {{ productos.start_index }} al {{ productos.end_index }} 
+                de {{ productos.paginator.count }} total
+            </div>
+        </div>
+        <div class="col-sm-12 col-md-7">
+            <div class="dataTables_paginate paging_simple_numbers">
+                <ul class="pagination">
+                    {% if productos.has_previous %}
+                        <li class="paginate_button page-item previous">
+                            <a href="?page={{ productos.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if temporada %}&temporada={{ temporada }}{% endif %}{% if oferta %}&oferta={{ oferta }}{% endif %}{% if catalogo_id %}&catalogo={{ catalogo_id }}{% endif %}" 
+                               class="page-link"
+                               hx-get="?page={{ productos.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if temporada %}&temporada={{ temporada }}{% endif %}{% if oferta %}&oferta={{ oferta }}{% endif %}{% if catalogo_id %}&catalogo={{ catalogo_id }}{% endif %}"
+                               hx-target="#productos-table-container">Anterior</a>
+                        </li>
+                    {% endif %}
+                    
+                    {% for i in productos.paginator.page_range %}
+                        {% if productos.number == i %}
+                            <li class="paginate_button page-item active">
+                                <span class="page-link">{{ i }}</span>
+                            </li>
+                        {% else %}
+                            <li class="paginate_button page-item">
+                                <a href="?page={{ i }}{% if search_query %}&q={{ search_query }}{% endif %}{% if temporada %}&temporada={{ temporada }}{% endif %}{% if oferta %}&oferta={{ oferta }}{% endif %}{% if catalogo_id %}&catalogo={{ catalogo_id }}{% endif %}" 
+                                   class="page-link"
+                                   hx-get="?page={{ i }}{% if search_query %}&q={{ search_query }}{% endif %}{% if temporada %}&temporada={{ temporada }}{% endif %}{% if oferta %}&oferta={{ oferta }}{% endif %}{% if catalogo_id %}&catalogo={{ catalogo_id }}{% endif %}"
+                                   hx-target="#productos-table-container">{{ i }}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if productos.has_next %}
+                        <li class="paginate_button page-item next">
+                            <a href="?page={{ productos.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if temporada %}&temporada={{ temporada }}{% endif %}{% if oferta %}&oferta={{ oferta }}{% endif %}{% if catalogo_id %}&catalogo={{ catalogo_id }}{% endif %}" 
+                               class="page-link"
+                               hx-get="?page={{ productos.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if temporada %}&temporada={{ temporada }}{% endif %}{% if oferta %}&oferta={{ oferta }}{% endif %}{% if catalogo_id %}&catalogo={{ catalogo_id }}{% endif %}"
+                               hx-target="#productos-table-container">Siguiente</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+{% else %}
+    <!-- Empty state -->
+    <div class="text-center py-5">
+        <i class="bi bi-inbox display-1 text-muted mb-3"></i>
+        <h5 class="text-muted">No hay productos para mostrar</h5>
+        {% if search_query %}
+            <p class="text-muted">No se encontraron productos que coincidan con "{{ search_query }}"</p>
+            <a href="{% url 'productos:lista' %}" 
+               class="btn btn-outline-primary"
+               hx-get="{% url 'productos:lista' %}"
+               hx-target="#productos-table-container">Limpiar búsqueda</a>
+        {% else %}
+            <p class="text-muted">Comienza agregando productos al catálogo</p>
+            <a href="{% url 'productos:nuevo' %}" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-1"></i>Agregar Producto
+            </a>
+        {% endif %}
+    </div>
+{% endif %}
+
+<!-- JavaScript para confirmación de eliminación -->
+<script>
+function confirmarEliminacion(productoId, productoNombre) {
+    Swal.fire({
+        title: '¿Estás seguro?',
+        text: `¿Deseas eliminar el producto "${productoNombre}"? Esta acción no se puede deshacer.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Realizar petición AJAX para eliminar
+            fetch(`/productos/eliminar/${productoId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'same-origin'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Mostrar mensaje de éxito
+                    Swal.fire({
+                        title: '¡Eliminado!',
+                        text: data.message,
+                        icon: 'success',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                    
+                    // Recargar la tabla vía HTMX
+                    htmx.ajax('GET', '{% url "productos:lista" %}', {
+                        target: '#productos-table-container',
+                        source: document.querySelector('[name="q"]') || document.body
+                    });
+                } else {
+                    // Mostrar mensaje de error
+                    Swal.fire({
+                        title: 'Error',
+                        text: data.message,
+                        icon: 'error'
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire({
+                    title: 'Error',
+                    text: 'Ocurrió un error al eliminar el producto.',
+                    icon: 'error'
+                });
+            });
+        }
+    });
+}
+
+// Initialize tooltips
+document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function(element) {
+    new bootstrap.Tooltip(element);
+});
+</script>

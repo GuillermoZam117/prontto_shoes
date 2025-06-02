@@ -14,7 +14,8 @@ from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Proveedor, PurchaseOrder, PurchaseOrderItem
 from .serializers import ProveedorSerializer, PurchaseOrderSerializer, PurchaseOrderItemSerializer
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
+from drf_spectacular.utils import extend_schema, OpenApiParameter
+from drf_spectacular.types import OpenApiTypes
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from requisiciones.models import DetalleRequisicion
@@ -25,10 +26,10 @@ from productos.models import Producto
 # Frontend views
 @login_required
 def proveedor_list(request):
-    """Vista para listar proveedores con soporte para HTMX"""
-    # Get filter parameters
+    """Vista para listar proveedores con soporte para HTMX"""    # Get filter parameters
     search_query = request.GET.get('q', '')
-    requiere_anticipo = request.GET.get('requiere_anticipo', '') == 'true'
+    requiere_anticipo_param = request.GET.get('requiere_anticipo', '')
+    max_return_days_min = request.GET.get('max_return_days_min', '')
     
     # Base query
     proveedores = Proveedor.objects.all()
@@ -40,19 +41,29 @@ def proveedor_list(request):
             Q(contacto__icontains=search_query)
         )
     
-    if requiere_anticipo:
+    # Handle requiere_anticipo filter
+    if requiere_anticipo_param == 'true':
         proveedores = proveedores.filter(requiere_anticipo=True)
+    elif requiere_anticipo_param == 'false':
+        proveedores = proveedores.filter(requiere_anticipo=False)
+    
+    # Handle max_return_days filter
+    if max_return_days_min:
+        try:
+            min_days = int(max_return_days_min)
+            proveedores = proveedores.filter(max_return_days__gte=min_days)
+        except ValueError:
+            pass
     
     # Order results
     proveedores = proveedores.order_by('nombre')
-    
-    # Check if this is an HTMX request
+      # Check if this is an HTMX request
     if request.headers.get('HX-Request'):
         # Return only the table partial for HTMX requests
         context = {
             'proveedores': proveedores,
             'search_query': search_query,
-            'requiere_anticipo': requiere_anticipo,
+            'requiere_anticipo': requiere_anticipo_param,
         }
         return render(request, 'proveedores/partials/proveedor_table.html', context)
     
@@ -64,7 +75,7 @@ def proveedor_list(request):
     context = {
         'proveedores': proveedores,
         'search_query': search_query,
-        'requiere_anticipo': requiere_anticipo,
+        'requiere_anticipo': requiere_anticipo_param,
         'proveedores_anticipo': proveedores_anticipo,
         'proveedores_devolucion': proveedores_devolucion,
     }
@@ -254,17 +265,17 @@ def proveedor_delete(request, pk):
     proveedor = get_object_or_404(Proveedor, pk=pk)
     
     try:
-        # Check if provider has active products
-        productos_activos = Producto.objects.filter(proveedor=proveedor, activo=True).count()
+        # Check if provider has products
+        productos_count = Producto.objects.filter(proveedor=proveedor).count()
         
-        if productos_activos > 0:
+        if productos_count > 0:
             if request.headers.get('HX-Request'):
                 return JsonResponse({
                     'success': False,
-                    'message': f'No se puede eliminar el proveedor {proveedor.nombre}. Tiene {productos_activos} producto(s) activo(s).'
+                    'message': f'No se puede eliminar el proveedor {proveedor.nombre}. Tiene {productos_count} producto(s) asociado(s).'
                 }, status=400)
             else:
-                messages.error(request, f'No se puede eliminar el proveedor {proveedor.nombre}. Tiene {productos_activos} producto(s) activo(s).')
+                messages.error(request, f'No se puede eliminar el proveedor {proveedor.nombre}. Tiene {productos_count} producto(s) asociado(s).')
                 return redirect('proveedores:lista')
         
         # Check if provider has pending purchase orders

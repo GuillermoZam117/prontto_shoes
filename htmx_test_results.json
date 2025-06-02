@@ -1,0 +1,290 @@
+{
+  "timestamp": "2025-06-02T08:21:03.583662",
+  "total_tests": 20,
+  "passed_tests": 20,
+  "results": [
+    {
+      "name": "Basic List View",
+      "url": "http://127.0.0.1:8000/productos/",
+      "params": null,
+      "status": 200,
+      "expected_status": 200,
+      "success": true,
+      "response_time_ms": 99.27,
+      "content_length": 2908,
+      "is_htmx_response": false,
+      "error": null
+    },
+    {
+      "name": "Search by Codigo",
+      "url": "http://127.0.0.1:8000/productos/",
+      "params": {
+        "search": "VAN"
+      },
+      "status": 200,
+      "expected_status": 200,
+      "success": true,
+      "response_time_ms": 68.92,
+      "content_length": 2919,
+      "is_htmx_response": false,
+      "error": null
+    },
+    {
+      "name": "Search by Marca",
+      "url": "http://127.0.0.1:8000/productos/",
+      "params": {
+        "search": "Nike"
+      },
+      "status": 200,
+      "expected_status": 200,
+      "success": true,
+      "response_time_ms": 60.87,
+      "content_length": 2920,
+      "is_htmx_response": false,
+      "error": null
+    },
+    {
+      "name": "Search by Modelo",
+      "url": "http://127.0.0.1:8000/productos/",
+      "params": {
+        "search": "Comfort"
+      },
+      "status": 200,
+      "expected_status": 200,
+      "success": true,
+      "response_time_ms": 161.18,
+      "content_length": 2923,
+      "is_htmx_response": false,
+      "error": null
+    },
+    {
+      "name": "Search by Color",
+      "url": "http://127.0.0.1:8000/productos/",
+      "params": {
+        "search": "Blanco"
+      },
+      "status": 200,
+      "expected_status": 200,
+      "success": true,
+      "response_time_ms": 60.89,
+      "content_length": 2922,
+      "is_htmx_response": false,
+      "error": null
+    },
+    {
+      "name": "Empty Search",
+      "url": "http://127.0.0.1:8000/productos/",
+      "params": {
+        "search": ""
+      },
+      "status": 200,
+      "expected_status": 200,
+      "success": true,
+      "response_time_ms": 59.9,
+      "content_length": 2916,
+      "is_htmx_response": false,
+      "error": null
+    },
+    {
+      "name": "Special Characters",
+      "url": "http://127.0.0.1:8000/productos/",
+      "params": {
+        "search": "\u00e1-\u00e9"
+      },
+      "status": 200,
+      "expected_status": 200,
+      "success": true,
+      "response_time_ms": 56.4,
+      "content_length": 2929,
+      "is_htmx_response": false,
+      "error": null
+    },
+    {
+      "name": "Filter by Temporada",
+      "url": "http://127.0.0.1:8000/productos/",
+      "params": {
+        "temporada": "Primavera"
+      },
+      "status": 200,
+      "expected_status": 200,
+      "success": true,
+      "response_time_ms": 59.05,
+      "content_length": 2928,
+      "is_htmx_response": false,
+      "error": null
+    },
+    {
+      "name": "Filter by Oferta",
+      "url": "http://127.0.0.1:8000/productos/",
+      "params": {
+        "oferta": "true"
+      },
+      "status": 200,
+      "expected_status": 200,
+      "success": true,
+      "response_time_ms": 58.51,
+      "content_length": 2920,
+      "is_htmx_response": false,
+      "error": null
+    },
+    {
+      "name": "Filter by Catalogo",
+      "url": "http://127.0.0.1:8000/productos/",
+      "params": {
+        "catalogo": "Principal"
+      },
+      "status": 200,
+      "expected_status": 200,
+      "success": true,
+      "response_time_ms": 170.89,
+      "content_length": 2927,
+      "is_htmx_response": false,
+      "error": null
+    },
+    {
+      "name": "Price Min Filter",
+      "url": "http://127.0.0.1:8000/productos/",
+      "params": {
+        "precio_min": "100"
+      },
+      "status": 200,
+      "expected_status": 200,
+      "success": true,
+      "response_time_ms": 60.68,
+      "content_length": 2923,
+      "is_htmx_response": false,
+      "error": null
+    },
+    {
+      "name": "Price Max Filter",
+      "url": "http://127.0.0.1:8000/productos/",
+      "params": {
+        "precio_max": "500"
+      },
+      "status": 200,
+      "expected_status": 200,
+      "success": true,
+      "response_time_ms": 59.43,
+      "content_length": 2923,
+      "is_htmx_response": false,
+      "error": null
+    },
+    {
+      "name": "Price Range Filter",
+      "url": "http://127.0.0.1:8000/productos/",
+      "params": {
+        "precio_min": "100",
+        "precio_max": "500"
+      },
+      "status": 200,
+      "expected_status": 200,
+      "success": true,
+      "response_time_ms": 60.56,
+      "content_length": 2942,
+      "is_htmx_response": false,
+      "error": null
+    },
+    {
+      "name": "Search + Temporada",
+      "url": "http://127.0.0.1:8000/productos/",
+      "params": {
+        "search": "Nike",
+        "temporada": "Verano"
+      },
+      "status": 200,
+      "expected_status": 200,
+      "success": true,
+      "response_time_ms": 69.14,
+      "content_length": 2941,
+      "is_htmx_response": false,
+      "error": null
+    },
+    {
+      "name": "Multiple Filters",
+      "url": "http://127.0.0.1:8000/productos/",
+      "params": {
+        "search": "Sport",
+        "temporada": "Verano",
+        "oferta": "true",
+        "precio_max": "300"
+      },
+      "status": 200,
+      "expected_status": 200,
+      "success": true,
+      "response_time_ms": 58.94,
+      "content_length": 2977,
+      "is_htmx_response": false,
+      "error": null
+    },
+    {
+      "name": "Pagination Page 1",
+      "url": "http://127.0.0.1:8000/productos/",
+      "params": {
+        "page": "1"
+      },
+      "status": 200,
+      "expected_status": 200,
+      "success": true,
+      "response_time_ms": 60.03,
+      "content_length": 2915,
+      "is_htmx_response": false,
+      "error": null
+    },
+    {
+      "name": "Pagination Page 2",
+      "url": "http://127.0.0.1:8000/productos/",
+      "params": {
+        "page": "2"
+      },
+      "status": 200,
+      "expected_status": 200,
+      "success": true,
+      "response_time_ms": 176.24,
+      "content_length": 2915,
+      "is_htmx_response": false,
+      "error": null
+    },
+    {
+      "name": "Invalid Page",
+      "url": "http://127.0.0.1:8000/productos/",
+      "params": {
+        "page": "999"
+      },
+      "status": 200,
+      "expected_status": 200,
+      "success": true,
+      "response_time_ms": 65.81,
+      "content_length": 2917,
+      "is_htmx_response": false,
+      "error": null
+    },
+    {
+      "name": "Invalid Price",
+      "url": "http://127.0.0.1:8000/productos/",
+      "params": {
+        "precio_min": "invalid"
+      },
+      "status": 200,
+      "expected_status": 200,
+      "success": true,
+      "response_time_ms": 169.6,
+      "content_length": 2927,
+      "is_htmx_response": false,
+      "error": null
+    },
+    {
+      "name": "SQL Injection Test",
+      "url": "http://127.0.0.1:8000/productos/",
+      "params": {
+        "search": "'; DROP TABLE productos; --"
+      },
+      "status": 200,
+      "expected_status": 200,
+      "success": true,
+      "response_time_ms": 163.68,
+      "content_length": 2949,
+      "is_htmx_response": true,
+      "error": null
+    }
+  ]
+}

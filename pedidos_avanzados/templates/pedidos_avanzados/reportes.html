@@ -1,0 +1,845 @@
+{% extends 'pedidos_avanzados/base.html' %}
+{% load static %}
+
+{% block title %}Reportes Avanzados{% endblock %}
+
+{% block extra_css %}
+<style>
+    .reports-header {
+        background: linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+    }
+    
+    .report-card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+        overflow: hidden;
+    }
+    
+    .report-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+    
+    .report-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        color: white;
+        margin-bottom: 1rem;
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 400px;
+        margin: 2rem 0;
+    }
+    
+    .chart-canvas {
+        width: 100% !important;
+        height: 100% !important;
+    }
+    
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .kpi-card {
+        background: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        text-align: center;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .kpi-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #667eea, #764ba2);
+    }
+    
+    .kpi-value {
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: #2c3e50;
+        margin-bottom: 0.5rem;
+    }
+    
+    .kpi-label {
+        color: #6c757d;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .kpi-change {
+        font-size: 0.875rem;
+        margin-top: 0.5rem;
+    }
+    
+    .kpi-change.positive {
+        color: #28a745;
+    }
+    
+    .kpi-change.negative {
+        color: #dc3545;
+    }
+    
+    .filter-panel {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .date-range-picker {
+        position: relative;
+    }
+    
+    .export-buttons {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+    
+    .export-btn {
+        padding: 0.5rem 1rem;
+        border: none;
+        border-radius: 6px;
+        color: white;
+        text-decoration: none;
+        font-size: 0.875rem;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .export-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        color: white;
+        text-decoration: none;
+    }
+    
+    .export-excel { background: #28a745; }
+    .export-pdf { background: #dc3545; }
+    .export-csv { background: #17a2b8; }
+    .export-print { background: #6c757d; }
+    
+    .data-table {
+        background: white;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .table-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1rem 1.5rem;
+    }
+    
+    .table-responsive {
+        max-height: 600px;
+        overflow-y: auto;
+    }
+    
+    .trend-indicator {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+    
+    .trend-up {
+        background: #d4edda;
+        color: #155724;
+    }
+    
+    .trend-down {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    
+    .trend-stable {
+        background: #fff3cd;
+        color: #856404;
+    }
+    
+    .report-tabs {
+        display: flex;
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 0.25rem;
+        margin-bottom: 2rem;
+    }
+    
+    .report-tab {
+        flex: 1;
+        padding: 1rem;
+        text-align: center;
+        background: transparent;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-weight: 500;
+    }
+    
+    .report-tab.active {
+        background: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        color: #007bff;
+    }
+    
+    .chart-controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    
+    .time-period-selector {
+        display: flex;
+        background: #e9ecef;
+        border-radius: 6px;
+        padding: 0.25rem;
+    }
+    
+    .period-btn {
+        padding: 0.5rem 1rem;
+        background: transparent;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .period-btn.active {
+        background: #007bff;
+        color: white;
+    }
+    
+    .loading-spinner {
+        display: none;
+        text-align: center;
+        padding: 2rem;
+    }
+    
+    .no-data {
+        text-align: center;
+        padding: 3rem;
+        color: #6c757d;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="reports-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h2 class="mb-1">Reportes Avanzados</h2>
+                <p class="mb-0">Análisis detallado de pedidos y entregas</p>
+            </div>
+            <div class="export-buttons">
+                <a href="#" class="export-btn export-excel" onclick="exportReport('excel')">
+                    <i class="fas fa-file-excel"></i>Excel
+                </a>
+                <a href="#" class="export-btn export-pdf" onclick="exportReport('pdf')">
+                    <i class="fas fa-file-pdf"></i>PDF
+                </a>
+                <a href="#" class="export-btn export-csv" onclick="exportReport('csv')">
+                    <i class="fas fa-file-csv"></i>CSV
+                </a>
+                <button class="export-btn export-print" onclick="printReport()">
+                    <i class="fas fa-print"></i>Imprimir
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Panel -->
+    <div class="filter-panel">
+        <div class="row align-items-end">
+            <div class="col-md-3">
+                <label class="form-label">Fecha Desde</label>
+                <input type="date" class="form-control" id="fecha_desde" value="{{ fecha_desde }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Fecha Hasta</label>
+                <input type="date" class="form-control" id="fecha_hasta" value="{{ fecha_hasta }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Estado</label>
+                <select class="form-control" id="filtro_estado">
+                    <option value="">Todos</option>
+                    <option value="pendiente">Pendiente</option>
+                    <option value="confirmado">Confirmado</option>
+                    <option value="en_preparacion">En Preparación</option>
+                    <option value="en_transito">En Tránsito</option>
+                    <option value="entregado">Entregado</option>
+                    <option value="cancelado">Cancelado</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Cliente</label>
+                <select class="form-control" id="filtro_cliente">
+                    <option value="">Todos</option>
+                    {% for cliente in clientes %}
+                    <option value="{{ cliente.id }}">{{ cliente.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-primary w-100" onclick="applyFilters()">
+                    <i class="fas fa-filter me-1"></i>Filtrar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- KPI Grid -->
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-value">${{ kpis.ventas_totales|floatformat:0 }}</div>
+            <div class="kpi-label">Ventas Totales</div>
+            <div class="kpi-change {{ kpis.ventas_trend }}">
+                <i class="fas fa-arrow-{{ kpis.ventas_trend == 'positive' and 'up' or 'down' }}"></i>
+                {{ kpis.ventas_cambio }}%
+            </div>
+        </div>
+        
+        <div class="kpi-card">
+            <div class="kpi-value">{{ kpis.total_ordenes }}</div>
+            <div class="kpi-label">Total Órdenes</div>
+            <div class="kpi-change {{ kpis.ordenes_trend }}">
+                <i class="fas fa-arrow-{{ kpis.ordenes_trend == 'positive' and 'up' or 'down' }}"></i>
+                {{ kpis.ordenes_cambio }}%
+            </div>
+        </div>
+        
+        <div class="kpi-card">
+            <div class="kpi-value">${{ kpis.ticket_promedio|floatformat:0 }}</div>
+            <div class="kpi-label">Ticket Promedio</div>
+            <div class="kpi-change {{ kpis.ticket_trend }}">
+                <i class="fas fa-arrow-{{ kpis.ticket_trend == 'positive' and 'up' or 'down' }}"></i>
+                {{ kpis.ticket_cambio }}%
+            </div>
+        </div>
+        
+        <div class="kpi-card">
+            <div class="kpi-value">{{ kpis.entregas_completadas }}</div>
+            <div class="kpi-label">Entregas Completadas</div>
+            <div class="kpi-change {{ kpis.entregas_trend }}">
+                <i class="fas fa-arrow-{{ kpis.entregas_trend == 'positive' and 'up' or 'down' }}"></i>
+                {{ kpis.entregas_cambio }}%
+            </div>
+        </div>
+        
+        <div class="kpi-card">
+            <div class="kpi-value">{{ kpis.tasa_satisfaccion }}%</div>
+            <div class="kpi-label">Satisfacción Cliente</div>
+            <div class="kpi-change {{ kpis.satisfaccion_trend }}">
+                <i class="fas fa-arrow-{{ kpis.satisfaccion_trend == 'positive' and 'up' or 'down' }}"></i>
+                {{ kpis.satisfaccion_cambio }}%
+            </div>
+        </div>
+        
+        <div class="kpi-card">
+            <div class="kpi-value">{{ kpis.tiempo_promedio_entrega }}</div>
+            <div class="kpi-label">Tiempo Prom. Entrega (días)</div>
+            <div class="kpi-change {{ kpis.tiempo_trend }}">
+                <i class="fas fa-arrow-{{ kpis.tiempo_trend == 'positive' and 'down' or 'up' }}"></i>
+                {{ kpis.tiempo_cambio }}%
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Tabs -->
+    <div class="report-tabs">
+        <button class="report-tab active" onclick="showReport('ventas')">
+            <i class="fas fa-chart-line me-2"></i>Ventas
+        </button>
+        <button class="report-tab" onclick="showReport('ordenes')">
+            <i class="fas fa-shopping-bag me-2"></i>Órdenes
+        </button>
+        <button class="report-tab" onclick="showReport('entregas')">
+            <i class="fas fa-truck me-2"></i>Entregas
+        </button>
+        <button class="report-tab" onclick="showReport('clientes')">
+            <i class="fas fa-users me-2"></i>Clientes
+        </button>
+        <button class="report-tab" onclick="showReport('productos')">
+            <i class="fas fa-box me-2"></i>Productos
+        </button>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="row">
+        <!-- Main Chart -->
+        <div class="col-lg-8">
+            <div class="card report-card">
+                <div class="card-header">
+                    <div class="chart-controls">
+                        <h5 class="mb-0" id="chartTitle">Ventas por Período</h5>
+                        <div class="time-period-selector">
+                            <button class="period-btn active" onclick="changePeriod('7d')">7 días</button>
+                            <button class="period-btn" onclick="changePeriod('30d')">30 días</button>
+                            <button class="period-btn" onclick="changePeriod('90d')">90 días</button>
+                            <button class="period-btn" onclick="changePeriod('1y')">1 año</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="mainChart" class="chart-canvas"></canvas>
+                    </div>
+                    <div class="loading-spinner" id="chartLoading">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Cargando...</span>
+                        </div>
+                        <p class="mt-2">Generando gráfico...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Secondary Chart -->
+        <div class="col-lg-4">
+            <div class="card report-card">
+                <div class="card-header">
+                    <h6 class="mb-0">Distribución por Estado</h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" style="height: 300px;">
+                        <canvas id="pieChart" class="chart-canvas"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Tables -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="data-table">
+                <div class="table-header">
+                    <h5 class="mb-0" id="tableTitle">Detalle de Ventas</h5>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0" id="dataTable">
+                        <thead class="table-light">
+                            <tr id="tableHeaders">
+                                <th>Fecha</th>
+                                <th>Orden</th>
+                                <th>Cliente</th>
+                                <th>Estado</th>
+                                <th>Total</th>
+                                <th>Productos</th>
+                                <th>Tendencia</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                            {% for orden in ordenes_detalle %}
+                            <tr>
+                                <td>{{ orden.fecha_creacion|date:"d/m/Y" }}</td>
+                                <td>
+                                    <a href="{% url 'pedidos_avanzados:detalle_orden' orden.id %}">
+                                        #{{ orden.numero_orden }}
+                                    </a>
+                                </td>
+                                <td>{{ orden.cliente.nombre }}</td>
+                                <td>
+                                    <span class="badge badge-{{ orden.estado_color }}">
+                                        {{ orden.get_estado_display }}
+                                    </span>
+                                </td>
+                                <td>${{ orden.total|floatformat:0 }}</td>
+                                <td>{{ orden.items.count }}</td>
+                                <td>
+                                    <span class="trend-indicator trend-{{ orden.trend_class }}">
+                                        <i class="fas fa-arrow-{{ orden.trend_icon }}"></i>
+                                        {{ orden.trend_text }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="no-data">
+                                    <i class="fas fa-chart-bar fa-3x mb-3"></i>
+                                    <br>No hay datos para mostrar en el período seleccionado
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Reports -->
+    <div class="row mt-4">
+        <div class="col-md-4">
+            <div class="card report-card">
+                <div class="card-body text-center">
+                    <div class="report-icon" style="background: linear-gradient(45deg, #667eea, #764ba2);">
+                        <i class="fas fa-star"></i>
+                    </div>
+                    <h6>Productos Más Vendidos</h6>
+                    <p class="text-muted">Análisis de productos estrella</p>
+                    <button class="btn btn-outline-primary" onclick="generateQuickReport('productos-vendidos')">
+                        Generar Reporte
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card report-card">
+                <div class="card-body text-center">
+                    <div class="report-icon" style="background: linear-gradient(45deg, #28a745, #20c997);">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <h6>Tiempos de Entrega</h6>
+                    <p class="text-muted">Análisis de performance logística</p>
+                    <button class="btn btn-outline-success" onclick="generateQuickReport('tiempos-entrega')">
+                        Generar Reporte
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card report-card">
+                <div class="card-body text-center">
+                    <div class="report-icon" style="background: linear-gradient(45deg, #fd7e14, #e83e8c);">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <h6>Clientes VIP</h6>
+                    <p class="text-muted">Análisis de clientes frecuentes</p>
+                    <button class="btn btn-outline-warning" onclick="generateQuickReport('clientes-vip')">
+                        Generar Reporte
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let mainChart = null;
+let pieChart = null;
+let currentReport = 'ventas';
+let currentPeriod = '7d';
+
+// Initialize charts
+document.addEventListener('DOMContentLoaded', function() {
+    initializeCharts();
+    loadChartData();
+});
+
+function initializeCharts() {
+    // Main Chart
+    const mainCtx = document.getElementById('mainChart').getContext('2d');
+    mainChart = new Chart(mainCtx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'Ventas',
+                data: [],
+                borderColor: '#667eea',
+                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Pie Chart
+    const pieCtx = document.getElementById('pieChart').getContext('2d');
+    pieChart = new Chart(pieCtx, {
+        type: 'doughnut',
+        data: {
+            labels: [],
+            datasets: [{
+                data: [],
+                backgroundColor: [
+                    '#667eea',
+                    '#28a745',
+                    '#ffc107',
+                    '#dc3545',
+                    '#17a2b8',
+                    '#6c757d'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+
+function showReport(reportType) {
+    // Update active tab
+    document.querySelectorAll('.report-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    event.target.classList.add('active');
+    
+    currentReport = reportType;
+    updateReportTitles();
+    loadChartData();
+    loadTableData();
+}
+
+function changePeriod(period) {
+    // Update active period
+    document.querySelectorAll('.period-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+    
+    currentPeriod = period;
+    loadChartData();
+}
+
+function updateReportTitles() {
+    const titles = {
+        'ventas': {
+            chart: 'Ventas por Período',
+            table: 'Detalle de Ventas'
+        },
+        'ordenes': {
+            chart: 'Órdenes por Período',
+            table: 'Detalle de Órdenes'
+        },
+        'entregas': {
+            chart: 'Entregas por Período',
+            table: 'Detalle de Entregas'
+        },
+        'clientes': {
+            chart: 'Nuevos Clientes por Período',
+            table: 'Detalle de Clientes'
+        },
+        'productos': {
+            chart: 'Productos Vendidos por Período',
+            table: 'Detalle de Productos'
+        }
+    };
+    
+    document.getElementById('chartTitle').textContent = titles[currentReport].chart;
+    document.getElementById('tableTitle').textContent = titles[currentReport].table;
+}
+
+function loadChartData() {
+    showLoading(true);
+    
+    const filters = getFilters();
+    
+    fetch(`/api/pedidos-avanzados/reportes/chart-data/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            report_type: currentReport,
+            period: currentPeriod,
+            ...filters
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        updateMainChart(data.main_chart);
+        updatePieChart(data.pie_chart);
+        showLoading(false);
+    })
+    .catch(error => {
+        console.error('Error loading chart data:', error);
+        showLoading(false);
+        showNotification('Error al cargar datos del gráfico', 'error');
+    });
+}
+
+function loadTableData() {
+    const filters = getFilters();
+    
+    fetch(`/api/pedidos-avanzados/reportes/table-data/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            report_type: currentReport,
+            ...filters
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        updateTable(data);
+    })
+    .catch(error => {
+        console.error('Error loading table data:', error);
+        showNotification('Error al cargar datos de tabla', 'error');
+    });
+}
+
+function updateMainChart(data) {
+    mainChart.data.labels = data.labels;
+    mainChart.data.datasets[0].data = data.values;
+    mainChart.data.datasets[0].label = data.label;
+    mainChart.update();
+}
+
+function updatePieChart(data) {
+    pieChart.data.labels = data.labels;
+    pieChart.data.datasets[0].data = data.values;
+    pieChart.update();
+}
+
+function updateTable(data) {
+    // Update headers
+    const headerRow = document.getElementById('tableHeaders');
+    headerRow.innerHTML = data.headers.map(header => `<th>${header}</th>`).join('');
+    
+    // Update body
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = data.rows.map(row => 
+        `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`
+    ).join('');
+}
+
+function getFilters() {
+    return {
+        fecha_desde: document.getElementById('fecha_desde').value,
+        fecha_hasta: document.getElementById('fecha_hasta').value,
+        estado: document.getElementById('filtro_estado').value,
+        cliente: document.getElementById('filtro_cliente').value
+    };
+}
+
+function applyFilters() {
+    loadChartData();
+    loadTableData();
+    showNotification('Filtros aplicados', 'success');
+}
+
+function showLoading(show) {
+    const loading = document.getElementById('chartLoading');
+    const chart = document.getElementById('mainChart');
+    
+    if (show) {
+        loading.style.display = 'block';
+        chart.style.display = 'none';
+    } else {
+        loading.style.display = 'none';
+        chart.style.display = 'block';
+    }
+}
+
+function exportReport(format) {
+    const filters = getFilters();
+    
+    const params = new URLSearchParams({
+        format: format,
+        report_type: currentReport,
+        period: currentPeriod,
+        ...filters
+    });
+    
+    window.open(`/pedidos-avanzados/reportes/export/?${params}`, '_blank');
+}
+
+function printReport() {
+    window.print();
+}
+
+function generateQuickReport(reportType) {
+    window.open(`/pedidos-avanzados/reportes/${reportType}/`, '_blank');
+}
+
+// Auto-refresh data every 5 minutes
+setInterval(() => {
+    if (document.visibilityState === 'visible') {
+        loadChartData();
+    }
+}, 300000);
+
+// Keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey) {
+        switch(e.key) {
+            case 'p':
+                e.preventDefault();
+                printReport();
+                break;
+            case 'e':
+                e.preventDefault();
+                exportReport('excel');
+                break;
+            case 'r':
+                e.preventDefault();
+                applyFilters();
+                break;
+        }
+    }
+});
+</script>
+{% endblock %}

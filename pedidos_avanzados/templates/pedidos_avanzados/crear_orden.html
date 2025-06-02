@@ -1,0 +1,423 @@
+{% extends "pedidos_avanzados/base.html" %}
+{% load static %}
+
+{% block pedidos_content %}
+<!-- Header -->
+<div class="main-card mb-4">
+    <div class="card-header-custom">
+        <div class="d-flex justify-content-between align-items-center">
+            <h2>
+                <i class="fas fa-plus-circle"></i>
+                Crear Orden desde Pedidos
+            </h2>
+            
+            <a href="{% url 'pedidos_avanzados:grilla_ordenes' %}" class="btn btn-outline-light">
+                <i class="fas fa-arrow-left"></i> Volver
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Formulario principal -->
+<form method="post" id="formCrearOrden">
+    {% csrf_token %}
+    
+    <!-- Paso 1: Selección de Cliente -->
+    <div class="main-card mb-4">
+        <div class="card-header-custom">
+            <h4 class="mb-0">
+                <span class="badge bg-light text-dark me-2">1</span>
+                Seleccionar Cliente
+            </h4>
+        </div>
+        
+        <div class="card-body">
+            <div class="row">
+                <div class="col-lg-6">
+                    <label class="form-label">Cliente con Pedidos Pendientes</label>
+                    <select name="cliente_id" id="cliente-select" class="form-select" required>
+                        <option value="">Seleccionar cliente...</option>
+                        {% for cliente_opt in clientes_con_pedidos %}
+                            <option value="{{ cliente_opt.id }}" 
+                                    {% if cliente and cliente.id == cliente_opt.id %}selected{% endif %}>
+                                {{ cliente_opt.nombre }} - {{ cliente_opt.telefono|default:"Sin teléfono" }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <small class="form-text text-muted">
+                        Solo se muestran clientes con pedidos pendientes
+                    </small>
+                </div>
+                
+                {% if cliente %}
+                <div class="col-lg-6">
+                    <div class="alert alert-info">
+                        <h6 class="alert-heading">
+                            <i class="fas fa-user"></i> Cliente Seleccionado
+                        </h6>
+                        <p class="mb-1"><strong>{{ cliente.nombre }}</strong></p>
+                        {% if cliente.telefono %}<p class="mb-1">📞 {{ cliente.telefono }}</p>{% endif %}
+                        {% if cliente.email %}<p class="mb-0">📧 {{ cliente.email }}</p>{% endif %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Paso 2: Selección de Pedidos (solo si hay cliente seleccionado) -->
+    {% if cliente and pedidos_disponibles %}
+    <div class="main-card mb-4">
+        <div class="card-header-custom">
+            <div class="d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">
+                    <span class="badge bg-light text-dark me-2">2</span>
+                    Seleccionar Pedidos a Consolidar
+                </h4>
+                
+                <div>
+                    <button type="button" class="btn btn-outline-light btn-sm" onclick="seleccionarTodos()">
+                        <i class="fas fa-check-square"></i> Seleccionar Todos
+                    </button>
+                    <button type="button" class="btn btn-outline-light btn-sm" onclick="deseleccionarTodos()">
+                        <i class="fas fa-square"></i> Deseleccionar Todos
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-custom mb-0">
+                    <thead>
+                        <tr>
+                            <th width="50">
+                                <input type="checkbox" id="selectAllPedidos" class="form-check-input">
+                            </th>
+                            <th>ID Pedido</th>
+                            <th>Fecha</th>
+                            <th>Productos</th>
+                            <th>Cantidad Total</th>
+                            <th>Monto</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for pedido in pedidos_disponibles %}
+                        <tr class="pedido-row" data-pedido-id="{{ pedido.id }}">
+                            <td>
+                                <input type="checkbox" name="pedidos_ids" value="{{ pedido.id }}" 
+                                       class="form-check-input pedido-checkbox">
+                            </td>
+                            <td>
+                                <strong>#{{ pedido.id }}</strong>
+                            </td>
+                            <td>
+                                {{ pedido.fecha_pedido|date:"d/m/Y" }}
+                            </td>
+                            <td>
+                                <div class="productos-list">
+                                    {% for detalle in pedido.detalle_pedidos.all|slice:":3" %}
+                                        <small class="d-block">
+                                            <span class="badge bg-light text-dark">{{ detalle.cantidad }}x</span>
+                                            {{ detalle.producto.codigo }}
+                                            {% if detalle.producto.nombre %}- {{ detalle.producto.nombre|truncatechars:20 }}{% endif %}
+                                        </small>
+                                    {% endfor %}
+                                    {% if pedido.detalle_pedidos.count > 3 %}
+                                        <small class="text-muted">
+                                            +{{ pedido.detalle_pedidos.count|add:"-3" }} productos más
+                                        </small>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-primary">
+                                    {% with total_items=pedido.detalle_pedidos.all|length %}
+                                        {{ total_items }} item{{ total_items|pluralize:"s" }}
+                                    {% endwith %}
+                                </span>
+                            </td>
+                            <td>
+                                <strong class="text-success">${{ pedido.total|floatformat:2 }}</strong>
+                            </td>
+                            <td>
+                                <span class="badge bg-warning">{{ pedido.estado }}</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Resumen de selección -->
+            <div class="card-footer bg-light">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <div id="resumen-seleccion" class="text-muted">
+                            <i class="fas fa-info-circle"></i>
+                            Selecciona los pedidos que deseas consolidar en una orden
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div id="total-seleccionado" class="h5 mb-0 text-primary" style="display: none;">
+                            Total: $<span id="monto-total">0.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Paso 3: Configuración de la Orden -->
+    <div class="main-card mb-4">
+        <div class="card-header-custom">
+            <h4 class="mb-0">
+                <span class="badge bg-light text-dark me-2">3</span>
+                Configuración de la Orden
+            </h4>
+        </div>
+        
+        <div class="card-body">
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="mb-3">
+                        <label class="form-label">Observaciones (Opcional)</label>
+                        <textarea name="observaciones" class="form-control" rows="4" 
+                                  placeholder="Notas especiales sobre esta orden consolidada..."></textarea>
+                        <small class="form-text text-muted">
+                            Estas observaciones aparecerán en la orden y podrán ser consultadas posteriormente
+                        </small>
+                    </div>
+                </div>
+                
+                <div class="col-lg-4">
+                    <div class="alert alert-info">
+                        <h6 class="alert-heading">
+                            <i class="fas fa-lightbulb"></i> Información
+                        </h6>
+                        <ul class="mb-0 small">
+                            <li>La orden se creará en estado "ACTIVO"</li>
+                            <li>Los pedidos seleccionados se asociarán a la orden</li>
+                            <li>Se generará un número de orden único</li>
+                            <li>Podrás hacer seguimiento individual de cada producto</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Botones de acción -->
+    <div class="main-card">
+        <div class="card-body">
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'pedidos_avanzados:grilla_ordenes' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-times"></i> Cancelar
+                </a>
+                
+                <button type="submit" class="btn btn-success-custom" id="btn-crear-orden" disabled>
+                    <i class="fas fa-plus-circle"></i> Crear Orden Consolidada
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    {% elif cliente %}
+    <!-- No hay pedidos para el cliente seleccionado -->
+    <div class="main-card">
+        <div class="card-body text-center py-5">
+            <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+            <h4 class="text-muted">No hay pedidos pendientes</h4>
+            <p class="text-muted mb-4">
+                El cliente <strong>{{ cliente.nombre }}</strong> no tiene pedidos pendientes para consolidar.
+            </p>
+            
+            <div>
+                <a href="?cliente_id=" class="btn btn-outline-primary me-2">
+                    <i class="fas fa-user-plus"></i> Seleccionar Otro Cliente
+                </a>
+                <a href="{% url 'ventas:crear_pedido' %}?cliente={{ cliente.id }}" class="btn btn-primary-custom">
+                    <i class="fas fa-plus"></i> Crear Nuevo Pedido
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    {% else %}
+    <!-- No hay cliente seleccionado -->
+    <div class="main-card">
+        <div class="card-body text-center py-5">
+            <i class="fas fa-user-plus fa-3x text-muted mb-3"></i>
+            <h4 class="text-muted">Selecciona un cliente</h4>
+            <p class="text-muted mb-4">
+                Selecciona un cliente con pedidos pendientes para comenzar a crear la orden consolidada.
+            </p>
+            
+            {% if not clientes_con_pedidos %}
+            <div class="alert alert-warning d-inline-block">
+                <i class="fas fa-exclamation-triangle"></i>
+                No hay clientes con pedidos pendientes en el sistema.
+            </div>
+            <br>
+            <a href="{% url 'ventas:crear_pedido' %}" class="btn btn-primary-custom mt-3">
+                <i class="fas fa-plus"></i> Crear Primer Pedido
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</form>
+{% endblock %}
+
+{% block pedidos_extra_js %}
+<script>
+$(document).ready(function() {
+    // Configurar select2 para cliente
+    $('#cliente-select').select2({
+        placeholder: 'Buscar cliente por nombre o teléfono...',
+        allowClear: true,
+        width: '100%'
+    });
+    
+    // Cambio de cliente - recargar página con nuevo cliente
+    $('#cliente-select').change(function() {
+        const clienteId = $(this).val();
+        if (clienteId) {
+            window.location.href = `?cliente_id=${clienteId}`;
+        } else {
+            window.location.href = '?';
+        }
+    });
+    
+    // Manejo de selección de pedidos
+    $('.pedido-checkbox').change(function() {
+        actualizarResumenSeleccion();
+        validarFormulario();
+    });
+    
+    // Seleccionar/deseleccionar todos
+    $('#selectAllPedidos').change(function() {
+        $('.pedido-checkbox').prop('checked', this.checked);
+        actualizarResumenSeleccion();
+        validarFormulario();
+    });
+    
+    // Validación inicial
+    validarFormulario();
+});
+
+function seleccionarTodos() {
+    $('.pedido-checkbox').prop('checked', true);
+    $('#selectAllPedidos').prop('checked', true);
+    actualizarResumenSeleccion();
+    validarFormulario();
+}
+
+function deseleccionarTodos() {
+    $('.pedido-checkbox').prop('checked', false);
+    $('#selectAllPedidos').prop('checked', false);
+    actualizarResumenSeleccion();
+    validarFormulario();
+}
+
+function actualizarResumenSeleccion() {
+    const pedidosSeleccionados = $('.pedido-checkbox:checked');
+    const count = pedidosSeleccionados.length;
+    
+    if (count === 0) {
+        $('#resumen-seleccion').html(`
+            <i class="fas fa-info-circle"></i>
+            Selecciona los pedidos que deseas consolidar en una orden
+        `);
+        $('#total-seleccionado').hide();
+    } else {
+        // Calcular totales
+        let montoTotal = 0;
+        let productosTotal = 0;
+        
+        pedidosSeleccionados.each(function() {
+            const row = $(this).closest('tr');
+            const monto = parseFloat(row.find('td:nth-child(6) strong').text().replace('$', '').replace(',', ''));
+            montoTotal += monto;
+            
+            // Contar productos (aproximado basado en el badge)
+            const badge = row.find('.badge.bg-primary').text();
+            const items = parseInt(badge.match(/\d+/)[0]);
+            productosTotal += items;
+        });
+        
+        $('#resumen-seleccion').html(`
+            <i class="fas fa-check-circle text-success"></i>
+            <strong>${count}</strong> pedido${count > 1 ? 's' : ''} seleccionado${count > 1 ? 's' : ''} 
+            (<strong>${productosTotal}</strong> producto${productosTotal > 1 ? 's' : ''})
+        `);
+        
+        $('#monto-total').text(montoTotal.toFixed(2));
+        $('#total-seleccionado').show();
+    }
+}
+
+function validarFormulario() {
+    const clienteSeleccionado = $('#cliente-select').val();
+    const pedidosSeleccionados = $('.pedido-checkbox:checked').length;
+    
+    const esValido = clienteSeleccionado && pedidosSeleccionados > 0;
+    
+    $('#btn-crear-orden').prop('disabled', !esValido);
+    
+    if (esValido) {
+        $('#btn-crear-orden').removeClass('btn-outline-success').addClass('btn-success-custom');
+    } else {
+        $('#btn-crear-orden').removeClass('btn-success-custom').addClass('btn-outline-success');
+    }
+}
+
+// Validación antes de enviar
+$('#formCrearOrden').submit(function(e) {
+    const pedidosSeleccionados = $('.pedido-checkbox:checked').length;
+    
+    if (pedidosSeleccionados === 0) {
+        e.preventDefault();
+        alert('Debe seleccionar al menos un pedido para crear la orden.');
+        return false;
+    }
+    
+    const confirmacion = confirm(
+        `¿Crear orden consolidada con ${pedidosSeleccionados} pedido${pedidosSeleccionados > 1 ? 's' : ''}?\n\n` +
+        'Esta acción asociará los pedidos seleccionados a una nueva orden para seguimiento avanzado.'
+    );
+    
+    if (!confirmacion) {
+        e.preventDefault();
+        return false;
+    }
+    
+    // Mostrar loading
+    $('#btn-crear-orden').prop('disabled', true).html(`
+        <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+        Creando orden...
+    `);
+});
+
+// Efectos visuales para las filas
+$('.pedido-row').hover(
+    function() {
+        $(this).addClass('table-active');
+    },
+    function() {
+        $(this).removeClass('table-active');
+    }
+);
+
+// Click en la fila para seleccionar/deseleccionar
+$('.pedido-row').click(function(e) {
+    if (e.target.type !== 'checkbox') {
+        const checkbox = $(this).find('.pedido-checkbox');
+        checkbox.prop('checked', !checkbox.prop('checked'));
+        actualizarResumenSeleccion();
+        validarFormulario();
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,752 @@
+{% extends "layouts/base.html" %}
+{% load static %}
+
+{% block title %}Ejecutar Reporte: {{ tipo_display }}{% endblock %}
+
+{% block page_title %}{{ tipo_display }}{% endblock %}
+
+{% block breadcrumbs_content %}
+    <li class="breadcrumb-item"><a href="{% url 'reportes:dashboard' %}">Reportes</a></li>
+    <li class="breadcrumb-item active">{{ tipo_display }}</li>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .parameter-card {
+        border-left: 4px solid #4e73df;
+    }
+    .result-card {
+        border-left: 4px solid #1cc88a;
+    }
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+    }
+    .loading-spinner {
+        text-align: center;
+        color: white;
+    }
+    .table-container {
+        max-height: 600px;
+        overflow-y: auto;
+    }
+    .export-buttons {
+        position: sticky;
+        top: 0;
+        background: white;
+        z-index: 100;
+        padding: 10px 0;
+        border-bottom: 1px solid #dee2e6;
+        margin-bottom: 15px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner">
+        <div class="spinner-border text-light" style="width: 3rem; height: 3rem;" role="status"></div>
+        <div class="mt-3">
+            <h5>Generando Reporte</h5>
+            <p>Por favor espere mientras se procesa la información...</p>
+        </div>
+    </div>
+</div>
+
+<!-- Parámetros del Reporte -->
+<div class="card parameter-card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">
+            <i class="bi bi-gear me-2"></i>Configuración del Reporte
+        </h6>
+    </div>
+    <div class="card-body">
+        <form id="reportForm">
+            <input type="hidden" name="tipo_reporte" value="{{ tipo_reporte }}">
+            
+            <div class="row">
+                <!-- Filtros de Fecha -->
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Fecha Desde</label>
+                    <input type="date" class="form-control" name="fecha_desde" id="fechaDesde">
+                    <div class="form-text">Dejar vacío para usar valor por defecto</div>
+                </div>
+                
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Fecha Hasta</label>
+                    <input type="date" class="form-control" name="fecha_hasta" id="fechaHasta">
+                    <div class="form-text">Dejar vacío para usar valor por defecto</div>
+                </div>
+                
+                <!-- Filtros Opcionales -->
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Tienda</label>
+                    <select class="form-select" name="tienda_id" id="tienda">
+                        <option value="">Todas las tiendas</option>
+                        <!-- Se cargarán dinámicamente -->
+                    </select>
+                </div>
+                
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Límite de Registros</label>
+                    <select class="form-select" name="limite_registros">
+                        <option value="100">100 registros</option>
+                        <option value="500">500 registros</option>
+                        <option value="1000" selected>1,000 registros</option>
+                        <option value="5000">5,000 registros</option>
+                        <option value="10000">10,000 registros</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Filtros específicos según el tipo de reporte -->
+            <div class="row" id="filtrosEspecificos">
+                {% if 'cliente' in tipo_reporte %}
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Cliente Específico</label>
+                    <select class="form-select" name="cliente_id" id="cliente">
+                        <option value="">Todos los clientes</option>
+                        <!-- Se cargarán dinámicamente -->
+                    </select>
+                </div>
+                {% endif %}
+                
+                {% if 'producto' in tipo_reporte %}
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Producto Específico</label>
+                    <select class="form-select" name="producto_id" id="producto">
+                        <option value="">Todos los productos</option>
+                        <!-- Se cargarán dinámicamente -->
+                    </select>
+                </div>
+                {% endif %}
+                
+                {% if 'vendedor' in tipo_reporte %}
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Vendedor</label>
+                    <select class="form-select" name="vendedor_id" id="vendedor">
+                        <option value="">Todos los vendedores</option>
+                        <!-- Se cargarán dinámicamente -->
+                    </select>
+                </div>
+                {% endif %}
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Formato de Salida</label>
+                    <div class="btn-group w-100" role="group">
+                        <input type="radio" class="btn-check" name="formato_salida" id="formatoJson" value="json" checked>
+                        <label class="btn btn-outline-primary" for="formatoJson">
+                            <i class="bi bi-display me-1"></i>Ver en Pantalla
+                        </label>
+                        
+                        <input type="radio" class="btn-check" name="formato_salida" id="formatoCsv" value="csv">
+                        <label class="btn btn-outline-success" for="formatoCsv">
+                            <i class="bi bi-file-earmark-spreadsheet me-1"></i>CSV
+                        </label>
+                        
+                        <input type="radio" class="btn-check" name="formato_salida" id="formatoExcel" value="excel">
+                        <label class="btn btn-outline-info" for="formatoExcel">
+                            <i class="bi bi-file-earmark-excel me-1"></i>Excel
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 mb-3 d-flex align-items-end">
+                    <button type="button" class="btn btn-primary w-100" onclick="ejecutarReporte()">
+                        <i class="bi bi-play-circle me-1"></i>Ejecutar Reporte
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Resultados -->
+{% if datos_reporte %}
+<div class="card result-card shadow" id="resultadosCard">
+    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+        <h6 class="m-0 font-weight-bold text-success">
+            <i class="bi bi-check-circle me-2"></i>Resultados del Reporte
+            {% if es_auto_generado %}
+            <span class="badge bg-info ms-2">Auto-generado</span>
+            {% endif %}
+        </h6>
+{% else %}
+<div class="card result-card shadow" id="resultadosCard" style="display: none;">
+    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+        <h6 class="m-0 font-weight-bold text-success">
+            <i class="bi bi-check-circle me-2"></i>Resultados del Reporte
+        </h6>
+{% endif %}
+        <div>
+            <button class="btn btn-sm btn-outline-success" onclick="exportarCSV()">
+                <i class="bi bi-download me-1"></i>CSV
+            </button>
+            <button class="btn btn-sm btn-outline-info" onclick="exportarExcel()">
+                <i class="bi bi-download me-1"></i>Excel
+            </button>
+            <button class="btn btn-sm btn-outline-primary" onclick="imprimirReporte()">
+                <i class="bi bi-printer me-1"></i>Imprimir
+            </button>
+        </div>
+    </div>
+    <div class="card-body">        <!-- Resumen -->
+        {% if datos_reporte.resumen %}
+        <div class="row mb-4" id="resumenSection">
+            {% for key, value in datos_reporte.resumen.items %}
+            <div class="col-md-4 mb-3">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <h5 class="card-title text-primary">
+                            {% if value|floatformat:2 != value|floatformat:0 %}
+                                {{ value|floatformat:2 }}
+                            {% else %}
+                                {{ value|default:"N/A" }}
+                            {% endif %}
+                        </h5>
+                        <p class="card-text text-muted small">{{ key|upper|title }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="row mb-4" id="resumenSection">
+            <!-- Se llenará dinámicamente -->
+        </div>
+        {% endif %}
+        
+        <!-- Tabla de Resultados -->
+        <div class="table-container">
+            <div class="export-buttons">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="mb-0">Datos Detallados</h6>
+                        <small class="text-muted" id="totalRegistros">
+                            {% if datos_reporte.datos %}
+                                {{ datos_reporte.datos|length }} registros encontrados
+                            {% elif datos_reporte.inventario %}
+                                {{ datos_reporte.inventario|length }} registros encontrados
+                            {% elif datos_reporte.traspasos %}
+                                {{ datos_reporte.traspasos|length }} registros encontrados
+                            {% else %}
+                                0 registros
+                            {% endif %}
+                        </small>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <input type="text" class="form-control form-control-sm d-inline-block w-auto" 
+                               placeholder="Buscar en resultados..." id="buscarEnResultados"
+                               onkeyup="filtrarResultados()">
+                    </div>
+                </div>
+            </div>
+              <div class="table-responsive">                {% if datos_reporte.datos or datos_reporte.inventario or datos_reporte.traspasos %}
+                    {% if datos_reporte.datos %}
+                        {% with datos_reporte.datos as datos_tabla %}
+                    {% elif datos_reporte.inventario %}
+                        {% with datos_reporte.inventario as datos_tabla %}
+                    {% elif datos_reporte.traspasos %}
+                        {% with datos_reporte.traspasos as datos_tabla %}
+                    {% else %}
+                        {% with '' as datos_tabla %}
+                    {% endif %}
+                    {% if datos_tabla %}
+                <table class="table table-striped table-hover" id="tablaResultados">                    <thead class="table-dark">
+                        <tr id="encabezadosTabla">
+                            {% for header in datos_tabla.0.keys %}
+                            <th>{{ header|upper|title }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody id="cuerpoTabla">
+                        {% for fila in datos_tabla %}
+                        <tr>
+                            {% for key, valor in fila.items %}
+                            <td>
+                                {% if valor == None %}
+                                    -
+                                {% elif valor|floatformat:2 != valor|floatformat:0 %}
+                                    {{ valor|floatformat:2 }}
+                                {% elif valor == True %}
+                                    Sí
+                                {% elif valor == False %}
+                                    No
+                                {% elif valor|date:"Y-m-d" == valor %}
+                                    {{ valor|date:"d/m/Y" }}
+                                {% else %}
+                                    {{ valor }}
+                                {% endif %}
+                            </td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                    {% else %}
+                <div class="text-center py-5">
+                    <i class="bi bi-inbox display-4 text-muted"></i>
+                    <h5 class="mt-3 text-muted">No se encontraron datos</h5>
+                    <p class="text-muted">Intente ajustar los filtros o el período de búsqueda</p>
+                </div>
+                    {% endif %}
+                    {% endwith %}
+                {% else %}
+                <table class="table table-striped table-hover" id="tablaResultados">
+                    <thead class="table-dark">
+                        <tr id="encabezadosTabla">
+                            <!-- Se llenará dinámicamente -->
+                        </tr>
+                    </thead>
+                    <tbody id="cuerpoTabla">
+                        <!-- Se llenará dinámicamente -->
+                    </tbody>
+                </table>
+                {% endif %}
+            </div>
+        </div>
+          <!-- Metadatos -->
+        {% if datos_reporte.metadatos or datos_reporte.periodo %}
+        <div class="mt-4" id="metadatosSection">
+            <div class="row">
+                <div class="col-md-3">
+                    <strong>Fecha de Generación:</strong><br>
+                    <span class="text-muted">
+                        {% if datos_reporte.metadatos.fecha_generacion %}
+                            {{ datos_reporte.metadatos.fecha_generacion|date:"d/m/Y H:i:s" }}
+                        {% else %}
+                            {% now "d/m/Y H:i:s" %}
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="col-md-3">
+                    <strong>Tiempo de Ejecución:</strong><br>
+                    <span class="text-muted">{{ datos_reporte.metadatos.tiempo_ejecucion|default:"N/A" }} segundos</span>
+                </div>
+                <div class="col-md-3">
+                    <strong>Total de Registros:</strong><br>
+                    <span class="text-muted">{{ datos_reporte.metadatos.total_registros|default:"N/A" }}</span>
+                </div>
+                <div class="col-md-3">
+                    <strong>Período:</strong><br>
+                    <span class="text-muted">{{ datos_reporte.periodo|default:"Últimos 30 días" }}</span>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="mt-4" id="metadatosSection">
+            <!-- Se llenará dinámicamente -->
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Card de Ayuda -->
+<div class="card shadow mt-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-info">
+            <i class="bi bi-info-circle me-2"></i>Información del Reporte
+        </h6>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-8">
+                <h6>{{ tipo_display }}</h6>
+                <p class="text-muted">
+                    {% if 'clientes_inactivos' == tipo_reporte %}
+                        Este reporte identifica clientes que no han realizado compras en el período especificado. 
+                        Útil para campañas de reactivación y análisis de retención de clientes.
+                    {% elif 'historial_precios' == tipo_reporte %}
+                        Muestra el historial de cambios de precios en los productos. Permite rastrear 
+                        modificaciones y analizar el impacto en las ventas.
+                    {% elif 'inventario_diario' == tipo_reporte %}
+                        Presenta el estado del inventario en fechas específicas y los traspasos realizados 
+                        entre tiendas. Esencial para la gestión de stock.
+                    {% elif 'descuentos_mensuales' == tipo_reporte %}
+                        Analiza los descuentos aplicados por mes, mostrando tendencias y el impacto 
+                        en las ventas totales.
+                    {% elif 'cumplimiento_metas' == tipo_reporte %}
+                        Evalúa si los clientes están recibiendo los descuentos correctos según el 
+                        tabulador de descuentos establecido.
+                    {% elif 'ventas_por_vendedor' == tipo_reporte %}
+                        Muestra el rendimiento individual de cada vendedor, incluyendo ventas totales 
+                        y promedios por período.
+                    {% elif 'productos_mas_vendidos' == tipo_reporte %}
+                        Lista los productos con mayor cantidad de ventas en el período seleccionado. 
+                        Útil para gestión de inventario y promociones.
+                    {% elif 'analisis_rentabilidad' == tipo_reporte %}
+                        Calcula la rentabilidad por producto, mostrando márgenes de ganancia y 
+                        contribución a los ingresos totales.
+                    {% elif 'stock_critico' == tipo_reporte %}
+                        Identifica productos con stock bajo o crítico que requieren reabastecimiento 
+                        inmediato.
+                    {% elif 'tendencias_ventas' == tipo_reporte %}
+                        Analiza las tendencias de ventas a lo largo del tiempo, identificando patrones 
+                        estacionales y oportunidades de crecimiento.
+                    {% else %}
+                        Reporte de análisis avanzado que proporciona insights detallados sobre el 
+                        negocio.
+                    {% endif %}
+                </p>
+            </div>
+            <div class="col-md-4">
+                <h6>Consejos de Uso:</h6>
+                <ul class="text-muted small">
+                    <li>Use fechas específicas para análisis puntuales</li>
+                    <li>Limite los registros para mejorar la velocidad</li>
+                    <li>Exporte a Excel para análisis adicional</li>
+                    <li>Combine múltiples reportes para insights completos</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if datos_reporte %}
+<script id="datos-reporte" type="application/json">
+{{ datos_reporte|escapejs }}
+</script>
+{% endif %}
+<script>
+let datosReporte = null;
+let datosOriginales = null;
+
+// Inicializar página
+$(document).ready(function() {
+    // Establecer fechas por defecto
+    const hoy = new Date();
+    const hace30Dias = new Date();
+    hace30Dias.setDate(hoy.getDate() - 30);
+    
+    $('#fechaHasta').val(hoy.toISOString().split('T')[0]);
+    $('#fechaDesde').val(hace30Dias.toISOString().split('T')[0]);
+    
+    // Cargar datos para selects
+    cargarTiendas();
+    cargarClientes();
+    cargarProductos();
+    cargarVendedores();
+    
+    // Si hay datos pre-cargados, inicializarlos
+    const datosScript = document.getElementById('datos-reporte');
+    if (datosScript) {
+        try {
+            const datosPreCargados = JSON.parse(datosScript.textContent);
+            if (datosPreCargados) {
+                datosReporte = datosPreCargados;
+                datosOriginales = [...(datosPreCargados.datos || datosPreCargados.inventario || datosPreCargados.traspasos || [])];
+            }
+        } catch (e) {
+            console.log('Error al cargar datos pre-cargados:', e);
+        }
+    }
+});
+
+function ejecutarReporte() {
+    const formData = new FormData(document.getElementById('reportForm'));
+    const params = new URLSearchParams();
+    
+    for (let [key, value] of formData.entries()) {
+        if (value) {
+            params.append(key, value);
+        }
+    }
+    
+    const formato = formData.get('formato_salida');
+    
+    if (formato === 'csv' || formato === 'excel') {
+        // Descargar archivo directamente
+        window.open(`/reportes/api/avanzados/?${params.toString()}`, '_blank');
+        return;
+    }
+    
+    // Mostrar loading
+    $('#loadingOverlay').show();
+    
+    // Hacer petición AJAX
+    fetch(`/reportes/api/avanzados/?${params.toString()}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            $('#loadingOverlay').hide();
+            
+            if (data.error) {
+                Swal.fire('Error', data.error, 'error');
+                return;
+            }
+            
+            mostrarResultados(data);
+        })
+        .catch(error => {
+            $('#loadingOverlay').hide();
+            console.error('Error:', error);
+            Swal.fire('Error', 'Ocurrió un error al generar el reporte: ' + error.message, 'error');
+        });
+}
+
+function mostrarResultados(data) {
+    datosReporte = data;
+    datosOriginales = data.datos ? [...data.datos] : [];
+    
+    // Mostrar card de resultados
+    $('#resultadosCard').show();
+    
+    // Llenar resumen
+    mostrarResumen(data);
+    
+    // Llenar tabla
+    mostrarTabla(data);
+    
+    // Mostrar metadatos
+    mostrarMetadatos(data);
+    
+    // Scroll hacia resultados
+    $('#resultadosCard')[0].scrollIntoView({ behavior: 'smooth' });
+}
+
+function mostrarResumen(data) {
+    const resumen = data.resumen || {};
+    const resumenHtml = Object.entries(resumen).map(([key, value]) => {
+        const label = key.replace(/_/g, ' ').toUpperCase();
+        const formattedValue = typeof value === 'number' && value % 1 !== 0 ? 
+            value.toFixed(2) : 
+            value?.toLocaleString() || 'N/A';
+        
+        return `
+            <div class="col-md-4 mb-3">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <h5 class="card-title text-primary">${formattedValue}</h5>
+                        <p class="card-text text-muted small">${label}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    $('#resumenSection').html(resumenHtml);
+}
+
+function mostrarTabla(data) {
+    const datos = data.datos || data.inventario || data.traspasos || [];
+    
+    if (!datos || datos.length === 0) {
+        $('#tablaResultados').html(`
+            <div class="text-center py-5">
+                <i class="bi bi-inbox display-4 text-muted"></i>
+                <h5 class="mt-3 text-muted">No se encontraron datos</h5>
+                <p class="text-muted">Intente ajustar los filtros o el período de búsqueda</p>
+            </div>
+        `);
+        return;
+    }
+    
+    // Obtener headers
+    const headers = Object.keys(datos[0]);
+    const encabezados = headers.map(header => 
+        `<th>${header.replace(/_/g, ' ').toUpperCase()}</th>`
+    ).join('');
+    
+    $('#encabezadosTabla').html(encabezados);
+    
+    // Llenar filas
+    mostrarFilasTabla(datos, headers);
+    
+    // Actualizar contador
+    $('#totalRegistros').text(`${datos.length} registros encontrados`);
+}
+
+function mostrarFilasTabla(datos, headers) {
+    const filas = datos.map(fila => {
+        const celdas = headers.map(header => {
+            let valor = fila[header];
+            
+            // Formatear valores según tipo
+            if (valor === null || valor === undefined) {
+                valor = '-';
+            } else if (typeof valor === 'number' && valor % 1 !== 0) {
+                valor = valor.toFixed(2);
+            } else if (typeof valor === 'boolean') {
+                valor = valor ? 'Sí' : 'No';
+            } else if (typeof valor === 'string' && valor.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                // Formatear fecha
+                valor = new Date(valor).toLocaleDateString('es-ES');
+            }
+            
+            return `<td>${valor}</td>`;
+        }).join('');
+        
+        return `<tr>${celdas}</tr>`;
+    }).join('');
+    
+    $('#cuerpoTabla').html(filas);
+}
+
+function mostrarMetadatos(data) {
+    const metadatos = data.metadatos || {};
+    
+    const metadatosHtml = `
+        <div class="row">
+            <div class="col-md-3">
+                <strong>Fecha de Generación:</strong><br>
+                <span class="text-muted">${metadatos.fecha_generacion ? 
+                    new Date(metadatos.fecha_generacion).toLocaleString('es-ES') : 
+                    new Date().toLocaleString('es-ES')}</span>
+            </div>
+            <div class="col-md-3">
+                <strong>Tiempo de Ejecución:</strong><br>
+                <span class="text-muted">${metadatos.tiempo_ejecucion || 'N/A'} segundos</span>
+            </div>
+            <div class="col-md-3">
+                <strong>Total de Registros:</strong><br>
+                <span class="text-muted">${metadatos.total_registros || 'N/A'}</span>
+            </div>
+            <div class="col-md-3">
+                <strong>Período:</strong><br>
+                <span class="text-muted">${data.periodo || 'N/A'}</span>
+            </div>
+        </div>
+    `;
+    
+    $('#metadatosSection').html(metadatosHtml);
+}
+
+function filtrarResultados() {
+    const busqueda = $('#buscarEnResultados').val().toLowerCase();
+    
+    if (!busqueda) {
+        const datos = datosReporte.datos || datosReporte.inventario || datosReporte.traspasos || [];
+        mostrarFilasTabla(datos, Object.keys(datos[0] || {}));
+        $('#totalRegistros').text(`${datos.length} registros encontrados`);
+        return;
+    }
+    
+    const datos = datosOriginales.filter(fila => {
+        return Object.values(fila).some(valor => 
+            String(valor).toLowerCase().includes(busqueda)
+        );
+    });
+    
+    if (datos.length > 0) {
+        mostrarFilasTabla(datos, Object.keys(datos[0]));
+    } else {
+        $('#cuerpoTabla').html(`
+            <tr>
+                <td colspan="100%" class="text-center text-muted py-4">
+                    No se encontraron resultados para "${busqueda}"
+                </td>
+            </tr>
+        `);
+    }
+    
+    $('#totalRegistros').text(`${datos.length} registros encontrados`);
+}
+
+function exportarCSV() {
+    const formData = new FormData(document.getElementById('reportForm'));
+    formData.set('formato_salida', 'csv');
+    
+    const params = new URLSearchParams();
+    for (let [key, value] of formData.entries()) {
+        if (value) {
+            params.append(key, value);
+        }
+    }
+    
+    window.open(`/reportes/api/avanzados/?${params.toString()}`, '_blank');
+}
+
+function exportarExcel() {
+    const formData = new FormData(document.getElementById('reportForm'));
+    formData.set('formato_salida', 'excel');
+    
+    const params = new URLSearchParams();
+    for (let [key, value] of formData.entries()) {
+        if (value) {
+            params.append(key, value);
+        }
+    }
+    
+    window.open(`/reportes/api/avanzados/?${params.toString()}`, '_blank');
+}
+
+function imprimirReporte() {
+    window.print();
+}
+
+// Funciones para cargar datos de selects
+function cargarTiendas() {
+    fetch('/api/tiendas/')
+        .then(response => response.json())
+        .then(data => {
+            const options = data.results?.map(tienda => 
+                `<option value="${tienda.id}">${tienda.nombre}</option>`
+            ).join('') || '';
+            $('#tienda').append(options);
+        })
+        .catch(error => console.log('Error cargando tiendas:', error));
+}
+
+function cargarClientes() {
+    // Solo cargar si hay un select de cliente
+    if ($('#cliente').length > 0) {
+        fetch('/api/clientes/?limit=100')
+            .then(response => response.json())
+            .then(data => {
+                const options = data.results?.map(cliente => 
+                    `<option value="${cliente.id}">${cliente.nombre}</option>`
+                ).join('') || '';
+                $('#cliente').append(options);
+            })
+            .catch(error => console.log('Error cargando clientes:', error));
+    }
+}
+
+function cargarProductos() {
+    // Solo cargar si hay un select de producto
+    if ($('#producto').length > 0) {
+        fetch('/api/productos/?limit=100')
+            .then(response => response.json())
+            .then(data => {
+                const options = data.results?.map(producto => 
+                    `<option value="${producto.id}">${producto.codigo} - ${producto.modelo}</option>`
+                ).join('') || '';
+                $('#producto').append(options);
+            })
+            .catch(error => console.log('Error cargando productos:', error));
+    }
+}
+
+function cargarVendedores() {
+    // Solo cargar si hay un select de vendedor
+    if ($('#vendedor').length > 0) {
+        fetch('/api/users/')
+            .then(response => response.json())
+            .then(data => {
+                const options = data.results?.map(usuario => 
+                    `<option value="${usuario.id}">${usuario.username} - ${usuario.first_name} ${usuario.last_name}</option>`
+                ).join('') || '';
+                $('#vendedor').append(options);
+            })
+            .catch(error => console.log('Error cargando vendedores:', error));
+    }
+}
+</script>
+{% endblock %}

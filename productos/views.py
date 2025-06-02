@@ -2,6 +2,8 @@ from django.shortcuts import render, get_object_or_404, redirect
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
+from django.views.decorators.http import require_http_methods
+from django.http import JsonResponse
 from .models import Producto, Proveedor, Tienda, Catalogo
 from .serializers import ProductoSerializer, CatalogoSerializer
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
@@ -20,6 +22,8 @@ from .forms import ProductoForm, ProductoImportForm
 from django.db.models import Q
 import tempfile
 import os
+from django.views.decorators.http import require_http_methods
+from django.http import JsonResponse
 
 @extend_schema(tags=["Productos"])
 class ProductoViewSet(viewsets.ModelViewSet):
@@ -185,21 +189,85 @@ class CatalogoViewSet(viewsets.ModelViewSet):
 # Frontend Views
 @login_required
 def producto_list(request):
+    """Vista para listar productos con soporte para HTMX"""
+    # Get filter parameters
     search_query = request.GET.get('q', '')
+    temporada = request.GET.get('temporada', '')
+    oferta = request.GET.get('oferta', '')
+    catalogo_id = request.GET.get('catalogo', '')
+    precio_min = request.GET.get('precio_min', '')
+    precio_max = request.GET.get('precio_max', '')
     
+    # Base query
+    productos = Producto.objects.select_related('proveedor', 'tienda', 'catalogo')
+      # Apply filters
     if search_query:
-        productos = Producto.objects.filter(
+        productos = productos.filter(
             Q(codigo__icontains=search_query) | 
-            Q(nombre__icontains=search_query) | 
             Q(marca__icontains=search_query) | 
-            Q(modelo__icontains=search_query)
+            Q(modelo__icontains=search_query) |
+            Q(color__icontains=search_query)
         )
-    else:
-        productos = Producto.objects.all()
+    
+    # Filter by temporada
+    if temporada:
+        productos = productos.filter(temporada=temporada)
+    
+    # Filter by oferta
+    if oferta == 'true':
+        productos = productos.filter(oferta=True)
+    elif oferta == 'false':
+        productos = productos.filter(oferta=False)
+    
+    # Filter by catalogo
+    if catalogo_id:
+        productos = productos.filter(catalogo_id=catalogo_id)
+    
+    # Filter by precio range
+    if precio_min:
+        try:
+            min_precio = float(precio_min)
+            productos = productos.filter(precio__gte=min_precio)
+        except ValueError:
+            pass
+    
+    if precio_max:
+        try:
+            max_precio = float(precio_max)
+            productos = productos.filter(precio__lte=max_precio)
+        except ValueError:
+            pass
+    
+    # Order results
+    productos = productos.order_by('marca', 'modelo', 'codigo')
+    
+    # Check if this is an HTMX request
+    if request.headers.get('HX-Request'):
+        # Return only the table partial for HTMX requests
+        context = {
+            'productos': productos,
+            'search_query': search_query,
+            'temporada': temporada,
+            'oferta': oferta,
+            'catalogo_id': catalogo_id,
+        }
+        return render(request, 'productos/partials/producto_table.html', context)
+    
+    # Full page render for regular requests
+    # Calculate metrics for summary cards
+    productos_oferta = Producto.objects.filter(oferta=True).count()
+    productos_activos = Producto.objects.filter(activo=True).count() if hasattr(Producto, 'activo') else productos.count()
+    catalogos_activos = Catalogo.objects.filter(activo=True).count()
     
     context = {
         'productos': productos,
         'search_query': search_query,
+        'temporada': temporada,
+        'oferta': oferta,
+        'catalogo_id': catalogo_id,
+        'productos_oferta': productos_oferta,
+        'productos_activos': productos_activos,
+        'catalogos_activos': catalogos_activos,
     }
     return render(request, 'productos/producto_list.html', context)
 
@@ -265,5 +333,55 @@ def producto_import(request):
         'titulo': 'Importar Productos desde Excel'
     }
     return render(request, 'productos/producto_import.html', context)
+
+@login_required
+@require_http_methods(["POST", "DELETE"])
+def producto_delete(request, pk):
+    """Vista para eliminar un producto con validaciones"""
+    from django.http import Http404
+    
+    try:
+        producto = get_object_or_404(Producto, pk=pk)
+        
+        # Check if product is used in any orders/sales
+        from ventas.models import DetallePedido
+        from inventario.models import Inventario
+        
+        # Check for existing order details
+        pedidos_count = DetallePedido.objects.filter(producto=producto).count()
+        if pedidos_count > 0:
+            return JsonResponse({
+                'success': False,
+                'message': f'No se puede eliminar el producto. Está asociado a {pedidos_count} pedido(s).'
+            }, status=400)
+        
+        # Check for existing inventory records
+        inventario_count = Inventario.objects.filter(producto=producto).count()
+        if inventario_count > 0:
+            return JsonResponse({
+                'success': False,
+                'message': f'No se puede eliminar el producto. Tiene {inventario_count} registro(s) de inventario.'
+            }, status=400)
+        
+        # If no dependencies, proceed with deletion
+        producto_info = f"{producto.codigo} - {producto.marca} {producto.modelo}"
+        producto.delete()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Producto "{producto_info}" eliminado exitosamente.'
+        })
+        
+    except Http404:
+        return JsonResponse({
+            'success': False,
+            'message': 'Producto no encontrado.'
+        }, status=404)
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error al eliminar el producto: {str(e)}'
+        }, status=500)
 
 # Create your views here.

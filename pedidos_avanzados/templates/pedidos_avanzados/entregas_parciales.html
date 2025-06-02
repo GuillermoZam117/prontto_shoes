@@ -1,0 +1,715 @@
+{% extends 'pedidos_avanzados/base.html' %}
+{% load static %}
+
+{% block title %}Gestión de Entregas Parciales{% endblock %}
+
+{% block extra_css %}
+<style>
+    .delivery-header {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+    }
+    
+    .delivery-card {
+        border: 1px solid #e0e6ed;
+        border-radius: 10px;
+        margin-bottom: 1.5rem;
+        transition: all 0.3s ease;
+    }
+    
+    .delivery-card:hover {
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+    
+    .delivery-status {
+        padding: 0.25rem 0.75rem;
+        border-radius: 15px;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+    
+    .status-pending {
+        background: #fff3cd;
+        color: #856404;
+    }
+    
+    .status-preparing {
+        background: #cce5ff;
+        color: #004085;
+    }
+    
+    .status-ready {
+        background: #d4edda;
+        color: #155724;
+    }
+    
+    .status-delivered {
+        background: #d1ecf1;
+        color: #0c5460;
+    }
+    
+    .product-item {
+        display: flex;
+        align-items: center;
+        padding: 0.75rem;
+        border-bottom: 1px solid #f8f9fa;
+        transition: background-color 0.3s ease;
+    }
+    
+    .product-item:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .product-item:last-child {
+        border-bottom: none;
+    }
+    
+    .product-image {
+        width: 50px;
+        height: 50px;
+        border-radius: 8px;
+        background: #f8f9fa;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1rem;
+    }
+    
+    .quantity-controls {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .quantity-btn {
+        width: 30px;
+        height: 30px;
+        border: 1px solid #dee2e6;
+        background: white;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .quantity-btn:hover {
+        background: #e9ecef;
+        border-color: #adb5bd;
+    }
+    
+    .quantity-input {
+        width: 60px;
+        text-align: center;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        padding: 0.375rem;
+    }
+    
+    .timeline-container {
+        position: relative;
+        margin: 2rem 0;
+    }
+    
+    .timeline-line {
+        position: absolute;
+        left: 20px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #dee2e6;
+    }
+    
+    .timeline-step {
+        position: relative;
+        display: flex;
+        align-items: center;
+        margin-bottom: 2rem;
+    }
+    
+    .timeline-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: white;
+        border: 3px solid #dee2e6;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1rem;
+        z-index: 2;
+    }
+    
+    .timeline-step.completed .timeline-icon {
+        background: #28a745;
+        border-color: #28a745;
+        color: white;
+    }
+    
+    .timeline-step.active .timeline-icon {
+        background: #007bff;
+        border-color: #007bff;
+        color: white;
+        animation: pulse 2s infinite;
+    }
+    
+    .delivery-summary {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .progress-ring {
+        width: 120px;
+        height: 120px;
+        margin: 0 auto;
+    }
+    
+    .progress-ring circle {
+        transition: stroke-dashoffset 0.5s ease-in-out;
+    }
+    
+    .ticket-preview {
+        background: white;
+        border: 2px dashed #dee2e6;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+        font-family: 'Courier New', monospace;
+        font-size: 0.9rem;
+    }
+    
+    .ticket-header {
+        text-align: center;
+        border-bottom: 1px dashed #dee2e6;
+        padding-bottom: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .ticket-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.25rem 0;
+    }
+    
+    .ticket-total {
+        border-top: 1px dashed #dee2e6;
+        padding-top: 0.5rem;
+        margin-top: 0.5rem;
+        font-weight: bold;
+    }
+    
+    .floating-actions {
+        position: fixed;
+        bottom: 2rem;
+        right: 2rem;
+        z-index: 1000;
+    }
+    
+    .fab {
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        border: none;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.2rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .fab:hover {
+        transform: scale(1.1);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+    }
+    
+    .fab-primary { background: #007bff; }
+    .fab-success { background: #28a745; }
+    .fab-warning { background: #ffc107; }
+    
+    .delivery-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 1.5rem;
+    }
+    
+    .filter-tabs {
+        display: flex;
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 0.25rem;
+        margin-bottom: 2rem;
+    }
+    
+    .filter-tab {
+        flex: 1;
+        padding: 0.75rem 1rem;
+        text-align: center;
+        background: transparent;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .filter-tab.active {
+        background: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        color: #007bff;
+        font-weight: 500;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="delivery-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h2 class="mb-1">Gestión de Entregas Parciales</h2>
+                <p class="mb-0">Administra y coordina las entregas por lotes</p>
+            </div>
+            <div class="text-end">
+                <div class="h3 mb-0">{{ entregas_pendientes }}</div>
+                <small>Entregas Pendientes</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <div class="progress-ring">
+                        <svg width="120" height="120">
+                            <circle cx="60" cy="60" r="45" stroke="#e9ecef" stroke-width="8" fill="none"/>
+                            <circle cx="60" cy="60" r="45" stroke="#28a745" stroke-width="8" fill="none"
+                                    stroke-dasharray="283" stroke-dashoffset="{{ progress_offset }}"/>
+                        </svg>
+                        <div class="position-absolute" style="top: 50%; left: 50%; transform: translate(-50%, -50%);">
+                            <div class="h4 mb-0">{{ porcentaje_completado }}%</div>
+                            <small>Completado</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-9">
+            <div class="delivery-summary">
+                <div class="row">
+                    <div class="col-md-3 text-center">
+                        <div class="metric-value text-warning">{{ stats.pendientes }}</div>
+                        <div class="metric-label">Pendientes</div>
+                    </div>
+                    <div class="col-md-3 text-center">
+                        <div class="metric-value text-info">{{ stats.preparando }}</div>
+                        <div class="metric-label">Preparando</div>
+                    </div>
+                    <div class="col-md-3 text-center">
+                        <div class="metric-value text-success">{{ stats.listas }}</div>
+                        <div class="metric-label">Listas</div>
+                    </div>
+                    <div class="col-md-3 text-center">
+                        <div class="metric-value text-primary">{{ stats.entregadas }}</div>
+                        <div class="metric-label">Entregadas</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Tabs -->
+    <div class="filter-tabs">
+        <button class="filter-tab active" onclick="filterDeliveries('all')">
+            Todas ({{ entregas.count }})
+        </button>
+        <button class="filter-tab" onclick="filterDeliveries('pending')">
+            Pendientes ({{ stats.pendientes }})
+        </button>
+        <button class="filter-tab" onclick="filterDeliveries('preparing')">
+            Preparando ({{ stats.preparando }})
+        </button>
+        <button class="filter-tab" onclick="filterDeliveries('ready')">
+            Listas ({{ stats.listas }})
+        </button>
+        <button class="filter-tab" onclick="filterDeliveries('delivered')">
+            Entregadas ({{ stats.entregadas }})
+        </button>
+    </div>
+
+    <!-- Deliveries Grid -->
+    <div class="delivery-grid" id="deliveriesGrid">
+        {% for entrega in entregas %}
+        <div class="delivery-card" data-status="{{ entrega.estado }}" data-id="{{ entrega.id }}">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-1">Entrega #{{ entrega.numero_entrega }}</h6>
+                        <small class="text-muted">Orden #{{ entrega.orden.numero_orden }}</small>
+                    </div>
+                    <div class="text-end">
+                        <span class="delivery-status status-{{ entrega.estado }}">
+                            {{ entrega.get_estado_display }}
+                        </span>
+                        <br>
+                        <small class="text-muted">{{ entrega.fecha_programada|date:"d/m/Y" }}</small>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card-body">
+                <!-- Customer Info -->
+                <div class="mb-3">
+                    <strong>Cliente:</strong> {{ entrega.orden.cliente.nombre }}<br>
+                    <strong>Dirección:</strong> {{ entrega.direccion_entrega }}<br>
+                    <strong>Teléfono:</strong> {{ entrega.orden.cliente.telefono }}
+                </div>
+
+                <!-- Products -->
+                <div class="mb-3">
+                    <strong>Productos en esta entrega:</strong>
+                    <div class="mt-2">
+                        {% for item in entrega.items.all %}
+                        <div class="product-item">
+                            <div class="product-image">
+                                {% if item.producto.imagen %}
+                                    <img src="{{ item.producto.imagen.url }}" alt="{{ item.producto.nombre }}" 
+                                         style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;">
+                                {% else %}
+                                    <i class="fas fa-box text-muted"></i>
+                                {% endif %}
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="fw-medium">{{ item.producto.nombre }}</div>
+                                <small class="text-muted">{{ item.producto.descripcion|truncatechars:30 }}</small>
+                            </div>
+                            <div class="quantity-controls">
+                                {% if entrega.estado == 'pendiente' %}
+                                <button class="quantity-btn" onclick="updateQuantity({{ item.id }}, -1)">
+                                    <i class="fas fa-minus"></i>
+                                </button>
+                                {% endif %}
+                                <input type="number" class="quantity-input" value="{{ item.cantidad }}" 
+                                       {% if entrega.estado != 'pendiente' %}readonly{% endif %}
+                                       onchange="updateItemQuantity({{ item.id }}, this.value)">
+                                {% if entrega.estado == 'pendiente' %}
+                                <button class="quantity-btn" onclick="updateQuantity({{ item.id }}, 1)">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Timeline -->
+                <div class="timeline-container">
+                    <div class="timeline-line"></div>
+                    
+                    <div class="timeline-step {% if entrega.fecha_creacion %}completed{% endif %}">
+                        <div class="timeline-icon">
+                            <i class="fas fa-plus"></i>
+                        </div>
+                        <div>
+                            <strong>Entrega Creada</strong><br>
+                            <small>{{ entrega.fecha_creacion|date:"d/m/Y H:i" }}</small>
+                        </div>
+                    </div>
+                    
+                    <div class="timeline-step {% if entrega.fecha_preparacion %}completed{% elif entrega.estado == 'preparando' %}active{% endif %}">
+                        <div class="timeline-icon">
+                            <i class="fas fa-cog"></i>
+                        </div>
+                        <div>
+                            <strong>En Preparación</strong><br>
+                            {% if entrega.fecha_preparacion %}
+                                <small>{{ entrega.fecha_preparacion|date:"d/m/Y H:i" }}</small>
+                            {% else %}
+                                <small class="text-muted">Pendiente</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="timeline-step {% if entrega.fecha_lista %}completed{% elif entrega.estado == 'lista' %}active{% endif %}">
+                        <div class="timeline-icon">
+                            <i class="fas fa-check"></i>
+                        </div>
+                        <div>
+                            <strong>Lista para Entrega</strong><br>
+                            {% if entrega.fecha_lista %}
+                                <small>{{ entrega.fecha_lista|date:"d/m/Y H:i" }}</small>
+                            {% else %}
+                                <small class="text-muted">Pendiente</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="timeline-step {% if entrega.fecha_entrega %}completed{% elif entrega.estado == 'en_transito' %}active{% endif %}">
+                        <div class="timeline-icon">
+                            <i class="fas fa-truck"></i>
+                        </div>
+                        <div>
+                            <strong>Entregada</strong><br>
+                            {% if entrega.fecha_entrega %}
+                                <small>{{ entrega.fecha_entrega|date:"d/m/Y H:i" }}</small>
+                            {% else %}
+                                <small class="text-muted">Pendiente</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="mt-3">
+                    {% if entrega.estado == 'pendiente' %}
+                    <button class="btn btn-primary btn-sm" onclick="startPreparation({{ entrega.id }})">
+                        <i class="fas fa-play me-1"></i>Iniciar Preparación
+                    </button>
+                    {% elif entrega.estado == 'preparando' %}
+                    <button class="btn btn-success btn-sm" onclick="markReady({{ entrega.id }})">
+                        <i class="fas fa-check me-1"></i>Marcar Lista
+                    </button>
+                    {% elif entrega.estado == 'lista' %}
+                    <button class="btn btn-info btn-sm" onclick="startDelivery({{ entrega.id }})">
+                        <i class="fas fa-truck me-1"></i>Iniciar Entrega
+                    </button>
+                    {% endif %}
+                    
+                    <button class="btn btn-outline-secondary btn-sm ms-2" onclick="showTicketPreview({{ entrega.id }})">
+                        <i class="fas fa-receipt me-1"></i>Ver Ticket
+                    </button>
+                    
+                    <button class="btn btn-outline-primary btn-sm ms-2" onclick="editDelivery({{ entrega.id }})">
+                        <i class="fas fa-edit me-1"></i>Editar
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="text-center py-5">
+                <i class="fas fa-truck fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No hay entregas parciales</h5>
+                <p class="text-muted">Las entregas parciales aparecerán aquí cuando se creen.</p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Floating Action Buttons -->
+<div class="floating-actions">
+    <button class="fab fab-primary" onclick="createNewDelivery()" title="Crear Nueva Entrega">
+        <i class="fas fa-plus"></i>
+    </button>
+    <button class="fab fab-success" onclick="generateReport()" title="Generar Reporte">
+        <i class="fas fa-chart-bar"></i>
+    </button>
+    <button class="fab fab-warning" onclick="bulkActions()" title="Acciones en Lote">
+        <i class="fas fa-tasks"></i>
+    </button>
+</div>
+
+<!-- Ticket Preview Modal -->
+<div class="modal fade" id="ticketModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Ticket de Entrega</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="ticket-preview" id="ticketContent">
+                    <!-- Ticket content will be loaded here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn btn-primary" onclick="printTicket()">
+                    <i class="fas fa-print me-1"></i>Imprimir
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function filterDeliveries(status) {
+    const cards = document.querySelectorAll('.delivery-card');
+    const tabs = document.querySelectorAll('.filter-tab');
+    
+    // Update active tab
+    tabs.forEach(tab => tab.classList.remove('active'));
+    event.target.classList.add('active');
+    
+    // Filter cards
+    cards.forEach(card => {
+        if (status === 'all' || card.dataset.status === status) {
+            card.style.display = 'block';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+}
+
+function updateQuantity(itemId, change) {
+    const input = document.querySelector(`input[onchange*="${itemId}"]`);
+    const currentValue = parseInt(input.value);
+    const newValue = Math.max(0, currentValue + change);
+    input.value = newValue;
+    updateItemQuantity(itemId, newValue);
+}
+
+function updateItemQuantity(itemId, quantity) {
+    fetch(`/api/pedidos-avanzados/entregas-parciales/items/${itemId}/`, {
+        method: 'PATCH',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ cantidad: quantity })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Cantidad actualizada', 'success');
+        } else {
+            showNotification('Error al actualizar cantidad', 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Error de conexión', 'error');
+    });
+}
+
+function startPreparation(entregaId) {
+    updateDeliveryStatus(entregaId, 'preparando', 'Preparación iniciada');
+}
+
+function markReady(entregaId) {
+    updateDeliveryStatus(entregaId, 'lista', 'Entrega marcada como lista');
+}
+
+function startDelivery(entregaId) {
+    updateDeliveryStatus(entregaId, 'en_transito', 'Entrega iniciada');
+}
+
+function updateDeliveryStatus(entregaId, status, message) {
+    fetch(`/api/pedidos-avanzados/entregas-parciales/${entregaId}/cambiar-estado/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ estado: status })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(message, 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showNotification('Error al actualizar estado: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Error de conexión', 'error');
+    });
+}
+
+function showTicketPreview(entregaId) {
+    fetch(`/api/pedidos-avanzados/entregas-parciales/${entregaId}/ticket/`)
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('ticketContent').innerHTML = data.ticket_html;
+        new bootstrap.Modal(document.getElementById('ticketModal')).show();
+    })
+    .catch(error => {
+        showNotification('Error al cargar ticket', 'error');
+    });
+}
+
+function printTicket() {
+    const ticketContent = document.getElementById('ticketContent').innerHTML;
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <html>
+            <head>
+                <title>Ticket de Entrega</title>
+                <style>
+                    body { font-family: 'Courier New', monospace; }
+                    .ticket-preview { margin: 20px; }
+                </style>
+            </head>
+            <body>
+                ${ticketContent}
+            </body>
+        </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
+}
+
+function editDelivery(entregaId) {
+    window.location.href = `/pedidos-avanzados/entregas-parciales/${entregaId}/editar/`;
+}
+
+function createNewDelivery() {
+    window.location.href = '{% url "pedidos_avanzados:crear_entrega_parcial" %}';
+}
+
+function generateReport() {
+    window.open('/pedidos-avanzados/entregas-parciales/reporte/', '_blank');
+}
+
+function bulkActions() {
+    // Implementation for bulk actions
+    showNotification('Funcionalidad de acciones en lote próximamente', 'info');
+}
+
+// Auto-refresh every 60 seconds
+setInterval(() => {
+    // Only refresh if user hasn't interacted recently
+    const lastInteraction = parseInt(sessionStorage.getItem('lastInteraction') || '0');
+    const now = Date.now();
+    
+    if (now - lastInteraction > 30000) { // 30 seconds of no interaction
+        location.reload();
+    }
+}, 60000);
+
+// Track user interactions
+document.addEventListener('click', () => {
+    sessionStorage.setItem('lastInteraction', Date.now().toString());
+});
+
+// Update progress ring
+function updateProgressRing() {
+    const circle = document.querySelector('.progress-ring circle:last-child');
+    if (circle) {
+        const percentage = {{ porcentaje_completado }};
+        const circumference = 2 * Math.PI * 45;
+        const offset = circumference - (percentage / 100) * circumference;
+        circle.style.strokeDashoffset = offset;
+    }
+}
+
+// Initialize progress ring on page load
+document.addEventListener('DOMContentLoaded', updateProgressRing);
+</script>
+{% endblock %}

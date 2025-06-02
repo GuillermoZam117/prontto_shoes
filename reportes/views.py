@@ -694,13 +694,208 @@ def dashboard_reportes(request):
 @login_required
 def ejecutar_reporte(request, tipo_reporte):
     """Vista para ejecutar un reporte específico"""
+    from datetime import timedelta
+    import time
+    
+    # Parámetros por defecto para auto-ejecución
+    parametros_default = {
+        'fecha_desde': timezone.now().date() - timedelta(days=30),
+        'fecha_hasta': timezone.now().date(),
+        'limite_registros': 100,
+        'tienda_id': None,
+        'cliente_id': None,
+        'formato_salida': 'json'
+    }
+    
+    # Si es POST, usar parámetros del usuario
     if request.method == 'POST':
-        # Procesar parámetros y ejecutar reporte
-        pass
+        parametros_default.update({
+            'fecha_desde': request.POST.get('fecha_desde', parametros_default['fecha_desde']),
+            'fecha_hasta': request.POST.get('fecha_hasta', parametros_default['fecha_hasta']),
+            'limite_registros': int(request.POST.get('limite_registros', 100)),
+            'tienda_id': request.POST.get('tienda_id') or None,
+            'cliente_id': request.POST.get('cliente_id') or None,
+        })
+    
+    # Auto-ejecutar el reporte
+    datos_reporte = None
+    error_reporte = None
+    
+    try:
+        # Usar la misma lógica que ReportesAvanzadosAPIView
+        start_time = time.time()
+        
+        if tipo_reporte == 'inventario':
+            datos_reporte = _generar_reporte_inventario_diario(parametros_default)
+        elif tipo_reporte == 'compras':
+            datos_reporte = _generar_reporte_productos_vendidos(parametros_default)
+        elif tipo_reporte == 'personalizado':
+            datos_reporte = _generar_reporte_clientes_inactivos(parametros_default)
+        else:
+            # Reportes avanzados usando API interna
+            api_view = ReportesAvanzadosAPIView()
+            api_view.request = request
+            
+            if tipo_reporte == 'clientes_inactivos':
+                datos_reporte = api_view._generar_reporte_clientes_inactivos(parametros_default)
+            elif tipo_reporte == 'historial_precios':
+                datos_reporte = api_view._generar_reporte_historial_precios(parametros_default)
+            elif tipo_reporte == 'inventario_diario':
+                datos_reporte = api_view._generar_reporte_inventario_diario(parametros_default)
+            elif tipo_reporte == 'descuentos_mensuales':
+                datos_reporte = api_view._generar_reporte_descuentos_mensuales(parametros_default)
+            elif tipo_reporte == 'cumplimiento_metas':
+                datos_reporte = api_view._generar_reporte_cumplimiento_metas(parametros_default)
+            elif tipo_reporte == 'ventas_por_vendedor':
+                datos_reporte = api_view._generar_reporte_ventas_vendedor(parametros_default)
+            elif tipo_reporte == 'productos_mas_vendidos':
+                datos_reporte = api_view._generar_reporte_productos_vendidos(parametros_default)
+            elif tipo_reporte == 'analisis_rentabilidad':
+                datos_reporte = api_view._generar_reporte_rentabilidad(parametros_default)
+            elif tipo_reporte == 'stock_critico':
+                datos_reporte = api_view._generar_reporte_stock_critico(parametros_default)
+            elif tipo_reporte == 'tendencias_ventas':
+                datos_reporte = api_view._generar_reporte_tendencias_ventas(parametros_default)
+            else:
+                # Reporte básico por defecto
+                datos_reporte = {
+                    'titulo': f'Reporte: {tipo_reporte}',
+                    'datos': [],
+                    'resumen': {'mensaje': 'Tipo de reporte no configurado para auto-ejecución'}
+                }
+        
+        execution_time = time.time() - start_time
+        
+        if datos_reporte:
+            datos_reporte['metadatos'] = {
+                'tiempo_ejecucion': round(execution_time, 2),
+                'total_registros': len(datos_reporte.get('datos', [])),
+                'fecha_generacion': timezone.now().isoformat(),
+                'parametros': parametros_default,
+                'auto_ejecutado': True
+            }
+            
+    except Exception as e:
+        error_reporte = f"Error al generar reporte: {str(e)}"
+        import traceback
+        print(f"Error en reporte {tipo_reporte}: {traceback.format_exc()}")
     
     context = {
         'tipo_reporte': tipo_reporte,
-        'tipo_display': dict(ReportePersonalizado.TIPO_CHOICES).get(tipo_reporte, tipo_reporte)
+        'tipo_display': dict(ReportePersonalizado.TIPO_CHOICES).get(tipo_reporte, tipo_reporte.replace('_', ' ').title()),
+        'datos_reporte': datos_reporte,
+        'error_reporte': error_reporte,
+        'parametros_utilizados': parametros_default,
+        'auto_ejecutado': True
     }
     
     return render(request, 'reportes/ejecutar.html', context)
+
+
+# Funciones auxiliares para reportes básicos
+def _generar_reporte_inventario_diario(parametros):
+    """Reporte básico de inventario"""
+    tienda_id = parametros.get('tienda_id')
+    
+    query = Inventario.objects.select_related('tienda', 'producto').all()
+    if tienda_id:
+        query = query.filter(tienda_id=tienda_id)
+    
+    inventarios = query[:parametros.get('limite_registros', 100)]
+    
+    datos = []
+    for inv in inventarios:
+        datos.append({
+            'tienda': inv.tienda.nombre,
+            'producto_codigo': inv.producto.codigo,
+            'producto_nombre': str(inv.producto),
+            'cantidad_actual': inv.cantidad_actual,
+            'estado': 'Crítico' if inv.cantidad_actual <= 5 else 'Normal',
+            'fecha_registro': inv.fecha_registro.strftime('%Y-%m-%d') if inv.fecha_registro else 'N/A'
+        })
+    
+    return {
+        'titulo': 'Inventario Actual',
+        'datos': datos,
+        'resumen': {
+            'total_productos': len(datos),
+            'productos_criticos': len([d for d in datos if d['estado'] == 'Crítico'])
+        }
+    }
+
+
+def _generar_reporte_productos_vendidos(parametros):
+    """Reporte básico de productos más vendidos"""
+    fecha_desde = parametros.get('fecha_desde')
+    fecha_hasta = parametros.get('fecha_hasta')
+    limite = parametros.get('limite_registros', 50)
+    
+    # Obtener productos vendidos
+    productos_vendidos = DetallePedido.objects.filter(
+        pedido__fecha__date__range=[fecha_desde, fecha_hasta]
+    ).select_related('producto').values(
+        'producto__codigo',
+        'producto__modelo', 
+        'producto__color'
+    ).annotate(
+        cantidad_vendida=Sum('cantidad'),
+        total_ventas=Sum(F('cantidad') * F('precio_unitario'))
+    ).order_by('-cantidad_vendida')[:limite]
+    
+    datos = []
+    for producto in productos_vendidos:
+        datos.append({
+            'codigo': producto['producto__codigo'],
+            'descripcion': f"{producto['producto__modelo']} - {producto['producto__color']}",
+            'cantidad_vendida': producto['cantidad_vendida'],
+            'total_ventas': float(producto['total_ventas']),
+        })
+    
+    return {
+        'titulo': 'Productos Más Vendidos',
+        'periodo': f"{fecha_desde} a {fecha_hasta}",
+        'datos': datos,
+        'resumen': {
+            'total_productos': len(datos),
+            'cantidad_total': sum([d['cantidad_vendida'] for d in datos]),
+            'ventas_totales': sum([d['total_ventas'] for d in datos])
+        }
+    }
+
+
+def _generar_reporte_clientes_inactivos(parametros):
+    """Reporte básico de clientes inactivos"""
+    fecha_desde = parametros.get('fecha_desde')
+    fecha_hasta = parametros.get('fecha_hasta')
+    limite = parametros.get('limite_registros', 100)
+    
+    # Clientes sin pedidos en el período
+    clientes_con_pedidos = Pedido.objects.filter(
+        fecha__date__range=[fecha_desde, fecha_hasta]
+    ).values_list('cliente_id', flat=True).distinct()
+    
+    clientes_inactivos = Cliente.objects.exclude(
+        id__in=clientes_con_pedidos
+    ).select_related('tienda')[:limite]
+    
+    datos = []
+    for cliente in clientes_inactivos:
+        ultimo_pedido = Pedido.objects.filter(cliente=cliente).order_by('-fecha').first()
+        
+        datos.append({
+            'nombre': cliente.nombre,
+            'contacto': cliente.contacto,
+            'ultimo_pedido': ultimo_pedido.fecha.strftime('%Y-%m-%d') if ultimo_pedido else 'Nunca',
+            'saldo_a_favor': float(cliente.saldo_a_favor),
+            'tienda': cliente.tienda.nombre
+        })
+    
+    return {
+        'titulo': 'Clientes Inactivos',
+        'periodo': f"{fecha_desde} a {fecha_hasta}",
+        'datos': datos,
+        'resumen': {
+            'total_clientes_inactivos': len(datos),
+            'total_saldo_a_favor': sum([d['saldo_a_favor'] for d in datos])
+        }
+    }

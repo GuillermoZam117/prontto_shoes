@@ -26,12 +26,35 @@
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{% static 'css/main.css' %}">
     <link rel="stylesheet" href="{% static 'css/sidebar.css' %}">
-    
-    <!-- Critical CSS to prevent FOUC -->
+      <!-- Critical CSS to prevent FOUC -->
     <style>
         /* Critical styles inlined to prevent FOUC */
-        body { visibility: hidden; opacity: 0; transition: opacity 0.3s ease-in-out; }
-        body.loaded { visibility: visible; opacity: 1; }
+        body { 
+            visibility: visible !important; 
+            opacity: 1 !important; 
+            transition: opacity 0.1s ease-in-out; 
+        }
+        body.loaded { 
+            visibility: visible !important; 
+            opacity: 1 !important; 
+        }
+        
+        /* Ensure sidebar toggle is always visible */
+        .sidebar-toggle {
+            display: flex !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+            z-index: 1001 !important;
+        }
+        
+        /* Force icon visibility in collapsed sidebar */
+        .pos-sidebar.collapsed .nav-icon,
+        .pos-sidebar.collapsed .sidebar-toggle i {
+            opacity: 1 !important;
+            visibility: visible !important;
+            display: flex !important;
+        }
+        
         .websocket-status { 
             position: fixed; top: 10px; right: 10px; padding: 5px 10px; 
             border-radius: 4px; font-size: 0.8rem; z-index: 1050; 
@@ -132,20 +155,22 @@
     
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    
-    <!-- Custom JavaScript -->
+      <!-- Custom JavaScript -->
     <script src="{% static 'js/error-tracker.js' %}"></script>
     <script src="{% static 'js/sincronizacion-websocket.js' %}"></script>
     <script src="{% static 'js/sidebar.js' %}"></script>
+    <script src="{% static 'js/sidebar-test.js' %}"></script>
     <script src="{% static 'js/main.js' %}"></script>
     <script src="{% static 'js/sync.js' %}"></script>
-    
-    <script>
+      <script>
         // Initialize Select2
         $(document).ready(function() {
             $('.select2').select2({
                 theme: 'bootstrap-5'
             });
+            
+            // Mark page as loaded immediately to prevent opacity issues
+            document.body.classList.add('loaded');
         });
         
         // Initialize tooltips
@@ -154,8 +179,13 @@
             return new bootstrap.Tooltip(tooltipTriggerEl)
         });
         
-        // Mark page as fully loaded to prevent FOUC
+        // Ensure page is fully loaded
         $(window).on('load', function() {
+            document.body.classList.add('loaded');
+        });
+        
+        // Add immediate loading class to prevent FOUC
+        document.addEventListener('DOMContentLoaded', function() {
             document.body.classList.add('loaded');
         });
     </script>

@@ -1,21 +1,63 @@
 """
-Este archivo contiene pruebas básicas para los modelos y API endpoints de caja.
+Tests completos para la aplicación de caja
+Sistema POS Pronto Shoes
 """
+
+from decimal import Decimal
 from django.test import TestCase
+from django.contrib.auth import get_user_model
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework.test import APITestCase, APIClient
 from rest_framework import status
-from .models import Caja, NotaCargo, Factura, TransaccionCaja
+from datetime import datetime, date, timedelta
+
+from .models import Caja, NotaCargo, Factura, TransaccionCaja, MovimientoCaja
 from tiendas.models import Tienda
 from ventas.models import Pedido
 from clientes.models import Cliente
-from django.contrib.auth import get_user_model
-from datetime import date
-from decimal import Decimal
 
-# Removemos las importaciones que causan errores para ejecutar estas pruebas básicas
-# from .tests.test_frontend_views import CajaFrontendViewsTestCase
-# from .tests.test_api_viewsets import CajaViewSetCustomActionsTestCase, TransaccionCajaViewSetTestCase, MovimientosCajaReporteAPIViewTestCase
+User = get_user_model()
+
+
+class CajaModelTestCase(TestCase):
+    """Tests para el modelo Caja"""
+    
+    def setUp(self):
+        self.tienda = Tienda.objects.create(
+            nombre='Tienda Test',
+            direccion='Calle 1',
+            activa=True
+        )
+    
+    def test_crear_caja(self):
+        """Test crear caja"""
+        caja = Caja.objects.create(
+            tienda=self.tienda,
+            fecha=date.today(),
+            ingresos=Decimal('1000.00'),
+            egresos=Decimal('500.00'),
+            saldo_final=Decimal('500.00')
+        )
+        
+        self.assertEqual(caja.tienda, self.tienda)
+        self.assertEqual(caja.fecha, date.today())
+        self.assertEqual(caja.ingresos, Decimal('1000.00'))
+        self.assertEqual(caja.egresos, Decimal('500.00'))
+        self.assertEqual(caja.saldo_final, Decimal('500.00'))
+    
+    def test_str_representation(self):
+        """Test representación string de caja"""
+        caja = Caja.objects.create(
+            tienda=self.tienda,
+            fecha=date.today(),
+            ingresos=Decimal('1000.00'),
+            egresos=Decimal('500.00'),
+            saldo_final=Decimal('500.00')
+        )
+        
+        expected = f"Caja {self.tienda.nombre} - {date.today()}"
+        self.assertEqual(str(caja), expected)
 
 class CajaAPITestCase(APITestCase):
     def setUp(self):

@@ -22,76 +22,215 @@
 <div class="card shadow mb-4">
     <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
         <h6 class="m-0 font-weight-bold text-primary">Listado de Productos</h6>
-        <form class="form-inline">
-            <div class="input-group">
-                <input type="text" class="form-control" name="q" value="{{ search_query }}" placeholder="Buscar productos...">
-                <button class="btn btn-outline-primary" type="submit">
-                    <i class="bi bi-search"></i>
-                </button>
+        <div class="d-flex">
+            <!-- HTMX Enhanced Search -->
+            <div class="me-2" x-data="{ loading: false }">
+                {% if temporada %}
+                <input type="hidden" name="temporada" value="{{ temporada }}">
+                {% endif %}
+                {% if oferta %}
+                <input type="hidden" name="oferta" value="{{ oferta }}">
+                {% endif %}
+                {% if catalogo_id %}
+                <input type="hidden" name="catalogo" value="{{ catalogo_id }}">
+                {% endif %}
+                <div class="input-group">
+                    <input type="text" 
+                           class="form-control" 
+                           name="q" 
+                           value="{{ search_query }}" 
+                           placeholder="Buscar productos..."
+                           hx-get="{% url 'productos:lista' %}"
+                           hx-trigger="keyup changed delay:300ms"
+                           hx-target="#productos-table-container"
+                           hx-indicator="#loading-indicator"
+                           hx-include="[name='temporada'], [name='oferta'], [name='catalogo'], [name='precio_min'], [name='precio_max']"
+                           @htmx:request.start="loading = true"
+                           @htmx:request.end="loading = false">
+                    <span class="input-group-text" id="loading-indicator" style="display: none;">
+                        <div class="spinner-border spinner-border-sm" role="status"></div>
+                    </span>
+                    <span class="input-group-text" x-show="!loading">
+                        <i class="bi bi-search"></i>
+                    </span>
+                </div>
             </div>
-        </form>
+            
+            <div class="dropdown">
+                <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="filterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-funnel me-1"></i> Filtros
+                </button>
+                <div class="dropdown-menu dropdown-menu-end p-3" style="width: 320px;" x-data="{ loading: false }">
+                    <div>
+                        {% if search_query %}
+                        <input type="hidden" name="q" value="{{ search_query }}">
+                        {% endif %}
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Temporada</label>
+                            <select name="temporada" 
+                                    class="form-select"
+                                    hx-get="{% url 'productos:lista' %}"
+                                    hx-trigger="change"
+                                    hx-target="#productos-table-container"
+                                    hx-include="[name='q'], [name='oferta'], [name='catalogo'], [name='precio_min'], [name='precio_max']"
+                                    @htmx:request.start="loading = true"
+                                    @htmx:request.end="loading = false">
+                                <option value="">Todas las temporadas</option>
+                                <option value="Primavera" {% if temporada == 'Primavera' %}selected{% endif %}>Primavera</option>
+                                <option value="Verano" {% if temporada == 'Verano' %}selected{% endif %}>Verano</option>
+                                <option value="Otoño" {% if temporada == 'Otoño' %}selected{% endif %}>Otoño</option>
+                                <option value="Invierno" {% if temporada == 'Invierno' %}selected{% endif %}>Invierno</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="oferta" 
+                                       name="oferta" 
+                                       value="true" 
+                                       {% if oferta == 'true' %}checked{% endif %}
+                                       hx-get="{% url 'productos:lista' %}"
+                                       hx-trigger="change"
+                                       hx-target="#productos-table-container"
+                                       hx-include="[name='q'], [name='temporada'], [name='catalogo'], [name='precio_min'], [name='precio_max']">
+                                <label class="form-check-label" for="oferta">
+                                    Solo productos en oferta
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Rango de Precio</label>
+                            <div class="row">
+                                <div class="col-6">
+                                    <input type="number" 
+                                           name="precio_min" 
+                                           class="form-select form-control"
+                                           placeholder="Min"
+                                           value="{{ precio_min }}"
+                                           hx-get="{% url 'productos:lista' %}"
+                                           hx-trigger="change"
+                                           hx-target="#productos-table-container"
+                                           hx-include="[name='q'], [name='temporada'], [name='oferta'], [name='catalogo'], [name='precio_max']">
+                                </div>
+                                <div class="col-6">
+                                    <input type="number" 
+                                           name="precio_max" 
+                                           class="form-control"
+                                           placeholder="Max"
+                                           value="{{ precio_max }}"
+                                           hx-get="{% url 'productos:lista' %}"
+                                           hx-trigger="change"
+                                           hx-target="#productos-table-container"
+                                           hx-include="[name='q'], [name='temporada'], [name='oferta'], [name='catalogo'], [name='precio_min']">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'productos:lista' %}" 
+                               class="btn btn-sm btn-outline-secondary"
+                               hx-get="{% url 'productos:lista' %}"
+                               hx-target="#productos-table-container">Limpiar</a>
+                            <div x-show="loading" class="btn btn-sm btn-primary disabled">
+                                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                Aplicando...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card-body">
+        <!-- Loading indicator -->
+        <div x-show="loading" class="text-center py-3">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+        </div>
+        
+        <!-- Table container for HTMX updates -->
+        <div id="productos-table-container">
+            {% include 'productos/partials/producto_table.html' %}
+        </div>
+    </div>
+</div>
+
+<!-- Resumen de Productos -->
+<div class="card shadow">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Resumen de Productos</h6>
     </div>
     <div class="card-body">
-        {% if productos %}
-            <div class="table-responsive">
-                <table class="table table-hover table-sm">
-                    <thead>
-                        <tr>
-                            <th>Código</th>
-                            <th>Nombre</th>
-                            <th>Marca</th>
-                            <th>Modelo</th>
-                            <th>Color</th>
-                            <th>Precio</th>
-                            <th>Stock</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for producto in productos %}
-                        <tr>
-                            <td>{{ producto.codigo }}</td>
-                            <td>{{ producto.nombre }}</td>
-                            <td>{{ producto.marca }}</td>
-                            <td>{{ producto.modelo }}</td>
-                            <td>{{ producto.color }}</td>
-                            <td>${{ producto.precio }}</td>
-                            <td>
-                                {% if producto.stock_actual >= producto.stock_minimo %}
-                                <span class="badge bg-success">{{ producto.stock_actual }}</span>
-                                {% else %}
-                                <span class="badge bg-danger">{{ producto.stock_actual }}</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <a href="{% url 'productos:detalle' producto.id %}" class="btn btn-sm btn-info" data-bs-toggle="tooltip" title="Ver Detalles">
-                                    <i class="bi bi-eye"></i>
-                                </a>
-                                <a href="{% url 'productos:editar' producto.id %}" class="btn btn-sm btn-primary" data-bs-toggle="tooltip" title="Editar">
-                                    <i class="bi bi-pencil"></i>
-                                </a>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        {% else %}
-            <div class="text-center my-5">
-                <div class="mb-3">
-                    <i class="bi bi-inbox-fill text-muted" style="font-size: 4rem;"></i>
+        <div class="row">
+            <!-- Productos en Oferta -->
+            <div class="col-md-4 mb-4">
+                <div class="card border-left-warning shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                    Productos en Oferta
+                                </div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                    {{ productos_oferta|default:0 }}
+                                </div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-tags fa-2x text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <h5>No hay productos para mostrar</h5>
-                <p class="text-muted">
-                    {% if search_query %}
-                    No se encontraron productos que coincidan con tu búsqueda.
-                    <a href="{% url 'productos:lista' %}">Ver todos los productos</a>
-                    {% else %}
-                    Agrega productos manualmente o importa desde un archivo Excel.
-                    {% endif %}
-                </p>
             </div>
-        {% endif %}
+
+            <!-- Productos Activos -->
+            <div class="col-md-4 mb-4">
+                <div class="card border-left-success shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                    Productos Activos
+                                </div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                    {{ productos_activos|default:0 }}
+                                </div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-boxes fa-2x text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Catálogos Activos -->
+            <div class="col-md-4 mb-4">
+                <div class="card border-left-info shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                    Catálogos Activos
+                                </div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                    {{ catalogos_activos|default:0 }}
+                                </div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-book fa-2x text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}

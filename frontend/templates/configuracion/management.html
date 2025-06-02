@@ -1,0 +1,333 @@
+{% extends "layouts/base.html" %}
+{% load static %}
+
+{% block title %}Configuración del Negocio - {{ business_config.nombre_negocio }}{% endblock %}
+
+{% block page_title %}Configuración del Negocio{% endblock %}
+
+{% block breadcrumbs_content %}
+    <li class="breadcrumb-item">Administración</li>
+    <li class="breadcrumb-item active">Configuración</li>
+{% endblock %}
+
+{% block page_actions %}
+    <button type="button" class="btn btn-secondary" onclick="resetToDefaults()">
+        <i class="bi bi-arrow-clockwise"></i> Restaurar Defaults
+    </button>
+    <button type="submit" form="configForm" class="btn btn-primary">
+        <i class="bi bi-check-lg"></i> Guardar Cambios
+    </button>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <form id="configForm" method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            <!-- Business Information Card -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-building"></i> Información del Negocio
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="nombre_negocio" class="form-label">Nombre del Negocio *</label>
+                            <input type="text" class="form-control" id="nombre_negocio" name="nombre_negocio" 
+                                   value="{{ config.nombre_negocio }}" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="logo_texto" class="form-label">Texto del Logo</label>
+                            <input type="text" class="form-control" id="logo_texto" name="logo_texto" 
+                                   value="{{ config.logo_texto }}" 
+                                   placeholder="Texto cuando no hay logo">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="eslogan" class="form-label">Eslogan</label>
+                        <input type="text" class="form-control" id="eslogan" name="eslogan" 
+                               value="{{ config.eslogan }}" 
+                               placeholder="Frase descriptiva del negocio">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="logo" class="form-label">Logo del Negocio</label>
+                        <input type="file" class="form-control" id="logo" name="logo" 
+                               accept="image/jpeg,image/png,image/svg+xml">
+                        <div class="form-text">Formatos permitidos: JPG, PNG, SVG. Tamaño máximo: 2MB</div>
+                        {% if config.logo %}
+                        <div class="mt-2">
+                            <img src="{{ config.logo.url }}" alt="Logo actual" class="img-thumbnail" style="max-height: 100px;">
+                            <small class="text-muted d-block">Logo actual</small>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Visual Configuration Card -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-palette"></i> Configuración Visual
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="color_primario" class="form-label">Color Primario</label>
+                            <div class="input-group">
+                                <input type="color" class="form-control form-control-color" id="color_primario" 
+                                       name="color_primario" value="{{ config.color_primario }}">
+                                <input type="text" class="form-control" value="{{ config.color_primario }}" 
+                                       readonly id="color_primario_text">
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="color_secundario" class="form-label">Color Secundario</label>
+                            <div class="input-group">
+                                <input type="color" class="form-control form-control-color" id="color_secundario" 
+                                       name="color_secundario" value="{{ config.color_secundario }}">
+                                <input type="text" class="form-control" value="{{ config.color_secundario }}" 
+                                       readonly id="color_secundario_text">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar Configuration Card -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-layout-sidebar"></i> Configuración del Sidebar
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="sidebar_theme" class="form-label">Tema del Sidebar</label>
+                            <select class="form-select" id="sidebar_theme" name="sidebar_theme">
+                                <option value="dark" {% if config.sidebar_theme == 'dark' %}selected{% endif %}>Oscuro</option>
+                                <option value="light" {% if config.sidebar_theme == 'light' %}selected{% endif %}>Claro</option>
+                                <option value="primary" {% if config.sidebar_theme == 'primary' %}selected{% endif %}>Color Primario</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="d-flex align-items-center h-100">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="sidebar_collapsed_default" 
+                                           name="sidebar_collapsed_default" {% if config.sidebar_collapsed_default %}checked{% endif %}>
+                                    <label class="form-check-label" for="sidebar_collapsed_default">
+                                        Sidebar colapsado por defecto
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- System Configuration Card -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-gear"></i> Configuración del Sistema
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="moneda" class="form-label">Moneda</label>
+                            <select class="form-select" id="moneda" name="moneda">
+                                <option value="MXN" {% if config.moneda == 'MXN' %}selected{% endif %}>Peso Mexicano (MXN)</option>
+                                <option value="USD" {% if config.moneda == 'USD' %}selected{% endif %}>Dólar Americano (USD)</option>
+                                <option value="EUR" {% if config.moneda == 'EUR' %}selected{% endif %}>Euro (EUR)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="simbolo_moneda" class="form-label">Símbolo de Moneda</label>
+                            <input type="text" class="form-control" id="simbolo_moneda" name="simbolo_moneda" 
+                                   value="{{ config.simbolo_moneda }}" maxlength="5">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="idioma" class="form-label">Idioma</label>
+                            <select class="form-select" id="idioma" name="idioma">
+                                <option value="es" {% if config.idioma == 'es' %}selected{% endif %}>Español</option>
+                                <option value="en" {% if config.idioma == 'en' %}selected{% endif %}>English</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Live Preview Card -->
+    <div class="col-lg-4">
+        <div class="card sticky-top">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-eye"></i> Vista Previa
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="text-center mb-3">
+                    <div class="sidebar-preview" style="background-color: var(--sidebar-bg, #212529); color: white; padding: 1rem; border-radius: 0.375rem;">
+                        <div class="d-flex align-items-center mb-3">
+                            {% if config.logo %}
+                            <img src="{{ config.logo.url }}" alt="Logo" style="width: 30px; height: 30px; margin-right: 0.5rem;">
+                            {% else %}
+                            <div style="width: 30px; height: 30px; background-color: #0d6efd; border-radius: 0.375rem; margin-right: 0.5rem;"></div>
+                            {% endif %}
+                            <span id="preview-brand">{{ config.logo_texto|default:config.nombre_negocio }}</span>
+                        </div>
+                        <div class="text-muted small">
+                            <span id="preview-business">{{ config.nombre_negocio }}</span>
+                        </div>
+                        {% if config.eslogan %}
+                        <div class="text-muted small">
+                            <span id="preview-slogan">{{ config.eslogan }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <h6>Configuración Actual:</h6>
+                    <ul class="list-unstyled small">
+                        <li><strong>Tema:</strong> <span id="preview-theme">{{ config.get_sidebar_theme_display }}</span></li>
+                        <li><strong>Estado:</strong> <span id="preview-collapsed">{% if config.sidebar_collapsed_default %}Colapsado{% else %}Expandido{% endif %}</span></li>
+                        <li><strong>Moneda:</strong> <span id="preview-currency">{{ config.simbolo_moneda }} {{ config.moneda }}</span></li>
+                        <li><strong>Idioma:</strong> <span id="preview-language">{{ config.get_idioma_display }}</span></li>
+                    </ul>
+                </div>
+                
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-outline-info btn-sm" onclick="testSidebarChanges()">
+                        <i class="bi bi-eye"></i> Probar Cambios
+                    </button>
+                    <button type="button" class="btn btn-outline-success btn-sm" onclick="refreshSidebar()">
+                        <i class="bi bi-arrow-clockwise"></i> Refrescar Sidebar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Color picker synchronization
+    const colorPrimario = document.getElementById('color_primario');
+    const colorPrimarioText = document.getElementById('color_primario_text');
+    const colorSecundario = document.getElementById('color_secundario');
+    const colorSecundarioText = document.getElementById('color_secundario_text');
+    
+    colorPrimario.addEventListener('input', function() {
+        colorPrimarioText.value = this.value;
+        updatePreview();
+    });
+    
+    colorSecundario.addEventListener('input', function() {
+        colorSecundarioText.value = this.value;
+        updatePreview();
+    });
+    
+    // Live preview updates
+    document.getElementById('nombre_negocio').addEventListener('input', updatePreview);
+    document.getElementById('logo_texto').addEventListener('input', updatePreview);
+    document.getElementById('eslogan').addEventListener('input', updatePreview);
+    document.getElementById('sidebar_theme').addEventListener('change', updatePreview);
+    document.getElementById('sidebar_collapsed_default').addEventListener('change', updatePreview);
+    document.getElementById('moneda').addEventListener('change', updatePreview);
+    document.getElementById('simbolo_moneda').addEventListener('input', updatePreview);
+    document.getElementById('idioma').addEventListener('change', updatePreview);
+});
+
+function updatePreview() {
+    // Update preview elements
+    const nombreNegocio = document.getElementById('nombre_negocio').value;
+    const logoTexto = document.getElementById('logo_texto').value;
+    const eslogan = document.getElementById('eslogan').value;
+    const theme = document.getElementById('sidebar_theme');
+    const collapsed = document.getElementById('sidebar_collapsed_default').checked;
+    const moneda = document.getElementById('moneda');
+    const simboloMoneda = document.getElementById('simbolo_moneda').value;
+    const idioma = document.getElementById('idioma');
+    
+    document.getElementById('preview-brand').textContent = logoTexto || nombreNegocio;
+    document.getElementById('preview-business').textContent = nombreNegocio;
+    document.getElementById('preview-slogan').textContent = eslogan;
+    document.getElementById('preview-theme').textContent = theme.options[theme.selectedIndex].text;
+    document.getElementById('preview-collapsed').textContent = collapsed ? 'Colapsado' : 'Expandido';
+    document.getElementById('preview-currency').textContent = simboloMoneda + ' ' + moneda.value;
+    document.getElementById('preview-language').textContent = idioma.options[idioma.selectedIndex].text;
+}
+
+function resetToDefaults() {
+    if (confirm('¿Está seguro de que desea restaurar la configuración por defecto?')) {
+        document.getElementById('nombre_negocio').value = 'Mi Negocio';
+        document.getElementById('logo_texto').value = 'Mi Negocio';
+        document.getElementById('eslogan').value = '';
+        document.getElementById('color_primario').value = '#0d6efd';
+        document.getElementById('color_secundario').value = '#6c757d';
+        document.getElementById('sidebar_theme').value = 'dark';
+        document.getElementById('sidebar_collapsed_default').checked = false;
+        document.getElementById('moneda').value = 'MXN';
+        document.getElementById('simbolo_moneda').value = '$';
+        document.getElementById('idioma').value = 'es';
+        
+        updatePreview();
+    }
+}
+
+function testSidebarChanges() {
+    // Apply changes temporarily to test
+    if (window.sidebarManager) {
+        const theme = document.getElementById('sidebar_theme').value;
+        const collapsed = document.getElementById('sidebar_collapsed_default').checked;
+        
+        // Test the changes
+        if (collapsed) {
+            window.sidebarManager.collapse();
+        } else {
+            window.sidebarManager.expand();
+        }
+        
+        // Show notification
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'info',
+                title: 'Cambios Aplicados Temporalmente',
+                text: 'Los cambios se aplicarán permanentemente al guardar.',
+                timer: 2000,
+                showConfirmButton: false
+            });
+        }
+    }
+}
+
+function refreshSidebar() {
+    if (window.sidebarManager) {
+        window.sidebarManager.refresh();
+        
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'success',
+                title: 'Sidebar Actualizado',
+                text: 'La configuración del sidebar ha sido recargada.',
+                timer: 1500,
+                showConfirmButton: false
+            });
+        }
+    }
+}
+</script>
+{% endblock %}

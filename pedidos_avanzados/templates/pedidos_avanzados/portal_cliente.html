@@ -1,0 +1,603 @@
+{% extends 'pedidos_avanzados/base.html' %}
+{% load static %}
+
+{% block title %}Portal del Cliente - {{ cliente.nombre }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .portal-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+    }
+    
+    .client-info {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    
+    .client-avatar {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        font-weight: bold;
+    }
+    
+    .order-timeline {
+        position: relative;
+        padding-left: 2rem;
+    }
+    
+    .timeline-item {
+        position: relative;
+        padding-bottom: 2rem;
+        border-left: 2px solid #e0e6ed;
+    }
+    
+    .timeline-item:last-child {
+        border-left: none;
+    }
+    
+    .timeline-dot {
+        position: absolute;
+        left: -6px;
+        top: 0;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #667eea;
+    }
+    
+    .timeline-content {
+        margin-left: 1rem;
+        background: white;
+        padding: 1rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .order-share-button {
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .order-share-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    
+    .tracking-map {
+        height: 300px;
+        background: #f8f9fa;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #6c757d;
+        margin: 1rem 0;
+    }
+    
+    .delivery-progress {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin: 2rem 0;
+        position: relative;
+    }
+    
+    .progress-step {
+        text-align: center;
+        flex: 1;
+        position: relative;
+    }
+    
+    .progress-step::before {
+        content: '';
+        position: absolute;
+        top: 25px;
+        left: 50%;
+        right: -50%;
+        height: 2px;
+        background: #e0e6ed;
+        z-index: 1;
+    }
+    
+    .progress-step:last-child::before {
+        display: none;
+    }
+    
+    .progress-step.completed::before {
+        background: #28a745;
+    }
+    
+    .progress-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: #e0e6ed;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 0.5rem;
+        position: relative;
+        z-index: 2;
+    }
+    
+    .progress-step.completed .progress-icon {
+        background: #28a745;
+        color: white;
+    }
+    
+    .progress-step.active .progress-icon {
+        background: #667eea;
+        color: white;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(102, 126, 234, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0); }
+    }
+    
+    .notification-item {
+        background: white;
+        border-left: 4px solid #667eea;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border-radius: 0 8px 8px 0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .notification-time {
+        color: #6c757d;
+        font-size: 0.9rem;
+    }
+    
+    .share-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        z-index: 1000;
+    }
+    
+    .share-content {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        padding: 2rem;
+        border-radius: 10px;
+        width: 90%;
+        max-width: 500px;
+    }
+    
+    .social-buttons {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+    
+    .social-btn {
+        padding: 1rem;
+        border: none;
+        border-radius: 8px;
+        color: white;
+        text-decoration: none;
+        text-align: center;
+        font-weight: bold;
+        transition: transform 0.3s ease;
+    }
+    
+    .social-btn:hover {
+        transform: translateY(-2px);
+        color: white;
+        text-decoration: none;
+    }
+    
+    .social-whatsapp { background: #25d366; }
+    .social-facebook { background: #1877f2; }
+    .social-twitter { background: #1da1f2; }
+    .social-instagram { background: #e4405f; }
+    .social-copy { background: #6c757d; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Portal Header -->
+    <div class="portal-header">
+        <div class="client-info">
+            <div class="client-avatar">
+                {{ cliente.nombre|first|upper }}
+            </div>
+            <div>
+                <h2>Bienvenido, {{ cliente.nombre }}</h2>
+                <p class="mb-0">{{ cliente.email }}</p>
+                <small>Cliente desde: {{ cliente.fecha_registro|date:"d/m/Y" }}</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Órdenes Activas -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-shopping-bag me-2"></i>
+                        Mis Órdenes Activas
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% for orden in ordenes_activas %}
+                    <div class="order-card mb-4">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div>
+                                <h6 class="mb-1">Orden #{{ orden.numero_orden }}</h6>
+                                <small class="text-muted">{{ orden.fecha_creacion|date:"d/m/Y H:i" }}</small>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge badge-{{ orden.estado_color }}">{{ orden.get_estado_display }}</span>
+                                <button class="btn btn-sm order-share-button ms-2" onclick="openShareModal({{ orden.id }})">
+                                    <i class="fas fa-share-alt me-1"></i>
+                                    Compartir
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Progress Tracker -->
+                        <div class="delivery-progress">
+                            <div class="progress-step {% if orden.estado_seguimiento.confirmado %}completed{% endif %}">
+                                <div class="progress-icon">
+                                    <i class="fas fa-check"></i>
+                                </div>
+                                <small>Confirmado</small>
+                            </div>
+                            <div class="progress-step {% if orden.estado_seguimiento.en_preparacion %}active{% elif orden.estado_seguimiento.preparado %}completed{% endif %}">
+                                <div class="progress-icon">
+                                    <i class="fas fa-cog"></i>
+                                </div>
+                                <small>Preparación</small>
+                            </div>
+                            <div class="progress-step {% if orden.estado_seguimiento.en_transito %}active{% elif orden.estado_seguimiento.entregado %}completed{% endif %}">
+                                <div class="progress-icon">
+                                    <i class="fas fa-truck"></i>
+                                </div>
+                                <small>En Tránsito</small>
+                            </div>
+                            <div class="progress-step {% if orden.estado_seguimiento.entregado %}completed{% endif %}">
+                                <div class="progress-icon">
+                                    <i class="fas fa-home"></i>
+                                </div>
+                                <small>Entregado</small>
+                            </div>
+                        </div>
+
+                        <!-- Order Details -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <strong>Total: </strong>
+                                <span class="text-success">${{ orden.total|floatformat:0 }}</span>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Productos: </strong>
+                                {{ orden.items.count }} artículo{{ orden.items.count|pluralize }}
+                            </div>
+                        </div>
+
+                        {% if orden.tracking_info %}
+                        <div class="mt-3">
+                            <div class="tracking-map">
+                                <div class="text-center">
+                                    <i class="fas fa-map-marker-alt fa-3x mb-2"></i>
+                                    <br>
+                                    <strong>{{ orden.tracking_info.ubicacion_actual }}</strong>
+                                    <br>
+                                    <small>Última actualización: {{ orden.tracking_info.ultima_actualizacion|date:"H:i" }}</small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Action Buttons -->
+                        <div class="mt-3">
+                            <a href="{% url 'pedidos_avanzados:detalle_orden' orden.id %}" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-eye me-1"></i>Ver Detalles
+                            </a>
+                            {% if orden.puede_cancelar %}
+                            <button class="btn btn-outline-danger btn-sm ms-2" onclick="cancelOrder({{ orden.id }})">
+                                <i class="fas fa-times me-1"></i>Cancelar
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-shopping-bag fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No tienes órdenes activas</h5>
+                        <p class="text-muted">Cuando realices un pedido, aparecerá aquí.</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Quick Stats -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>
+                        Resumen de Actividad
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <div class="metric-value">{{ stats.total_ordenes }}</div>
+                            <div class="metric-label">Total Órdenes</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="metric-value">${{ stats.total_gastado|floatformat:0 }}</div>
+                            <div class="metric-label">Total Gastado</div>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <div class="metric-value">{{ stats.ordenes_pendientes }}</div>
+                            <div class="metric-label">Pendientes</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="metric-value">{{ stats.ordenes_completadas }}</div>
+                            <div class="metric-label">Completadas</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Notifications -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-bell me-2"></i>
+                        Notificaciones Recientes
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% for notification in notifications %}
+                    <div class="notification-item">
+                        <div class="d-flex justify-content-between">
+                            <strong>{{ notification.titulo }}</strong>
+                            <span class="notification-time">{{ notification.fecha|date:"H:i" }}</span>
+                        </div>
+                        <p class="mb-0 mt-1">{{ notification.mensaje }}</p>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted text-center">No hay notificaciones recientes</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Support -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-headset me-2"></i>
+                        Soporte al Cliente
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p class="mb-3">¿Necesitas ayuda con tu pedido?</p>
+                    <div class="d-grid gap-2">
+                        <a href="tel:+1234567890" class="btn btn-outline-primary">
+                            <i class="fas fa-phone me-2"></i>Llamar Soporte
+                        </a>
+                        <a href="#" class="btn btn-outline-success" onclick="openWhatsAppSupport()">
+                            <i class="fab fa-whatsapp me-2"></i>Chat WhatsApp
+                        </a>
+                        <a href="mailto:soporte@prontoshoes.com" class="btn btn-outline-info">
+                            <i class="fas fa-envelope me-2"></i>Enviar Email
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Order History -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history me-2"></i>
+                        Historial de Órdenes
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Orden</th>
+                                    <th>Fecha</th>
+                                    <th>Estado</th>
+                                    <th>Total</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for orden in historial_ordenes %}
+                                <tr>
+                                    <td>#{{ orden.numero_orden }}</td>
+                                    <td>{{ orden.fecha_creacion|date:"d/m/Y" }}</td>
+                                    <td>
+                                        <span class="badge badge-{{ orden.estado_color }}">
+                                            {{ orden.get_estado_display }}
+                                        </span>
+                                    </td>
+                                    <td>${{ orden.total|floatformat:0 }}</td>
+                                    <td>
+                                        <a href="{% url 'pedidos_avanzados:detalle_orden' orden.id %}" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            Ver Detalle
+                                        </a>
+                                        {% if orden.estado == 'entregado' %}
+                                        <button class="btn btn-sm btn-outline-success ms-1" 
+                                                onclick="reorderOrder({{ orden.id }})">
+                                            Reordenar
+                                        </button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted">No hay órdenes previas</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Share Modal -->
+<div id="shareModal" class="share-modal">
+    <div class="share-content">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0">Compartir Orden</h5>
+            <button class="btn-close" onclick="closeShareModal()"></button>
+        </div>
+        <p>Comparte tu orden en redes sociales:</p>
+        
+        <div id="shareUrl" class="form-control mb-3" readonly></div>
+        
+        <div class="social-buttons">
+            <a href="#" class="social-btn social-whatsapp" id="shareWhatsApp">
+                <i class="fab fa-whatsapp me-1"></i>WhatsApp
+            </a>
+            <a href="#" class="social-btn social-facebook" id="shareFacebook">
+                <i class="fab fa-facebook me-1"></i>Facebook
+            </a>
+            <a href="#" class="social-btn social-twitter" id="shareTwitter">
+                <i class="fab fa-twitter me-1"></i>Twitter
+            </a>
+            <a href="#" class="social-btn social-instagram" id="shareInstagram">
+                <i class="fab fa-instagram me-1"></i>Instagram
+            </a>
+            <button class="social-btn social-copy" onclick="copyShareUrl()">
+                <i class="fas fa-copy me-1"></i>Copiar
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentOrderId = null;
+
+function openShareModal(orderId) {
+    currentOrderId = orderId;
+    const shareUrl = `{{ request.build_absolute_uri }}ordenes/${orderId}/compartir/`;
+    
+    document.getElementById('shareUrl').value = shareUrl;
+    document.getElementById('shareModal').style.display = 'block';
+    
+    // Update social share links
+    const text = `¡Mira mi orden en Pronto Shoes! Orden #${orderId}`;
+    document.getElementById('shareWhatsApp').href = `https://wa.me/?text=${encodeURIComponent(text + ' ' + shareUrl)}`;
+    document.getElementById('shareFacebook').href = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
+    document.getElementById('shareTwitter').href = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareUrl)}`;
+}
+
+function closeShareModal() {
+    document.getElementById('shareModal').style.display = 'none';
+    currentOrderId = null;
+}
+
+function copyShareUrl() {
+    const shareUrl = document.getElementById('shareUrl');
+    shareUrl.select();
+    document.execCommand('copy');
+    showNotification('Enlace copiado al portapapeles', 'success');
+}
+
+function cancelOrder(orderId) {
+    if (confirm('¿Estás seguro de que quieres cancelar esta orden?')) {
+        fetch(`/api/pedidos-avanzados/ordenes/${orderId}/cancelar/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Orden cancelada exitosamente', 'success');
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showNotification('Error al cancelar la orden: ' + data.error, 'error');
+            }
+        })
+        .catch(error => {
+            showNotification('Error de conexión', 'error');
+        });
+    }
+}
+
+function reorderOrder(orderId) {
+    if (confirm('¿Quieres crear una nueva orden basada en esta orden anterior?')) {
+        window.location.href = `{% url 'pedidos_avanzados:crear_orden' %}?base_orden=${orderId}`;
+    }
+}
+
+function openWhatsAppSupport() {
+    const message = `Hola, necesito ayuda con mi cuenta de cliente: ${document.querySelector('.portal-header h2').textContent.replace('Bienvenido, ', '')}`;
+    const whatsappUrl = `https://wa.me/1234567890?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
+}
+
+// Auto-refresh tracking info every 30 seconds
+setInterval(() => {
+    const activeOrders = document.querySelectorAll('.order-card');
+    activeOrders.forEach(orderCard => {
+        // Update tracking info via AJAX
+        // Implementation would fetch updated tracking data
+    });
+}, 30000);
+
+// Close modal when clicking outside
+document.getElementById('shareModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeShareModal();
+    }
+});
+</script>
+{% endblock %}

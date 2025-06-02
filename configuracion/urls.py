@@ -1,9 +1,10 @@
 from django.urls import path
-from . import views
+from . import views, config_views
 
 app_name = 'configuracion'
 
 urlpatterns = [
+    # API Endpoints
     # Configuración del negocio
     path('api/configuracion/negocio/', views.configuracion_negocio, name='configuracion_negocio'),
     
@@ -21,4 +22,10 @@ urlpatterns = [
     
     # Configuración pública (sin autenticación)
     path('api/configuracion/publica/', views.configuracion_publica, name='configuracion_publica'),
+      # Management Views
+    # Gestión de configuración del negocio
+    path('gestion/', config_views.configuracion_management, name='gestion_configuracion'),
+    
+    # Vista de configuración específica para la gestión del negocio
+    path('gestion/negocio/', config_views.configuracion_management, name='configuracion_negocio_view'),
 ]

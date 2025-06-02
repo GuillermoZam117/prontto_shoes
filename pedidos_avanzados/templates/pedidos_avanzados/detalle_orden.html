@@ -1,0 +1,575 @@
+{% extends "pedidos_avanzados/base.html" %}
+{% load static %}
+
+{% block pedidos_content %}
+<!-- Header de la orden -->
+<div class="main-card mb-4">
+    <div class="card-header-custom">
+        <div class="d-flex justify-content-between align-items-center">
+            <h2>
+                <i class="fas fa-file-alt"></i>
+                Orden {{ orden.numero_orden }}
+            </h2>
+            
+            <div>
+                <span class="orden-estado estado-{{ orden.estado|lower }} me-2">
+                    {{ orden.get_estado_display }}
+                </span>
+                
+                <div class="btn-group">
+                    <button type="button" class="btn btn-outline-light dropdown-toggle" 
+                            data-bs-toggle="dropdown">
+                        <i class="fas fa-cog"></i> Acciones
+                    </button>
+                    <ul class="dropdown-menu">
+                        {% if orden.estado == 'ACTIVO' %}
+                        <li><a class="dropdown-item" href="#" onclick="cambiarEstado('PENDIENTE')">
+                            <i class="fas fa-clock text-warning"></i> Marcar como Pendiente
+                        </a></li>
+                        {% endif %}
+                        
+                        {% if orden.estado == 'PENDIENTE' and orden.esta_completa %}
+                        <li><a class="dropdown-item" href="#" onclick="cambiarEstado('VENTA')">
+                            <i class="fas fa-shopping-cart text-success"></i> Convertir a Venta
+                        </a></li>
+                        {% endif %}
+                        
+                        <li><a class="dropdown-item" href="#" onclick="procesarEntregaParcial()">
+                            <i class="fas fa-shipping-fast text-info"></i> Entrega Parcial
+                        </a></li>
+                        
+                        <li><hr class="dropdown-divider"></li>
+                        
+                        <li><a class="dropdown-item" href="#" onclick="generarReporte()">
+                            <i class="fas fa-print text-secondary"></i> Imprimir Orden
+                        </a></li>
+                        
+                        {% if orden.estado != 'CANCELADO' %}
+                        <li><a class="dropdown-item text-danger" href="#" onclick="cancelarOrden()">
+                            <i class="fas fa-times"></i> Cancelar Orden
+                        </a></li>
+                        {% endif %}
+                    </ul>
+                </div>
+                
+                <a href="{% url 'pedidos_avanzados:grilla_ordenes' %}" class="btn btn-outline-light ms-2">
+                    <i class="fas fa-arrow-left"></i> Volver
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Información principal de la orden -->
+<div class="row mb-4">
+    <!-- Información del cliente -->
+    <div class="col-lg-4">
+        <div class="main-card">
+            <div class="card-header-custom">
+                <h4 class="mb-0">
+                    <i class="fas fa-user"></i>
+                    Información del Cliente
+                </h4>
+            </div>
+            
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="me-3">
+                        <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center" 
+                             style="width: 60px; height: 60px;">
+                            <i class="fas fa-user text-white fa-2x"></i>
+                        </div>
+                    </div>
+                    <div>
+                        <h5 class="mb-1">{{ orden.cliente.nombre }}</h5>
+                        <p class="text-muted mb-0">
+                            <i class="fas fa-phone"></i> {{ orden.cliente.telefono|default:"N/A" }}
+                        </p>
+                    </div>
+                </div>
+                
+                {% if orden.cliente.email %}
+                <div class="mb-2">
+                    <small class="text-muted">Email:</small><br>
+                    <span>{{ orden.cliente.email }}</span>
+                </div>
+                {% endif %}
+                
+                {% if orden.cliente.direccion %}
+                <div class="mb-3">
+                    <small class="text-muted">Dirección:</small><br>
+                    <span>{{ orden.cliente.direccion }}</span>
+                </div>
+                {% endif %}
+                
+                <div class="d-grid">
+                    <a href="{% url 'pedidos_avanzados:portal_cliente_detalle' orden.cliente.id %}" 
+                       class="btn btn-outline-primary">
+                        <i class="fas fa-external-link-alt"></i> Ver Portal Cliente
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Métricas de la orden -->
+    <div class="col-lg-8">
+        <div class="main-card">
+            <div class="card-header-custom">
+                <h4 class="mb-0">
+                    <i class="fas fa-chart-line"></i>
+                    Métricas de la Orden
+                </h4>
+            </div>
+            
+            <div class="card-body">
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="metric-card">
+                            <div class="metric-value text-primary">{{ orden.total_productos }}</div>
+                            <div class="metric-label">Total Productos</div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <div class="metric-card">
+                            <div class="metric-value text-success">{{ orden.productos_recibidos }}</div>
+                            <div class="metric-label">Productos Recibidos</div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <div class="metric-card">
+                            <div class="metric-value text-info">${{ orden.monto_total|floatformat:2 }}</div>
+                            <div class="metric-label">Monto Total</div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <div class="metric-card">
+                            <div class="metric-value text-warning">${{ orden.anticipos_pagados|floatformat:2 }}</div>
+                            <div class="metric-label">Anticipos Pagados</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Barra de progreso detallada -->
+                <div class="progress-container">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="mb-0">Progreso de Productos</h6>
+                        <span class="badge bg-primary">{{ orden.porcentaje_completado }}%</span>
+                    </div>
+                    
+                    <div class="progress-bar-custom mb-2">
+                        <div class="progress-fill" style="width: {{ orden.porcentaje_completado }}%"></div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between text-muted small">
+                        <span>{{ orden.productos_recibidos }} de {{ orden.total_productos }} productos</span>
+                        {% if orden.esta_completa %}
+                            <span class="text-success">
+                                <i class="fas fa-check-circle"></i> Completo
+                            </span>
+                        {% else %}
+                            <span>{{ orden.total_productos|add:"-"|add:orden.productos_recibidos }} pendientes</span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Fechas importantes -->
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <small class="text-muted">Fecha de Creación:</small><br>
+                        <span>{{ orden.fecha_creacion|date:"d/m/Y H:i" }}</span>
+                    </div>
+                    
+                    {% if orden.fecha_cierre %}
+                    <div class="col-md-6">
+                        <small class="text-muted">Fecha de Cierre:</small><br>
+                        <span>{{ orden.fecha_cierre|date:"d/m/Y H:i" }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Observaciones -->
+{% if orden.observaciones %}
+<div class="main-card mb-4">
+    <div class="card-header-custom">
+        <h4 class="mb-0">
+            <i class="fas fa-sticky-note"></i>
+            Observaciones
+        </h4>
+    </div>
+    
+    <div class="card-body">
+        <p class="mb-0">{{ orden.observaciones }}</p>
+    </div>
+</div>
+{% endif %}
+
+<!-- Pestañas de contenido -->
+<div class="main-card">
+    <div class="card-body p-0">
+        <ul class="nav nav-tabs" id="ordenTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="pedidos-tab" data-bs-toggle="tab" 
+                        data-bs-target="#pedidos" type="button" role="tab">
+                    <i class="fas fa-shopping-bag"></i> Pedidos Asociados ({{ pedidos_asociados.count }})
+                </button>
+            </li>
+            
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="seguimiento-tab" data-bs-toggle="tab" 
+                        data-bs-target="#seguimiento" type="button" role="tab">
+                    <i class="fas fa-route"></i> Seguimiento ({{ seguimientos.count }})
+                </button>
+            </li>
+            
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="entregas-tab" data-bs-toggle="tab" 
+                        data-bs-target="#entregas" type="button" role="tab">
+                    <i class="fas fa-truck"></i> Entregas Parciales ({{ entregas_parciales.count }})
+                </button>
+            </li>
+            
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="creditos-tab" data-bs-toggle="tab" 
+                        data-bs-target="#creditos" type="button" role="tab">
+                    <i class="fas fa-credit-card"></i> Notas de Crédito ({{ notas_credito.count }})
+                </button>
+            </li>
+        </ul>
+        
+        <div class="tab-content" id="ordenTabsContent">
+            <!-- Tab de Pedidos Asociados -->
+            <div class="tab-pane fade show active" id="pedidos" role="tabpanel">
+                <div class="p-4">
+                    {% if pedidos_asociados %}
+                        <div class="table-responsive">
+                            <table class="table table-custom">
+                                <thead>
+                                    <tr>
+                                        <th>ID Pedido</th>
+                                        <th>Fecha</th>
+                                        <th>Productos</th>
+                                        <th>Total</th>
+                                        <th>Estado</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for pedido in pedidos_asociados %}
+                                    <tr>
+                                        <td><strong>#{{ pedido.id }}</strong></td>
+                                        <td>{{ pedido.fecha_pedido|date:"d/m/Y" }}</td>
+                                        <td>
+                                            <small>
+                                                {% for detalle in pedido.detalle_pedidos.all|slice:":3" %}
+                                                    {{ detalle.cantidad }}x {{ detalle.producto.codigo }}<br>
+                                                {% endfor %}
+                                                {% if pedido.detalle_pedidos.count > 3 %}
+                                                    <span class="text-muted">+{{ pedido.detalle_pedidos.count|add:"-3" }} más...</span>
+                                                {% endif %}
+                                            </small>
+                                        </td>
+                                        <td>${{ pedido.total|floatformat:2 }}</td>
+                                        <td>
+                                            <span class="badge bg-warning">{{ pedido.estado }}</span>
+                                        </td>
+                                        <td>
+                                            <a href="#" class="btn btn-sm btn-outline-primary" 
+                                               onclick="verDetallePedido({{ pedido.id }})">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No hay pedidos asociados</h5>
+                            <p class="text-muted">Los pedidos aparecerán aquí cuando se agreguen a la orden</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Tab de Seguimiento -->
+            <div class="tab-pane fade" id="seguimiento" role="tabpanel">
+                <div class="p-4">
+                    {% if seguimientos %}
+                        <div class="timeline">
+                            {% for seguimiento in seguimientos %}
+                            <div class="timeline-item">
+                                <div class="timeline-marker bg-primary"></div>
+                                <div class="timeline-content">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <div>
+                                            <h6 class="mb-1">{{ seguimiento.detalle_pedido.producto.codigo }}</h6>
+                                            <span class="badge bg-info">{{ seguimiento.estado_nuevo }}</span>
+                                        </div>
+                                        <small class="text-muted">{{ seguimiento.fecha_cambio|date:"d/m/Y H:i" }}</small>
+                                    </div>
+                                    
+                                    {% if seguimiento.estado_anterior %}
+                                    <p class="text-muted small mb-1">
+                                        <i class="fas fa-arrow-right"></i>
+                                        Cambió de "{{ seguimiento.estado_anterior }}" a "{{ seguimiento.estado_nuevo }}"
+                                    </p>
+                                    {% endif %}
+                                    
+                                    {% if seguimiento.observaciones %}
+                                    <p class="small mb-1">{{ seguimiento.observaciones }}</p>
+                                    {% endif %}
+                                    
+                                    {% if seguimiento.usuario_cambio %}
+                                    <p class="text-muted small mb-0">
+                                        <i class="fas fa-user"></i> {{ seguimiento.usuario_cambio.get_full_name|default:seguimiento.usuario_cambio.username }}
+                                    </p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-route fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No hay seguimientos registrados</h5>
+                            <p class="text-muted">Los cambios de estado de productos aparecerán aquí</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Tab de Entregas Parciales -->
+            <div class="tab-pane fade" id="entregas" role="tabpanel">
+                <div class="p-4">
+                    {% if entregas_parciales %}
+                        <div class="table-responsive">
+                            <table class="table table-custom">
+                                <thead>
+                                    <tr>
+                                        <th>Ticket</th>
+                                        <th>Fecha Entrega</th>
+                                        <th>Productos</th>
+                                        <th>Monto</th>
+                                        <th>Usuario</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for entrega in entregas_parciales %}
+                                    <tr>
+                                        <td><strong>{{ entrega.ticket_entrega }}</strong></td>
+                                        <td>{{ entrega.fecha_entrega|date:"d/m/Y H:i" }}</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-info" 
+                                                    onclick="verProductosEntrega('{{ entrega.ticket_entrega }}')">
+                                                Ver Productos
+                                            </button>
+                                        </td>
+                                        <td>${{ entrega.monto_entregado|floatformat:2 }}</td>
+                                        <td>{{ entrega.usuario_entrega.get_full_name|default:entrega.usuario_entrega.username }}</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-primary" 
+                                                    onclick="imprimirTicketEntrega('{{ entrega.ticket_entrega }}')">
+                                                <i class="fas fa-print"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-truck fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No hay entregas parciales</h5>
+                            <p class="text-muted">Las entregas parciales aparecerán aquí</p>
+                            
+                            {% if orden.estado == 'PENDIENTE' %}
+                            <button class="btn btn-primary-custom" onclick="procesarEntregaParcial()">
+                                <i class="fas fa-plus"></i> Procesar Entrega Parcial
+                            </button>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Tab de Notas de Crédito -->
+            <div class="tab-pane fade" id="creditos" role="tabpanel">
+                <div class="p-4">
+                    {% if notas_credito %}
+                        <div class="table-responsive">
+                            <table class="table table-custom">
+                                <thead>
+                                    <tr>
+                                        <th>Tipo</th>
+                                        <th>Monto</th>
+                                        <th>Estado</th>
+                                        <th>Vencimiento</th>
+                                        <th>Motivo</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for nota in notas_credito %}
+                                    <tr>
+                                        <td>
+                                            <span class="badge {% if nota.tipo == 'CREDITO' %}bg-success{% else %}bg-warning{% endif %}">
+                                                {{ nota.get_tipo_display }}
+                                            </span>
+                                        </td>
+                                        <td>${{ nota.monto|floatformat:2 }}</td>
+                                        <td>
+                                            <span class="badge {% if nota.estado == 'ACTIVA' %}bg-primary{% elif nota.estado == 'APLICADA' %}bg-success{% else %}bg-danger{% endif %}">
+                                                {{ nota.get_estado_display }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {{ nota.fecha_vencimiento|date:"d/m/Y" }}
+                                            {% if nota.esta_vencida %}
+                                                <small class="text-danger d-block">
+                                                    <i class="fas fa-exclamation-triangle"></i> Vencida
+                                                </small>
+                                            {% endif %}
+                                        </td>
+                                        <td><small>{{ nota.motivo|truncatechars:50 }}</small></td>
+                                        <td>
+                                            {% if nota.estado == 'ACTIVA' and not nota.esta_vencida %}
+                                            <button class="btn btn-sm btn-outline-success" 
+                                                    onclick="aplicarNotaCredito({{ nota.id }})">
+                                                <i class="fas fa-check"></i> Aplicar
+                                            </button>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-credit-card fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No hay notas de crédito</h5>
+                            <p class="text-muted">Las notas de crédito del cliente aparecerán aquí</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block pedidos_extra_js %}
+<style>
+/* Estilos para timeline */
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #e9ecef;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 30px;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -22px;
+    top: 5px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 3px solid white;
+    box-shadow: 0 0 0 2px #e9ecef;
+}
+
+.timeline-content {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 3px solid #007bff;
+}
+</style>
+
+<script>
+// Funciones específicas del detalle de orden
+function cambiarEstado(nuevoEstado) {
+    const mensajes = {
+        'PENDIENTE': '¿Marcar esta orden como pendiente?',
+        'VENTA': '¿Convertir esta orden a venta? Esta acción no se puede deshacer.',
+        'CANCELADO': '¿Cancelar esta orden? Esta acción no se puede deshacer.'
+    };
+    
+    if (confirm(mensajes[nuevoEstado])) {
+        actualizarEstadoOrden({{ orden.id }}, nuevoEstado);
+    }
+}
+
+function cancelarOrden() {
+    cambiarEstado('CANCELADO');
+}
+
+function procesarEntregaParcial() {
+    // Aquí iría la lógica para procesar entrega parcial
+    alert('Funcionalidad de entrega parcial - En desarrollo');
+}
+
+function generarReporte() {
+    // Generar reporte de la orden
+    window.open(`/pedidos-avanzados/orden/{{ orden.id }}/reporte/`, '_blank');
+}
+
+function verDetallePedido(pedidoId) {
+    // Mostrar modal con detalle del pedido
+    alert(`Ver detalle del pedido ${pedidoId} - En desarrollo`);
+}
+
+function verProductosEntrega(ticketEntrega) {
+    // Mostrar productos de la entrega
+    alert(`Ver productos de entrega ${ticketEntrega} - En desarrollo`);
+}
+
+function imprimirTicketEntrega(ticketEntrega) {
+    // Imprimir ticket de entrega
+    window.open(`/pedidos-avanzados/entrega/${ticketEntrega}/ticket/`, '_blank');
+}
+
+function aplicarNotaCredito(notaId) {
+    if (confirm('¿Aplicar esta nota de crédito?')) {
+        // Aquí iría la lógica para aplicar nota de crédito
+        alert(`Aplicar nota de crédito ${notaId} - En desarrollo`);
+    }
+}
+
+$(document).ready(function() {
+    // Activar tooltips
+    $('[data-bs-toggle="tooltip"]').tooltip();
+    
+    // Auto-refresh cada 3 minutos
+    setTimeout(function() {
+        location.reload();
+    }, 180000);
+});
+</script>
+{% endblock %}

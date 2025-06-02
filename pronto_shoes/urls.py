@@ -17,6 +17,8 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from django.views.generic import RedirectView
+from django.conf import settings
+from django.conf.urls.static import static
 from rest_framework import routers, permissions
 from tiendas.views import TiendaViewSet
 from productos.views import ProductoViewSet, CatalogoViewSet
@@ -31,6 +33,10 @@ from descuentos.views import TabuladorDescuentoViewSet, DescuentosReporteAPIView
 from administracion.views import LogAuditoriaViewSet, LogsAuditoriaReporteAPIView
 from sincronizacion.views import ColaSincronizacionViewSet, ConfiguracionSincronizacionViewSet, RegistroSincronizacionViewSet, ContentTypeViewSet
 from reportes.views import ReportePersonalizadoViewSet, EjecucionReporteViewSet, ReportesAvanzadosAPIView
+from pedidos_avanzados.viewsets import (
+    OrdenClienteViewSet, EstadoProductoSeguimientoViewSet, EntregaParcialViewSet,
+    NotaCreditoViewSet, PortalClientePoliticaViewSet, ProductoCompartirViewSet
+)
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 from django.contrib.auth import views as auth_views
 
@@ -64,6 +70,14 @@ router.register(r'sincronizacion/configuracion', ConfiguracionSincronizacionView
 router.register(r'sincronizacion/registros', RegistroSincronizacionViewSet)
 router.register(r'sincronizacion/content-types', ContentTypeViewSet)
 
+# Pedidos Avanzados ViewSets
+router.register(r'pedidos-avanzados/ordenes-cliente', OrdenClienteViewSet, basename='orden-cliente')
+router.register(r'pedidos-avanzados/seguimiento-productos', EstadoProductoSeguimientoViewSet, basename='seguimiento-producto')
+router.register(r'pedidos-avanzados/entregas-parciales', EntregaParcialViewSet, basename='entrega-parcial')
+router.register(r'pedidos-avanzados/notas-credito', NotaCreditoViewSet, basename='nota-credito')
+router.register(r'pedidos-avanzados/portal-politicas', PortalClientePoliticaViewSet, basename='portal-politica')
+router.register(r'pedidos-avanzados/productos-compartir', ProductoCompartirViewSet, basename='producto-compartir')
+
 urlpatterns = [
     # Redirect root to login page
     path('', RedirectView.as_view(url='/dashboard/', permanent=False)),
@@ -73,9 +87,10 @@ urlpatterns = [
     # Productos application
     path('productos/', include('productos.urls')),
     # Inventario application
-    path('inventario/', include('inventario.urls')),
-    # Ventas application
+    path('inventario/', include('inventario.urls')),    # Ventas application
     path('ventas/', include('ventas.urls')),
+    # Pedidos Avanzados application
+    path('pedidos-avanzados/', include('pedidos_avanzados.urls')),
     # Clientes application
     path('clientes/', include('clientes.urls')),
     # Proveedores application
@@ -122,3 +137,8 @@ urlpatterns += [
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 ]
+
+# Serve media and static files during development
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATICFILES_DIRS[0])

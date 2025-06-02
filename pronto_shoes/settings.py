@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-)gdf^*o#2h4un2hd1@$)oc_umn4%&r73w92)z$0&h0!9s!yh^_
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*', 'localhost', '127.0.0.1', 'testserver']
 
 
 # Application definition
@@ -44,11 +44,12 @@ INSTALLED_APPS = [
     'clientes',
     'ventas',
     'inventario',
-    'caja',
-    'devoluciones',
-    'requisiciones',    'descuentos',
+    'caja',    'devoluciones',
+    'requisiciones',
+    'descuentos',
     'administracion',
     'reportes',
+    'pedidos_avanzados',
     'configuracion',
     'dashboard',
     'sincronizacion.apps.SincronizacionConfig',
@@ -143,6 +144,10 @@ STATICFILES_DIRS = [
     BASE_DIR / 'frontend' / 'static',
 ]
 
+# Media files (user uploads)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
@@ -186,7 +191,7 @@ CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 CRISPY_TEMPLATE_PACK = "bootstrap5"
 
 # Channels configuration
-ASGI_APPLICATION = 'pronto_shoes.routing.application'
+ASGI_APPLICATION = 'pronto_shoes.asgi.application'
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels.layers.InMemoryChannelLayer',
