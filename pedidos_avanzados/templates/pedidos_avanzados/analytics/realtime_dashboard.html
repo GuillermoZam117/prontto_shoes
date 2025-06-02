@@ -1,0 +1,893 @@
+{% extends "pedidos_avanzados/base.html" %}
+{% load static %}
+
+{% block title %}Dashboard Tiempo Real{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    .realtime-dashboard {
+        background: linear-gradient(135deg, #ff6b6b 0%, #4ecdc4 100%);
+        min-height: 100vh;
+        padding: 2rem 0;
+    }
+    
+    .realtime-card {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 15px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .realtime-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #ff6b6b, #4ecdc4);
+        animation: pulse 2s ease-in-out infinite alternate;
+    }
+    
+    @keyframes pulse {
+        0% { opacity: 0.6; }
+        100% { opacity: 1; }
+    }
+    
+    .live-indicator {
+        display: inline-flex;
+        align-items: center;
+        background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 25px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        animation: glow 2s ease-in-out infinite alternate;
+    }
+    
+    @keyframes glow {
+        0% { box-shadow: 0 0 10px rgba(255, 107, 107, 0.3); }
+        100% { box-shadow: 0 0 20px rgba(78, 205, 196, 0.6); }
+    }
+    
+    .live-indicator .pulse-dot {
+        width: 8px;
+        height: 8px;
+        background: #fff;
+        border-radius: 50%;
+        margin-right: 0.5rem;
+        animation: pulse-dot 1s ease-in-out infinite;
+    }
+    
+    @keyframes pulse-dot {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.2); opacity: 0.8; }
+    }
+    
+    .metric-realtime {
+        background: linear-gradient(45deg, rgba(255, 107, 107, 0.1), rgba(78, 205, 196, 0.1));
+        border-radius: 12px;
+        padding: 1.5rem;
+        text-align: center;
+        margin-bottom: 1.5rem;
+        border: 1px solid rgba(255, 107, 107, 0.2);
+        transition: all 0.3s ease;
+        position: relative;
+    }
+    
+    .metric-realtime:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    }
+    
+    .metric-realtime.updated {
+        animation: metric-update 0.5s ease-in-out;
+    }
+    
+    @keyframes metric-update {
+        0% { background: rgba(78, 205, 196, 0.3); }
+        100% { background: linear-gradient(45deg, rgba(255, 107, 107, 0.1), rgba(78, 205, 196, 0.1)); }
+    }
+    
+    .metric-number-realtime {
+        font-size: 2.5rem;
+        font-weight: 700;
+        background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 0.5rem;
+        transition: all 0.3s ease;
+    }
+    
+    .metric-label-realtime {
+        color: #6c757d;
+        font-size: 0.9rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .connection-status {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1050;
+        padding: 0.75rem 1.5rem;
+        border-radius: 25px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+    }
+    
+    .connection-status.connected {
+        background: linear-gradient(45deg, #28a745, #20c997);
+        color: white;
+    }
+    
+    .connection-status.disconnected {
+        background: linear-gradient(45deg, #dc3545, #fd7e14);
+        color: white;
+        animation: shake 0.5s ease-in-out;
+    }
+    
+    .connection-status.connecting {
+        background: linear-gradient(45deg, #ffc107, #fd7e14);
+        color: white;
+    }
+    
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-5px); }
+        75% { transform: translateX(5px); }
+    }
+    
+    .activity-feed {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    
+    .activity-item {
+        padding: 1rem;
+        border-left: 3px solid #4ecdc4;
+        margin-bottom: 1rem;
+        background: rgba(78, 205, 196, 0.05);
+        border-radius: 0 8px 8px 0;
+        animation: fadeInLeft 0.5s ease-in-out;
+    }
+    
+    .activity-item.new {
+        border-left-color: #ff6b6b;
+        background: rgba(255, 107, 107, 0.05);
+        animation: slideInRight 0.5s ease-in-out;
+    }
+    
+    @keyframes fadeInLeft {
+        from { opacity: 0; transform: translateX(-20px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
+    
+    @keyframes slideInRight {
+        from { opacity: 0; transform: translateX(20px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
+    
+    .chart-realtime {
+        position: relative;
+    }
+    
+    .chart-realtime::after {
+        content: 'LIVE';
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 15px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 1px;
+    }
+    
+    .notification-toast {
+        position: fixed;
+        top: 80px;
+        right: 20px;
+        z-index: 1055;
+        max-width: 350px;
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 10px;
+        padding: 1rem;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+        border-left: 4px solid #4ecdc4;
+        transform: translateX(400px);
+        transition: transform 0.3s ease-in-out;
+    }
+    
+    .notification-toast.show {
+        transform: translateX(0);
+    }
+    
+    .auto-refresh-controls {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 10px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="realtime-dashboard">
+    <!-- Indicador de Conexión -->
+    <div id="connection-status" class="connection-status connecting">
+        <i class="fas fa-circle me-2"></i>
+        Conectando...
+    </div>
+    
+    <!-- Notificaciones Toast -->
+    <div id="notification-toast" class="notification-toast">
+        <div class="d-flex align-items-start">
+            <i class="fas fa-bell text-primary me-2 mt-1"></i>
+            <div>
+                <div class="fw-bold" id="toast-title">Notificación</div>
+                <div class="text-muted small" id="toast-message">Mensaje de notificación</div>
+            </div>
+            <button type="button" class="btn-close btn-sm ms-auto" onclick="hideNotification()"></button>
+        </div>
+    </div>
+
+    <div class="container-fluid">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="realtime-card">
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <h2 class="mb-0 text-primary">
+                                <i class="fas fa-broadcast-tower me-2"></i>
+                                Dashboard Tiempo Real
+                            </h2>
+                            <p class="text-muted mb-0">Métricas y actividad en vivo</p>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <div class="live-indicator">
+                                <div class="pulse-dot"></div>
+                                EN VIVO
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controles de Auto-Refresh -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="auto-refresh-controls">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <div class="d-flex align-items-center">
+                                <div class="form-check form-switch me-4">
+                                    <input class="form-check-input" type="checkbox" id="auto-refresh" checked>
+                                    <label class="form-check-label" for="auto-refresh">
+                                        <i class="fas fa-sync-alt me-1"></i>
+                                        Auto-actualización
+                                    </label>
+                                </div>
+                                <div class="me-4">
+                                    <label class="form-label mb-0 me-2">Intervalo:</label>
+                                    <select class="form-select form-select-sm d-inline-block w-auto" id="refresh-interval">
+                                        <option value="5000">5 segundos</option>
+                                        <option value="10000" selected>10 segundos</option>
+                                        <option value="30000">30 segundos</option>
+                                        <option value="60000">1 minuto</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <small class="text-muted">
+                                <i class="fas fa-clock me-1"></i>
+                                Última actualización: <span id="last-update">--:--:--</span>
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Métricas en Tiempo Real -->
+        <div class="row mb-4">
+            <div class="col-xl-3 col-md-6">
+                <div class="metric-realtime" id="metric-ingresos">
+                    <div class="metric-number-realtime" id="ingresos-hoy">$0.00</div>
+                    <div class="metric-label-realtime">
+                        <i class="fas fa-dollar-sign me-1"></i>
+                        Ingresos Hoy
+                    </div>
+                    <div class="change-indicator mt-2" id="ingresos-change"></div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6">
+                <div class="metric-realtime" id="metric-pedidos">
+                    <div class="metric-number-realtime" id="pedidos-hoy">0</div>
+                    <div class="metric-label-realtime">
+                        <i class="fas fa-shopping-cart me-1"></i>
+                        Pedidos Hoy
+                    </div>
+                    <div class="change-indicator mt-2" id="pedidos-change"></div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6">
+                <div class="metric-realtime" id="metric-usuarios">
+                    <div class="metric-number-realtime" id="usuarios-activos">0</div>
+                    <div class="metric-label-realtime">
+                        <i class="fas fa-users me-1"></i>
+                        Usuarios Activos
+                    </div>
+                    <div class="change-indicator mt-2" id="usuarios-change"></div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6">
+                <div class="metric-realtime" id="metric-ordenes">
+                    <div class="metric-number-realtime" id="ordenes-pendientes">0</div>
+                    <div class="metric-label-realtime">
+                        <i class="fas fa-clock me-1"></i>
+                        Órdenes Pendientes
+                    </div>
+                    <div class="change-indicator mt-2" id="ordenes-change"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gráficos en Tiempo Real -->
+        <div class="row mb-4">
+            <div class="col-lg-8">
+                <div class="realtime-card">
+                    <h5 class="mb-3">
+                        <i class="fas fa-chart-line me-2 text-primary"></i>
+                        Actividad en Tiempo Real
+                    </h5>
+                    <div class="chart-realtime">
+                        <canvas id="realtimeChart" height="300"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="realtime-card">
+                    <h5 class="mb-3">
+                        <i class="fas fa-tachometer-alt me-2 text-primary"></i>
+                        Velocímetro de Ventas
+                    </h5>
+                    <div class="chart-realtime">
+                        <canvas id="velocimetroChart" height="300"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feed de Actividad y Alertas -->
+        <div class="row">
+            <div class="col-lg-6">
+                <div class="realtime-card">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0">
+                            <i class="fas fa-stream me-2 text-primary"></i>
+                            Feed de Actividad
+                        </h5>
+                        <button class="btn btn-outline-primary btn-sm" onclick="clearActivityFeed()">
+                            <i class="fas fa-trash me-1"></i> Limpiar
+                        </button>
+                    </div>
+                    <div class="activity-feed" id="activity-feed">
+                        <!-- Se llena dinámicamente -->
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="realtime-card">
+                    <h5 class="mb-3">
+                        <i class="fas fa-exclamation-triangle me-2 text-warning"></i>
+                        Alertas Activas
+                    </h5>
+                    <div id="active-alerts">
+                        <!-- Se llena dinámicamente -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Variables globales
+    let websocket = null;
+    let isConnected = false;
+    let autoRefresh = true;
+    let refreshInterval = 10000;
+    let intervalId = null;
+    let charts = {};
+    let previousMetrics = {};
+    
+    // Datos para gráficos en tiempo real
+    let realtimeData = {
+        labels: [],
+        ingresos: [],
+        pedidos: []
+    };
+    
+    // Inicializar dashboard
+    initializeDashboard();
+    
+    function initializeDashboard() {
+        // Configurar WebSocket
+        setupWebSocket();
+        
+        // Configurar gráficos
+        setupCharts();
+        
+        // Configurar controles
+        setupControls();
+        
+        // Cargar datos iniciales
+        loadInitialData();
+    }
+    
+    function setupWebSocket() {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/ws/analytics/`;
+        
+        try {
+            websocket = new WebSocket(wsUrl);
+            
+            websocket.onopen = function(e) {
+                console.log('WebSocket connection established');
+                isConnected = true;
+                updateConnectionStatus('connected');
+                showNotification('Conexión establecida', 'Conectado al sistema en tiempo real', 'success');
+            };
+            
+            websocket.onmessage = function(e) {
+                const data = JSON.parse(e.data);
+                handleWebSocketMessage(data);
+            };
+            
+            websocket.onclose = function(e) {
+                console.log('WebSocket connection closed');
+                isConnected = false;
+                updateConnectionStatus('disconnected');
+                showNotification('Conexión perdida', 'Intentando reconectar...', 'warning');
+                
+                // Intentar reconectar después de 5 segundos
+                setTimeout(setupWebSocket, 5000);
+            };
+            
+            websocket.onerror = function(e) {
+                console.error('WebSocket error:', e);
+                updateConnectionStatus('disconnected');
+            };
+            
+        } catch (error) {
+            console.error('Error creating WebSocket:', error);
+            updateConnectionStatus('disconnected');
+            // Fallback a polling
+            startPolling();
+        }
+    }
+    
+    function handleWebSocketMessage(data) {
+        switch(data.type) {
+            case 'metrics_update':
+                updateMetrics(data.data);
+                break;
+            case 'new_order':
+                addActivityItem('Nueva orden recibida', `Orden #${data.data.numero} - $${data.data.total}`, 'order');
+                break;
+            case 'order_completed':
+                addActivityItem('Orden completada', `Orden #${data.data.numero} finalizada`, 'success');
+                break;
+            case 'alert':
+                showAlert(data.data.message, data.data.type);
+                break;
+            case 'system_notification':
+                showNotification(data.data.title, data.data.message, data.data.level);
+                break;
+        }
+    }
+    
+    function setupCharts() {
+        // Gráfico de actividad en tiempo real
+        const realtimeCtx = document.getElementById('realtimeChart').getContext('2d');
+        charts.realtime = new Chart(realtimeCtx, {
+            type: 'line',
+            data: {
+                labels: realtimeData.labels,
+                datasets: [{
+                    label: 'Ingresos',
+                    data: realtimeData.ingresos,
+                    borderColor: '#ff6b6b',
+                    backgroundColor: 'rgba(255, 107, 107, 0.1)',
+                    tension: 0.4,
+                    fill: true,
+                    yAxisID: 'y'
+                }, {
+                    label: 'Pedidos',
+                    data: realtimeData.pedidos,
+                    borderColor: '#4ecdc4',
+                    backgroundColor: 'rgba(78, 205, 196, 0.1)',
+                    tension: 0.4,
+                    yAxisID: 'y1'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: {
+                    duration: 750,
+                    easing: 'easeInOutQuart'
+                },
+                scales: {
+                    x: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: 'Tiempo'
+                        }
+                    },
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: {
+                            display: true,
+                            text: 'Ingresos ($)'
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: {
+                            display: true,
+                            text: 'Pedidos'
+                        },
+                        grid: {
+                            drawOnChartArea: false,
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top'
+                    }
+                }
+            }
+        });
+        
+        // Velocímetro de ventas
+        const velocimetroCtx = document.getElementById('velocimetroChart').getContext('2d');
+        charts.velocimetro = new Chart(velocimetroCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Ventas Actuales', 'Meta Restante'],
+                datasets: [{
+                    data: [0, 100],
+                    backgroundColor: ['#4ecdc4', '#e9ecef'],
+                    borderWidth: 0,
+                    circumference: 180,
+                    rotation: 270
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        enabled: false
+                    }
+                }
+            },
+            plugins: [{
+                id: 'center-text',
+                beforeDraw: function(chart) {
+                    const width = chart.width;
+                    const height = chart.height;
+                    const ctx = chart.ctx;
+                    
+                    ctx.restore();
+                    const fontSize = (height / 114).toFixed(2);
+                    ctx.font = fontSize + "em sans-serif";
+                    ctx.textBaseline = "middle";
+                    ctx.fillStyle = "#ff6b6b";
+                    
+                    const percentage = chart.data.datasets[0].data[0];
+                    const text = percentage + "%";
+                    const textX = Math.round((width - ctx.measureText(text).width) / 2);
+                    const textY = height / 2;
+                    
+                    ctx.fillText(text, textX, textY);
+                    ctx.save();
+                }
+            }]
+        });
+    }
+    
+    function setupControls() {
+        // Auto-refresh toggle
+        document.getElementById('auto-refresh').addEventListener('change', function() {
+            autoRefresh = this.checked;
+            if (autoRefresh) {
+                startPolling();
+            } else {
+                stopPolling();
+            }
+        });
+        
+        // Refresh interval
+        document.getElementById('refresh-interval').addEventListener('change', function() {
+            refreshInterval = parseInt(this.value);
+            if (autoRefresh) {
+                stopPolling();
+                startPolling();
+            }
+        });
+    }
+    
+    function startPolling() {
+        if (intervalId) {
+            clearInterval(intervalId);
+        }
+        
+        intervalId = setInterval(loadRealtimeData, refreshInterval);
+    }
+    
+    function stopPolling() {
+        if (intervalId) {
+            clearInterval(intervalId);
+            intervalId = null;
+        }
+    }
+    
+    function loadInitialData() {
+        loadRealtimeData();
+        if (autoRefresh) {
+            startPolling();
+        }
+    }
+    
+    function loadRealtimeData() {
+        fetch('/pedidos-avanzados/analytics/api/metrics/')
+            .then(response => response.json())
+            .then(data => {
+                updateMetrics(data);
+                updateLastUpdateTime();
+            })
+            .catch(error => {
+                console.error('Error loading realtime data:', error);
+                showNotification('Error', 'No se pudieron cargar los datos', 'error');
+            });
+    }
+    
+    function updateMetrics(data) {
+        // Actualizar métricas principales
+        const metrics = {
+            ingresos: data.total_ingresos || 0,
+            pedidos: data.total_pedidos || 0,
+            usuarios: Math.floor(Math.random() * 50) + 10, // Simulado
+            ordenes: data.ordenes_pendientes || 0
+        };
+        
+        // Actualizar valores con animación
+        Object.entries(metrics).forEach(([key, value]) => {
+            const element = document.getElementById(`${key}-hoy`);
+            const changeElement = document.getElementById(`${key}-change`);
+            const metricElement = document.getElementById(`metric-${key}`);
+            
+            if (element) {
+                // Formatear valor
+                let formattedValue = value;
+                if (key === 'ingresos') {
+                    formattedValue = `$${parseFloat(value).toFixed(2)}`;
+                } else {
+                    formattedValue = parseInt(value).toLocaleString();
+                }
+                
+                // Actualizar valor
+                element.textContent = formattedValue;
+                
+                // Mostrar cambio si hay valor previo
+                if (previousMetrics[key] !== undefined) {
+                    const change = value - previousMetrics[key];
+                    const changePercent = previousMetrics[key] > 0 ? 
+                        ((change / previousMetrics[key]) * 100).toFixed(1) : 0;
+                    
+                    if (change !== 0 && changeElement) {
+                        const isPositive = change > 0;
+                        changeElement.innerHTML = `
+                            <i class="fas fa-arrow-${isPositive ? 'up' : 'down'} me-1"></i>
+                            <span class="text-${isPositive ? 'success' : 'danger'}">
+                                ${isPositive ? '+' : ''}${change} (${changePercent}%)
+                            </span>
+                        `;
+                        
+                        // Animar métrica actualizada
+                        metricElement.classList.add('updated');
+                        setTimeout(() => {
+                            metricElement.classList.remove('updated');
+                        }, 500);
+                    }
+                }
+            }
+        });
+        
+        // Guardar métricas anteriores
+        previousMetrics = { ...metrics };
+        
+        // Actualizar gráficos
+        updateRealtimeChart(data);
+        updateVelocimetro(metrics.ingresos);
+    }
+    
+    function updateRealtimeChart(data) {
+        const now = new Date();
+        const timeLabel = now.toLocaleTimeString();
+        
+        // Agregar nuevos datos
+        realtimeData.labels.push(timeLabel);
+        realtimeData.ingresos.push(data.total_ingresos || 0);
+        realtimeData.pedidos.push(data.total_pedidos || 0);
+        
+        // Mantener solo los últimos 20 puntos
+        if (realtimeData.labels.length > 20) {
+            realtimeData.labels.shift();
+            realtimeData.ingresos.shift();
+            realtimeData.pedidos.shift();
+        }
+        
+        // Actualizar gráfico
+        charts.realtime.update('none');
+    }
+    
+    function updateVelocimetro(ingresos) {
+        // Meta diaria (ejemplo: $10,000)
+        const metaDiaria = 10000;
+        const porcentaje = Math.min((ingresos / metaDiaria) * 100, 100);
+        
+        charts.velocimetro.data.datasets[0].data = [porcentaje, 100 - porcentaje];
+        charts.velocimetro.update('none');
+    }
+    
+    function addActivityItem(title, message, type) {
+        const activityFeed = document.getElementById('activity-feed');
+        const now = new Date();
+        
+        const typeIcons = {
+            order: 'fas fa-shopping-cart text-primary',
+            success: 'fas fa-check-circle text-success',
+            warning: 'fas fa-exclamation-triangle text-warning',
+            error: 'fas fa-times-circle text-danger'
+        };
+        
+        const item = document.createElement('div');
+        item.className = 'activity-item new';
+        item.innerHTML = `
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="fw-bold">
+                        <i class="${typeIcons[type] || typeIcons.order} me-2"></i>
+                        ${title}
+                    </div>
+                    <div class="text-muted small">${message}</div>
+                </div>
+                <small class="text-muted">${now.toLocaleTimeString()}</small>
+            </div>
+        `;
+        
+        // Insertar al inicio
+        activityFeed.insertBefore(item, activityFeed.firstChild);
+        
+        // Remover clase 'new' después de un momento
+        setTimeout(() => {
+            item.classList.remove('new');
+        }, 1000);
+        
+        // Mantener solo los últimos 10 elementos
+        while (activityFeed.children.length > 10) {
+            activityFeed.removeChild(activityFeed.lastChild);
+        }
+    }
+    
+    function showAlert(message, type) {
+        const alertsContainer = document.getElementById('active-alerts');
+        
+        const alertTypes = {
+            critical: 'alert-danger',
+            warning: 'alert-warning',
+            info: 'alert-info'
+        };
+        
+        const alert = document.createElement('div');
+        alert.className = `alert ${alertTypes[type] || 'alert-info'} mb-2`;
+        alert.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center">
+                <span>${message}</span>
+                <button type="button" class="btn-close btn-sm" onclick="this.parentElement.parentElement.remove()"></button>
+            </div>
+        `;
+        
+        alertsContainer.appendChild(alert);
+    }
+    
+    function updateConnectionStatus(status) {
+        const statusElement = document.getElementById('connection-status');
+        
+        statusElement.className = `connection-status ${status}`;
+        
+        switch(status) {
+            case 'connected':
+                statusElement.innerHTML = '<i class="fas fa-circle me-2"></i>Conectado';
+                break;
+            case 'disconnected':
+                statusElement.innerHTML = '<i class="fas fa-circle me-2"></i>Desconectado';
+                break;
+            case 'connecting':
+                statusElement.innerHTML = '<i class="fas fa-circle me-2"></i>Conectando...';
+                break;
+        }
+    }
+    
+    function showNotification(title, message, type) {
+        const toast = document.getElementById('notification-toast');
+        const toastTitle = document.getElementById('toast-title');
+        const toastMessage = document.getElementById('toast-message');
+        
+        toastTitle.textContent = title;
+        toastMessage.textContent = message;
+        
+        toast.classList.add('show');
+        
+        // Auto hide después de 5 segundos
+        setTimeout(hideNotification, 5000);
+    }
+    
+    function hideNotification() {
+        const toast = document.getElementById('notification-toast');
+        toast.classList.remove('show');
+    }
+    
+    function clearActivityFeed() {
+        document.getElementById('activity-feed').innerHTML = '';
+    }
+    
+    function updateLastUpdateTime() {
+        const now = new Date();
+        document.getElementById('last-update').textContent = now.toLocaleTimeString();
+    }
+    
+    // Funciones globales
+    window.hideNotification = hideNotification;
+    window.clearActivityFeed = clearActivityFeed;
+    
+    // Simular actividad inicial
+    setTimeout(() => {
+        addActivityItem('Sistema iniciado', 'Dashboard en tiempo real activado', 'success');
+    }, 2000);
+});
+</script>
+{% endblock %}

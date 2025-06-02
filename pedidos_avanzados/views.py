@@ -23,6 +23,7 @@ from .services import (
 from ventas.models import Pedido, DetallePedido
 from clientes.models import Cliente
 from productos.models import Producto
+from .utils import GeneradorPDFCatalogo, GestorCompartirRedes, NotificadorAutomatico, AnalyticsPortalCliente
 
 
 @login_required
@@ -459,6 +460,301 @@ def ajax_obtener_pedidos_cliente(request):
             'pedidos': pedidos_data
         })
         
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error: {str(e)}'
+        })
+
+
+@login_required
+def portal_cliente_metricas(request, cliente_id):
+    """
+    Vista para mostrar métricas avanzadas del cliente
+    """
+    cliente = get_object_or_404(Cliente, id=cliente_id)
+    
+    # Generar métricas completas
+    metricas = AnalyticsPortalCliente.generar_metricas_cliente(cliente)
+    
+    # Órdenes recientes con detalles
+    ordenes_recientes = OrdenCliente.objects.filter(
+        cliente=cliente
+    ).order_by('-fecha_creacion')[:10]
+    
+    # Productos más pedidos
+    from django.db.models import Sum
+    productos_favoritos = Producto.objects.filter(
+        detalle_pedidos__pedido__cliente=cliente
+    ).annotate(
+        total_pedido=Sum('detalle_pedidos__cantidad')
+    ).order_by('-total_pedido')[:5]
+    
+    context = {
+        'cliente': cliente,
+        'metricas': metricas,
+        'ordenes_recientes': ordenes_recientes,
+        'productos_favoritos': productos_favoritos,
+        'titulo': f'Métricas - {cliente.nombre}',
+    }
+    
+    return render(request, 'pedidos_avanzados/portal_cliente_metricas.html', context)
+
+
+@login_required
+def generar_catalogo_pdf_cliente(request, cliente_id):
+    """
+    Genera y descarga catálogo PDF personalizado para el cliente
+    """
+    cliente = get_object_or_404(Cliente, id=cliente_id)
+    
+    # Filtros opcionales desde GET parameters
+    proveedor_id = request.GET.get('proveedor')
+    categoria = request.GET.get('categoria')
+    
+    # Construir queryset de productos
+    productos = Producto.objects.filter(activo=True)
+    
+    if proveedor_id:
+        productos = productos.filter(proveedor_id=proveedor_id)
+    
+    if categoria:
+        productos = productos.filter(categoria__icontains=categoria)
+    
+    # Generar PDF
+    generador = GeneradorPDFCatalogo(cliente, productos)
+    response = generador.generar_catalogo_pdf()
+    
+    # Log de la descarga
+    ProductoCompartir.objects.create(
+        producto=productos.first() if productos.exists() else None,
+        cliente=cliente,
+        plataforma='PDF_DOWNLOAD',
+        url_compartida=f'catalogo_cliente_{cliente.id}'
+    )
+    
+    return response
+
+
+@login_required
+def compartir_producto(request, producto_id):
+    """
+    Gestiona el compartir productos en redes sociales
+    """
+    producto = get_object_or_404(Producto, id=producto_id)
+    
+    if request.method == 'POST':
+        cliente_id = request.POST.get('cliente_id')
+        plataforma = request.POST.get('plataforma', 'whatsapp')
+        
+        if not cliente_id:
+            return JsonResponse({
+                'success': False,
+                'message': 'Cliente no especificado'
+            })
+        
+        cliente = get_object_or_404(Cliente, id=cliente_id)
+        
+        # Generar URL de compartir
+        url_compartir = GestorCompartirRedes.generar_url_compartir(
+            producto, cliente, plataforma
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'url_compartir': url_compartir,
+            'message': f'Enlace generado para {plataforma}'
+        })
+    
+    # GET - Mostrar opciones de compartir
+    context = {
+        'producto': producto,
+        'titulo': f'Compartir {producto.nombre}',
+    }
+    
+    return render(request, 'pedidos_avanzados/compartir_producto.html', context)
+
+
+@login_required
+def tracking_compartido(request, compartido_id):
+    """
+    Endpoint para tracking de clicks en enlaces compartidos
+    """
+    try:
+        compartido = ProductoCompartir.objects.get(id=compartido_id)
+        compartido.clicks_generados += 1
+        compartido.save()
+        
+        # Redireccionar al producto
+        return redirect('productos:detalle', producto_id=compartido.producto.id)
+        
+    except ProductoCompartir.DoesNotExist:
+        return redirect('productos:lista')
+
+
+@login_required
+def portal_cliente_politicas(request):
+    """
+    Vista para mostrar políticas y términos del portal
+    """
+    politicas = PortalClientePolitica.objects.filter(
+        activo=True,
+        tipo='POLITICA'
+    ).order_by('orden_display')
+    
+    faqs = PortalClientePolitica.objects.filter(
+        activo=True,
+        tipo='FAQ'
+    ).order_by('orden_display')
+    
+    context = {
+        'politicas': politicas,
+        'faqs': faqs,
+        'titulo': 'Políticas y Términos',
+    }
+    
+    return render(request, 'pedidos_avanzados/portal_politicas.html', context)
+
+
+@login_required
+def historial_actividad_cliente(request, cliente_id):
+    """
+    Vista para mostrar historial completo de actividad del cliente
+    """
+    cliente = get_object_or_404(Cliente, id=cliente_id)
+    
+    # Filtros de fecha
+    fecha_desde = request.GET.get('fecha_desde')
+    fecha_hasta = request.GET.get('fecha_hasta')
+    tipo_actividad = request.GET.get('tipo', 'todas')
+    
+    # Base queryset con fechas
+    base_filters = {}
+    if fecha_desde:
+        base_filters['fecha__gte'] = fecha_desde
+    if fecha_hasta:
+        base_filters['fecha__lte'] = fecha_hasta
+    
+    actividades = []
+    
+    # Órdenes
+    if tipo_actividad in ['todas', 'ordenes']:
+        fecha_field = 'fecha_creacion'
+        if fecha_desde:
+            base_filters[f'{fecha_field}__gte'] = fecha_desde
+        if fecha_hasta:
+            base_filters[f'{fecha_field}__lte'] = fecha_hasta
+            
+        ordenes = OrdenCliente.objects.filter(
+            cliente=cliente,
+            **{k.replace('fecha', fecha_field): v for k, v in base_filters.items()}
+        ).order_by(f'-{fecha_field}')
+        
+        for orden in ordenes:
+            actividades.append({
+                'tipo': 'orden',
+                'fecha': getattr(orden, fecha_field),
+                'descripcion': f'Orden creada: {orden.numero_orden}',
+                'estado': orden.estado,
+                'monto': orden.monto_total,
+                'objeto': orden
+            })
+    
+    # Productos compartidos
+    if tipo_actividad in ['todas', 'compartidos']:
+        fecha_field = 'fecha_compartido'
+        compartidos_filters = {k.replace('fecha', fecha_field): v for k, v in base_filters.items()}
+        
+        compartidos = ProductoCompartir.objects.filter(
+            cliente=cliente,
+            **compartidos_filters
+        ).select_related('producto').order_by(f'-{fecha_field}')
+        
+        for compartido in compartidos:
+            actividades.append({
+                'tipo': 'compartido',
+                'fecha': getattr(compartido, fecha_field),
+                'descripcion': f'Compartió {compartido.producto.nombre} en {compartido.plataforma}',
+                'clicks': compartido.clicks_generados,
+                'objeto': compartido
+            })
+    
+    # Ordenar todas las actividades por fecha
+    actividades.sort(key=lambda x: x['fecha'], reverse=True)
+    
+    context = {
+        'cliente': cliente,
+        'actividades': actividades,
+        'fecha_desde': fecha_desde,
+        'fecha_hasta': fecha_hasta,
+        'tipo_actividad': tipo_actividad,
+        'titulo': f'Historial - {cliente.nombre}',
+    }
+    
+    return render(request, 'pedidos_avanzados/historial_actividad.html', context)
+
+
+@login_required
+def ajax_actualizar_notificaciones_cliente(request):
+    """
+    AJAX endpoint para obtener notificaciones del cliente
+    """
+    cliente_id = request.GET.get('cliente_id')
+    
+    if not cliente_id:
+        return JsonResponse({'success': False, 'message': 'Cliente no especificado'})
+    
+    try:
+        cliente = Cliente.objects.get(id=cliente_id)
+        
+        # Buscar órdenes con cambios recientes (últimas 24 horas)
+        hace_24_horas = timezone.now() - timedelta(hours=24)
+        
+        ordenes_actualizadas = OrdenCliente.objects.filter(
+            cliente=cliente,
+            updated_at__gte=hace_24_horas
+        ).order_by('-updated_at')
+        
+        notificaciones = []
+        
+        for orden in ordenes_actualizadas:
+            notificaciones.append({
+                'tipo': 'orden_actualizada',
+                'titulo': f'Orden {orden.numero_orden} actualizada',
+                'mensaje': f'Estado: {orden.get_estado_display()}',
+                'fecha': orden.updated_at.isoformat(),
+                'url': f'/pedidos-avanzados/orden/{orden.id}/'
+            })
+        
+        # Verificar productos listos para entrega
+        from .models import EstadoProductoSeguimiento
+        productos_listos = EstadoProductoSeguimiento.objects.filter(
+            detalle_pedido__pedido__cliente=cliente,
+            estado_nuevo='LISTO_ENTREGA',
+            fecha_cambio__gte=hace_24_horas
+        ).select_related('detalle_pedido__producto')
+        
+        if productos_listos.exists():
+            productos_nombres = [p.detalle_pedido.producto.nombre for p in productos_listos[:3]]
+            notificaciones.append({
+                'tipo': 'productos_listos',
+                'titulo': 'Productos listos para entrega',
+                'mensaje': f'{len(productos_listos)} productos: {", ".join(productos_nombres)}',
+                'fecha': timezone.now().isoformat(),
+                'url': f'/pedidos-avanzados/portal-cliente/{cliente.id}/'
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'notificaciones': notificaciones,
+            'total': len(notificaciones)
+        })
+        
+    except Cliente.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'message': 'Cliente no encontrado'
+        })
     except Exception as e:
         return JsonResponse({
             'success': False,

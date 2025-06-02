@@ -21,13 +21,17 @@
     <!-- Panel Izquierdo - Productos -->
     <div class="col-lg-8 mb-4">
         <div class="card shadow h-100">
-            <div class="card-header py-3 bg-primary">
-                <h6 class="m-0 font-weight-bold text-white d-flex justify-content-between align-items-center">
+            <div class="card-header py-3 bg-primary">                <h6 class="m-0 font-weight-bold text-white d-flex justify-content-between align-items-center">
                     <span>Catálogo de Productos</span>
-                    <div class="input-group" style="max-width: 300px;">
-                        <input type="text" class="form-control" id="search-products" placeholder="Buscar productos...">
-                        <button class="btn btn-light" type="button" id="search-button">
-                            <i class="bi bi-search"></i>
+                    <div class="d-flex gap-2">
+                        <div class="input-group" style="max-width: 250px;">
+                            <input type="text" class="form-control" id="search-products" placeholder="Buscar productos...">
+                            <button class="btn btn-light" type="button" id="search-button">
+                                <i class="bi bi-search"></i>
+                            </button>
+                        </div>
+                        <button class="btn btn-light" type="button" id="toggle-filters">
+                            <i class="bi bi-funnel"></i>
                         </button>
                     </div>
                 </h6>
@@ -41,40 +45,128 @@
                         {% endfor %}
                     </select>
                 </div>
-                
-                <!-- Productos Grid -->
-                <div class="products-container" style="height: 460px; overflow-y: auto;">
-                    <div class="row" id="products-grid">
-                        {% for tienda in tiendas %}
-                            {% for producto in tienda.productos %}
-                            <div class="col-md-4 mb-3 product-item" data-store="{{ tienda.id }}" data-product-id="{{ producto.id }}" data-codigo="{{ producto.codigo }}" data-name="{{ producto.nombre }}" data-brand="{{ producto.marca }}" data-model="{{ producto.modelo }}" data-color="{{ producto.color }}" data-price="{{ producto.precio }}" data-stock="{{ producto.stock }}">
-                                <div class="card h-100">
-                                    <div class="card-body p-2 text-center">
-                                        <h6 class="card-title mb-0">{{ producto.nombre }}</h6>
-                                        <p class="small text-muted mb-1">{{ producto.codigo }}</p>
-                                        <p class="text-muted mb-1">{{ producto.marca }} {{ producto.modelo }}</p>
-                                        <p class="mb-1">{{ producto.color }}</p>
-                                        <div class="d-flex justify-content-between align-items-center mt-2">
-                                            <span class="badge bg-primary">${{ producto.precio }}</span>
-                                            <span class="badge {% if producto.stock > 10 %}bg-success{% elif producto.stock > 0 %}bg-warning{% else %}bg-danger{% endif %}">
-                                                {{ producto.stock }} en stock
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div class="card-footer p-2 text-center">
-                                        <button class="btn btn-sm btn-primary add-to-cart" {% if producto.stock <= 0 %}disabled{% endif %}>
-                                            <i class="bi bi-cart-plus"></i> Agregar
-                                        </button>
-                                    </div>
+
+                <!-- Advanced Filters -->
+                <div class="mb-3" id="advanced-filters" style="display: none;">
+                    <div class="card bg-light">
+                        <div class="card-body p-3">
+                            <h6 class="card-title mb-2">Filtros Avanzados</h6>
+                            <div class="row">
+                                <div class="col-md-4 mb-2">
+                                    <label class="form-label text-sm">Marca</label>
+                                    <select class="form-select form-select-sm" id="filter-marca">
+                                        <option value="">Todas</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4 mb-2">
+                                    <label class="form-label text-sm">Color</label>
+                                    <select class="form-select form-select-sm" id="filter-color">
+                                        <option value="">Todos</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4 mb-2">
+                                    <label class="form-label text-sm">Stock</label>
+                                    <select class="form-select form-select-sm" id="filter-stock">
+                                        <option value="">Todos</option>
+                                        <option value="disponible">Disponible (>0)</option>
+                                        <option value="bajo">Stock Bajo (≤10)</option>
+                                        <option value="agotado">Agotado (0)</option>
+                                    </select>
                                 </div>
                             </div>
-                            {% endfor %}
-                        {% empty %}
-                            <div class="col-12 text-center py-5">
-                                <i class="bi bi-exclamation-triangle text-warning" style="font-size: 3rem;"></i>
-                                <p class="mt-3">No hay productos disponibles</p>
+                            <div class="row">
+                                <div class="col-md-6 mb-2">
+                                    <label class="form-label text-sm">Precio Min</label>
+                                    <input type="number" class="form-control form-control-sm" id="filter-precio-min" placeholder="0" min="0" step="0.01">
+                                </div>
+                                <div class="col-md-6 mb-2">
+                                    <label class="form-label text-sm">Precio Max</label>
+                                    <input type="number" class="form-control form-control-sm" id="filter-precio-max" placeholder="999999" min="0" step="0.01">
+                                </div>
                             </div>
-                        {% endfor %}
+                            <div class="d-flex gap-2 mt-2">
+                                <button class="btn btn-primary btn-sm" id="apply-filters">
+                                    <i class="bi bi-funnel-fill"></i> Aplicar
+                                </button>
+                                <button class="btn btn-outline-secondary btn-sm" id="clear-filters">
+                                    <i class="bi bi-x-circle"></i> Limpiar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                  <!-- Productos Grid - Enhanced Table Layout -->
+                <div class="products-container" style="height: 460px; overflow-y: auto;">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm" id="products-grid">
+                            <thead class="table-dark sticky-top">
+                                <tr>
+                                    <th width="15%">Código</th>
+                                    <th width="25%">Producto</th>
+                                    <th width="20%">Marca/Modelo</th>
+                                    <th width="15%">Color</th>
+                                    <th width="10%">Precio</th>
+                                    <th width="10%">Stock</th>
+                                    <th width="5%">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for tienda in tiendas %}
+                                    {% for producto in tienda.productos %}
+                                    <tr class="product-item cursor-pointer" 
+                                        data-store="{{ tienda.id }}" 
+                                        data-product-id="{{ producto.id }}" 
+                                        data-codigo="{{ producto.codigo }}" 
+                                        data-name="{{ producto.nombre }}" 
+                                        data-brand="{{ producto.marca }}" 
+                                        data-model="{{ producto.modelo }}" 
+                                        data-color="{{ producto.color }}" 
+                                        data-price="{{ producto.precio }}" 
+                                        data-stock="{{ producto.stock }}"
+                                        {% if producto.stock <= 0 %}style="opacity: 0.6;"{% endif %}>
+                                        <td>
+                                            <span class="fw-bold text-primary">{{ producto.codigo }}</span>
+                                        </td>
+                                        <td>
+                                            <div class="fw-bold">{{ producto.nombre }}</div>
+                                            {% if producto.descripcion %}
+                                            <small class="text-muted">{{ producto.descripcion|truncatechars:30 }}</small>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div>{{ producto.marca }}</div>
+                                            <small class="text-muted">{{ producto.modelo }}</small>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-light text-dark border">{{ producto.color }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="fw-bold text-success">${{ producto.precio|floatformat:2 }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge {% if producto.stock > 10 %}bg-success{% elif producto.stock > 0 %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                                                {{ producto.stock }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-sm btn-primary add-to-cart" 
+                                                    {% if producto.stock <= 0 %}disabled{% endif %}
+                                                    title="Agregar al carrito">
+                                                <i class="bi bi-cart-plus"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% empty %}
+                                    <tr>
+                                        <td colspan="7" class="text-center py-5">
+                                            <i class="bi bi-exclamation-triangle text-warning" style="font-size: 3rem;"></i>
+                                            <p class="mt-3">No hay productos disponibles</p>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -206,371 +298,134 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>    document.addEventListener('DOMContentLoaded', function() {
-        // Initialize variables - check if elements exist first
-        let cart = [];
-        const subtotalEl = document.getElementById('subtotal');
-        const discountRateEl = document.getElementById('discount-rate');
-        const discountAmountEl = document.getElementById('discount-amount');
-        const totalEl = document.getElementById('total');
-        const checkoutBtn = document.getElementById('checkout-btn');
-        const clearCartBtn = document.getElementById('clear-cart-btn');
-        const productsGrid = document.getElementById('products-grid');
-        const cartTable = document.getElementById('cart-table');
-        const tiendaSelect = document.getElementById('tienda-select');
-        const clienteSelect = document.getElementById('cliente-select');
-        const searchInput = document.getElementById('search-products');
-        const searchButton = document.getElementById('search-button');
-        
-        // Check if all required elements exist
-        if (!subtotalEl || !discountRateEl || !discountAmountEl || !totalEl || 
-            !checkoutBtn || !clearCartBtn || !cartTable || !tiendaSelect || !clienteSelect) {
-            console.error('Required POS elements not found in the DOM');
-            return;
-        }
-          // Filter products by store
-        if (tiendaSelect) {
-            tiendaSelect.addEventListener('change', function() {
-                const selectedStore = this.value;
-                filterProducts(selectedStore);
-            });
-        }
-        
-        // Search products
-        if (searchButton && searchInput) {
-            searchButton.addEventListener('click', function() {
-                searchProducts(searchInput.value);
-            });
-            
-            searchInput.addEventListener('keyup', function(e) {
-                if (e.key === 'Enter') {
-                    searchProducts(this.value);
-                }
-            });
-        }
-        
-        // Add to cart buttons
-        document.querySelectorAll('.add-to-cart').forEach(button => {
-            button.addEventListener('click', function() {
-                const productItem = this.closest('.product-item');
-                const productId = productItem.dataset.productId;
-                const productCode = productItem.dataset.codigo;
-                const productName = productItem.dataset.name;
-                const productBrand = productItem.dataset.brand;
-                const productModel = productItem.dataset.model;
-                const productColor = productItem.dataset.color;
-                const productPrice = parseFloat(productItem.dataset.price);
-                const stock = parseInt(productItem.dataset.stock);
-                
-                addToCart({
-                    id: productId,
-                    codigo: productCode,
-                    nombre: `${productName} (${productBrand} ${productModel} - ${productColor})`,
-                    precio: productPrice,
-                    stock: stock
-                });
-            });
-        });
-          // Client selection changes discount
-        if (clienteSelect) {
-            clienteSelect.addEventListener('change', function() {
-                const discountRate = this.options[this.selectedIndex].dataset.discount || 0;
-                if (discountRateEl) discountRateEl.textContent = discountRate;
-                updateTotals();
-                checkFormValidity();
-            });
-        }
-        
-        // Clear cart button
-        if (clearCartBtn) {
-            clearCartBtn.addEventListener('click', function() {
-                clearCart();
-            });
-        }
-        
-        // Checkout button
-        if (checkoutBtn) {
-            checkoutBtn.addEventListener('click', function() {
-                if (!clienteSelect) return;
-                const clientName = clienteSelect.options[clienteSelect.selectedIndex].text;
-                const saleTypeElement = document.querySelector('input[name="tipo_venta"]:checked');
-                if (!saleTypeElement) return;
-                
-                const saleType = saleTypeElement.value;
-                const saleTypeText = saleType === 'venta' ? 'Venta' : 'Preventivo (Apartado)';
-                
-                const checkoutClientEl = document.getElementById('checkout-client');
-                const checkoutTypeEl = document.getElementById('checkout-type');
-                const checkoutTotalEl = document.getElementById('checkout-total');
-                
-                if (checkoutClientEl) checkoutClientEl.textContent = clientName;
-                if (checkoutTypeEl) checkoutTypeEl.textContent = saleTypeText;
-                if (checkoutTotalEl && totalEl) checkoutTotalEl.textContent = totalEl.textContent;
-                
-                const checkoutModal = new bootstrap.Modal(document.getElementById('checkoutModal'));
-                checkoutModal.show();
-            });
-        }
-          // Confirm checkout button
-        const confirmCheckoutBtn = document.getElementById('confirm-checkout');
-        if (confirmCheckoutBtn) {
-            confirmCheckoutBtn.addEventListener('click', function() {
-                processSale();
-            });
-        }
-        
-        // Functions
-        function filterProducts(storeId) {
-            document.querySelectorAll('.product-item').forEach(item => {
-                if (storeId === '' || item.dataset.store === storeId) {
-                    item.style.display = 'block';
-                } else {
-                    item.style.display = 'none';
-                }
-            });
-        }
-        
-        function searchProducts(query) {
-            query = query.toLowerCase();
-            document.querySelectorAll('.product-item').forEach(item => {
-                const productCode = item.dataset.codigo ? item.dataset.codigo.toLowerCase() : '';
-                const productName = item.dataset.name ? item.dataset.name.toLowerCase() : '';
-                const productBrand = item.dataset.brand ? item.dataset.brand.toLowerCase() : '';
-                const productModel = item.dataset.model ? item.dataset.model.toLowerCase() : '';
-                const productColor = item.dataset.color ? item.dataset.color.toLowerCase() : '';
-                
-                if (query === '' || 
-                    productCode.includes(query) || 
-                    productName.includes(query) || 
-                    productBrand.includes(query) || 
-                    productModel.includes(query) || 
-                    productColor.includes(query)) {
-                    item.style.display = 'block';
-                } else {
-                    item.style.display = 'none';
-                }
-            });
-        }
-        
-        function addToCart(product) {
-            // Check if product is already in cart
-            const existingItem = cart.find(item => item.id === product.id);
-            
-            if (existingItem) {
-                // Check if adding one more would exceed stock
-                if (existingItem.cantidad + 1 > product.stock) {
-                    ProntoApp.notify('Stock insuficiente', 'No hay suficiente stock para agregar más unidades de este producto.', 'warning');
-                    return;
-                }
-                existingItem.cantidad += 1;
-                existingItem.subtotal = existingItem.cantidad * existingItem.precio;
-            } else {
-                cart.push({
-                    id: product.id,
-                    codigo: product.codigo,
-                    nombre: product.nombre,
-                    precio: product.precio,
-                    cantidad: 1,
-                    subtotal: product.precio
-                });
-            }
-            
-            updateCartDisplay();
-            updateTotals();
-            checkFormValidity();
-        }
-        
-        function removeFromCart(index) {
-            cart.splice(index, 1);
-            updateCartDisplay();
-            updateTotals();
-            checkFormValidity();
-        }
-        
-        function clearCart() {
-            cart = [];
-            updateCartDisplay();
-            updateTotals();
-            checkFormValidity();
-        }
-          function updateCartDisplay() {
-            if (!cartTable) {
-                console.warn('cartTable element not found');
-                return;
-            }
-            
-            const tbody = cartTable.querySelector('tbody');
-            if (!tbody) {
-                console.warn('cart table tbody not found');
-                return;
-            }
-            
-            tbody.innerHTML = '';
-            
-            if (cart.length === 0) {
-                const emptyRow = document.createElement('tr');
-                emptyRow.innerHTML = `
-                    <td colspan="5" class="text-center py-3 text-muted">
-                        Carrito vacío
-                    </td>
-                `;
-                tbody.appendChild(emptyRow);
-                return;
-            }
-            
-            cart.forEach((item, index) => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>
-                        <small class="d-block text-muted">${item.codigo}</small>
-                        ${item.nombre}
-                    </td>
-                    <td class="text-end">${item.cantidad}</td>
-                    <td class="text-end">$${item.precio.toFixed(2)}</td>
-                    <td class="text-end">$${item.subtotal.toFixed(2)}</td>
-                    <td class="text-end">
-                        <button class="btn btn-sm btn-danger remove-item" data-index="${index}">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </td>
-                `;
-                tbody.appendChild(row);
-            });
-            
-            // Add remove event listeners
-            document.querySelectorAll('.remove-item').forEach(button => {
-                button.addEventListener('click', function() {
-                    const index = parseInt(this.dataset.index);
-                    removeFromCart(index);
-                });
-            });
-        }
-          function updateTotals() {
-            if (!subtotalEl || !discountAmountEl || !totalEl || !discountRateEl) {
-                console.warn('One or more total elements not found');
-                return;
-            }
-            
-            const subtotal = cart.reduce((sum, item) => sum + item.subtotal, 0);
-            const discountRate = parseFloat(discountRateEl.textContent) || 0;
-            const discountAmount = subtotal * (discountRate / 100);
-            const total = subtotal - discountAmount;
-            
-            subtotalEl.textContent = `$${subtotal.toFixed(2)}`;
-            discountAmountEl.textContent = `$${discountAmount.toFixed(2)}`;
-            totalEl.textContent = `$${total.toFixed(2)}`;
-        }
-          function checkFormValidity() {
-            if (!clienteSelect || !checkoutBtn || !clearCartBtn) {
-                console.warn('One or more form elements not found');
-                return;
-            }
-            
-            const hasItems = cart.length > 0;
-            const hasClient = clienteSelect.value !== '';
-            
-            checkoutBtn.disabled = !(hasItems && hasClient);
-            clearCartBtn.disabled = !hasItems;
-        }
-          function processSale() {
-            if (!clienteSelect || !discountRateEl || !tiendaSelect) {
-                console.warn('Required form elements not found for sale processing');
-                ProntoApp.notify('Error', 'Error en el formulario. Por favor, recarga la página.', 'error');
-                return;
-            }
-            
-            const tipoVentaElement = document.querySelector('input[name="tipo_venta"]:checked');
-            if (!tipoVentaElement) {
-                ProntoApp.notify('Error', 'Por favor selecciona un tipo de venta.', 'warning');
-                return;
-            }
-            
-            const clienteId = clienteSelect.value;
-            const tipoVenta = tipoVentaElement.value;
-            const subtotal = cart.reduce((sum, item) => sum + item.subtotal, 0);
-            const discountRate = parseFloat(discountRateEl.textContent) || 0;
-            const discountAmount = subtotal * (discountRate / 100);
-            const total = subtotal - discountAmount;              // Prepare data for API request - Match backend expected structure
-            const data = {
-                fecha: new Date().toISOString().split('T')[0], // YYYY-MM-DD format
-                tipo: tipoVenta,
-                tienda: parseInt(tiendaSelect.value),
-                pagado: tipoVenta === 'venta', // Only paid if it's a sale
-                total: total, // Required by backend
-                detalles: cart.map(item => ({
-                    producto: parseInt(item.id), // Product ID as integer
-                    cantidad: parseInt(item.cantidad), // Quantity as integer
-                    precio_unitario: parseFloat(item.precio), // Required by backend
-                    subtotal: parseFloat(item.subtotal) // Required by backend
-                }))
-            };
-            
-            // Add cliente only if not "Público en General" (backend handles this automatically)
-            if (clienteId && clienteId !== '' && clienteId !== '0') {
-                data.cliente = parseInt(clienteId);
-            }
-            
-            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
-            if (!csrfToken) {
-                console.warn('CSRF token not found');
-                ProntoApp.notify('Error', 'Error de seguridad. Por favor, recarga la página.', 'error');
-                return;
-            }            // Make API request
-            fetch('/api/pedidos/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken.value
-                },
-                credentials: 'same-origin',  // Include session cookies
-                body: JSON.stringify(data)
-            })            .then(response => {
-                if (!response.ok) {
-                    // Log response details for debugging
-                    return response.text().then(text => {
-                        console.error('API Error Response:', response.status, response.statusText, text);
-                        throw new Error(`Error ${response.status}: ${response.statusText}`);
-                    });
-                }
-                return response.json();
-            }).then(data => {
-                // Close modal
-                const checkoutModal = document.getElementById('checkoutModal');
-                if (checkoutModal) {
-                    const modalInstance = bootstrap.Modal.getInstance(checkoutModal);
-                    if (modalInstance) {
-                        modalInstance.hide();
-                    }
-                }
-                
-                // Show success message
-                ProntoApp.notify(
-                    'Venta procesada',
-                    `La venta ha sido registrada correctamente con folio #${data.id}.`,
-                    'success'
-                );
-                
-                // Clear cart
-                clearCart();
-                
-                // Reload page to refresh inventory
-                setTimeout(() => {
-                    window.location.reload();
-                }, 2000);
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                ProntoApp.notify(
-                    'Error',
-                    'Ha ocurrido un error al procesar la venta. Por favor, inténtalo de nuevo.',
-                    'error'
-                );
-            });
-        }
-        
-        // Init
-        updateCartDisplay();
-        filterProducts(tiendaSelect.value);
-    });
-</script>
-{% endblock %} 
+<script src="{% static 'js/pos-enhanced.js' %}"></script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Enhanced POS Grid Styles */
+.cursor-pointer {
+    cursor: pointer;
+}
+
+.product-item:hover {
+    background-color: rgba(0, 123, 255, 0.1) !important;
+    transform: scale(1.01);
+    transition: all 0.2s ease;
+}
+
+.product-item.selected {
+    background-color: rgba(0, 123, 255, 0.2) !important;
+    border-left: 4px solid #007bff;
+}
+
+.table-dark th {
+    border-color: #495057;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.products-container .table td {
+    vertical-align: middle;
+    padding: 0.75rem 0.5rem;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.products-container .table tbody tr {
+    border: none;
+}
+
+/* Advanced search and filters */
+.search-filters {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+
+.filter-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.5rem;
+    background: #e9ecef;
+    border: 1px solid #ced4da;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.filter-badge:hover {
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.filter-badge.active {
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+/* Cart enhancements */
+.cart-item-row:hover {
+    background-color: #f8f9fa;
+}
+
+.quantity-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.quantity-controls button {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    font-size: 0.75rem;
+    line-height: 1;
+}
+
+/* Stock status indicators */
+.stock-critical {
+    animation: pulse-danger 2s infinite;
+}
+
+@keyframes pulse-danger {
+    0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .products-container table {
+        font-size: 0.875rem;
+    }
+    
+    .products-container .table td,
+    .products-container .table th {
+        padding: 0.5rem 0.25rem;
+    }
+}
+
+/* Loading states */
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+}
+</style>
+{% endblock %}

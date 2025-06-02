@@ -1,0 +1,1336 @@
+{% extends "pedidos_avanzados/base.html" %}
+{% load static %}
+
+{% block title %}Centro de Exportación - Analytics{% endblock %}
+
+{% block extra_head %}
+<style>
+    .export-dashboard {
+        background: linear-gradient(135deg, #2193b0 0%, #6dd5ed 100%);
+        min-height: 100vh;
+        padding: 2rem 0;
+    }
+    
+    .export-card {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 20px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        backdrop-filter: blur(15px);
+        box-shadow: 0 12px 40px rgba(31, 38, 135, 0.4);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        transition: all 0.3s ease;
+    }
+    
+    .export-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 20px 60px rgba(31, 38, 135, 0.5);
+    }
+    
+    .export-type-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        color: white;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: 2px solid transparent;
+    }
+    
+    .export-type-card:hover {
+        transform: scale(1.02);
+        border-color: rgba(255, 255, 255, 0.5);
+    }
+    
+    .export-type-card.selected {
+        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        border-color: #43e97b;
+        box-shadow: 0 8px 25px rgba(67, 233, 123, 0.4);
+    }
+    
+    .export-format-button {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        border: none;
+        border-radius: 12px;
+        color: white;
+        padding: 1rem 1.5rem;
+        margin: 0.5rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        min-width: 120px;
+    }
+    
+    .export-format-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(240, 147, 251, 0.4);
+        color: white;
+    }
+    
+    .export-format-button.active {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        box-shadow: 0 8px 25px rgba(79, 172, 254, 0.4);
+    }
+    
+    .progress-ring {
+        width: 120px;
+        height: 120px;
+        margin: 0 auto;
+    }
+    
+    .progress-ring-circle {
+        transition: stroke-dashoffset 0.35s;
+        transform: rotate(-90deg);
+        transform-origin: 50% 50%;
+    }
+    
+    .filter-section {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .export-history-item {
+        background: rgba(255, 255, 255, 0.8);
+        border-radius: 10px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border-left: 4px solid #43e97b;
+        transition: all 0.3s ease;
+    }
+    
+    .export-history-item:hover {
+        background: rgba(255, 255, 255, 0.95);
+        transform: translateX(5px);
+    }
+    
+    .data-preview {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 1.5rem;
+        max-height: 400px;
+        overflow-y: auto;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+    }
+    
+    .export-loading {
+        text-align: center;
+        padding: 3rem;
+    }
+    
+    .export-success {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 2rem;
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+    
+    .metric-badge {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 25px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        margin: 0.25rem;
+        display: inline-block;
+    }
+    
+    .quick-export-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .quick-export-item {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: 2px solid transparent;
+    }
+    
+    .quick-export-item:hover {
+        transform: translateY(-3px);
+        border-color: rgba(255, 255, 255, 0.5);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    }
+    
+    .schedule-card {
+        background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        color: #8b4513;
+    }
+    
+    .template-card {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+    }
+    
+    .template-card:hover {
+        background: rgba(255, 255, 255, 1);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    }
+    
+    @media (max-width: 768px) {
+        .export-dashboard {
+            padding: 1rem 0;
+        }
+        .export-card {
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .quick-export-grid {
+            grid-template-columns: 1fr;
+        }
+        .export-format-button {
+            min-width: 100%;
+            margin: 0.25rem 0;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="export-dashboard">
+    <div class="container-fluid">
+        <!-- Header Section -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="export-card" x-data="exportDashboard()">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h2 class="mb-0 text-primary">
+                                <i class="fas fa-download me-2"></i>
+                                Centro de Exportación de Datos
+                            </h2>
+                            <p class="text-muted mb-0">Exporta, programa y gestiona tus reportes de analytics</p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="btn-group" role="group">
+                                <button class="btn btn-outline-primary" @click="refreshData()">
+                                    <i class="fas fa-sync-alt me-1"></i> Actualizar
+                                </button>
+                                <button class="btn btn-success" @click="quickExportAll()">
+                                    <i class="fas fa-rocket me-1"></i> Exportación Rápida
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Export Actions -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="export-card">
+                    <h5 class="mb-3">
+                        <i class="fas fa-bolt me-2 text-primary"></i>
+                        Exportaciones Rápidas
+                    </h5>
+                    <div class="quick-export-grid">
+                        <div class="quick-export-item" onclick="quickExport('dashboard')">
+                            <i class="fas fa-tachometer-alt mb-2" style="font-size: 2rem;"></i>
+                            <h6>Dashboard Completo</h6>
+                            <small>Todas las métricas actuales</small>
+                        </div>
+                        <div class="quick-export-item" onclick="quickExport('customers')">
+                            <i class="fas fa-users mb-2" style="font-size: 2rem;"></i>
+                            <h6>Análisis de Clientes</h6>
+                            <small>Segmentación y RFM</small>
+                        </div>
+                        <div class="quick-export-item" onclick="quickExport('products')">
+                            <i class="fas fa-box mb-2" style="font-size: 2rem;"></i>
+                            <h6>Insights de Productos</h6>
+                            <small>Performance y tendencias</small>
+                        </div>
+                        <div class="quick-export-item" onclick="quickExport('orders')">
+                            <i class="fas fa-shopping-cart mb-2" style="font-size: 2rem;"></i>
+                            <h6>Reportes de Órdenes</h6>
+                            <small>Ventas y rendimiento</small>
+                        </div>
+                        <div class="quick-export-item" onclick="quickExport('predictive')">
+                            <i class="fas fa-crystal-ball mb-2" style="font-size: 2rem;"></i>
+                            <h6>Analytics Predictivo</h6>
+                            <small>Proyecciones y forecasting</small>
+                        </div>
+                        <div class="quick-export-item" onclick="quickExport('financial')">
+                            <i class="fas fa-chart-line mb-2" style="font-size: 2rem;"></i>
+                            <h6>Reporte Financiero</h6>
+                            <small>Ingresos y rentabilidad</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Export Configuration Panel -->
+            <div class="col-lg-4">
+                <!-- Export Types -->
+                <div class="export-card" x-data="{ selectedType: 'custom' }">
+                    <h5 class="mb-3">
+                        <i class="fas fa-cogs me-2 text-primary"></i>
+                        Configuración de Exportación
+                    </h5>
+                    
+                    <div class="export-type-card" 
+                         :class="{ 'selected': selectedType === 'complete' }"
+                         @click="selectedType = 'complete'">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-database me-3" style="font-size: 1.5rem;"></i>
+                            <div>
+                                <h6 class="mb-1">Exportación Completa</h6>
+                                <small>Todos los datos disponibles</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="export-type-card" 
+                         :class="{ 'selected': selectedType === 'filtered' }"
+                         @click="selectedType = 'filtered'">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-filter me-3" style="font-size: 1.5rem;"></i>
+                            <div>
+                                <h6 class="mb-1">Exportación Filtrada</h6>
+                                <small>Datos con filtros personalizados</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="export-type-card" 
+                         :class="{ 'selected': selectedType === 'custom' }"
+                         @click="selectedType = 'custom'">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-puzzle-piece me-3" style="font-size: 1.5rem;"></i>
+                            <div>
+                                <h6 class="mb-1">Exportación Personalizada</h6>
+                                <small>Selecciona secciones específicas</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Export Formats -->
+                <div class="export-card">
+                    <h5 class="mb-3">
+                        <i class="fas fa-file-export me-2 text-primary"></i>
+                        Formatos de Exportación
+                    </h5>
+                    <div class="text-center" x-data="{ selectedFormat: 'excel' }">
+                        <button class="export-format-button" 
+                                :class="{ 'active': selectedFormat === 'excel' }"
+                                @click="selectedFormat = 'excel'">
+                            <i class="fas fa-file-excel me-1"></i> Excel
+                        </button>
+                        <button class="export-format-button" 
+                                :class="{ 'active': selectedFormat === 'csv' }"
+                                @click="selectedFormat = 'csv'">
+                            <i class="fas fa-file-csv me-1"></i> CSV
+                        </button>
+                        <button class="export-format-button" 
+                                :class="{ 'active': selectedFormat === 'pdf' }"
+                                @click="selectedFormat = 'pdf'">
+                            <i class="fas fa-file-pdf me-1"></i> PDF
+                        </button>
+                        <button class="export-format-button" 
+                                :class="{ 'active': selectedFormat === 'json' }"
+                                @click="selectedFormat = 'json'">
+                            <i class="fas fa-code me-1"></i> JSON
+                        </button>
+                        <button class="export-format-button" 
+                                :class="{ 'active': selectedFormat === 'images' }"
+                                @click="selectedFormat = 'images'">
+                            <i class="fas fa-images me-1"></i> Gráficos
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filters Section -->
+                <div class="export-card">
+                    <h5 class="mb-3">
+                        <i class="fas fa-sliders-h me-2 text-primary"></i>
+                        Filtros y Parámetros
+                    </h5>
+                    
+                    <div class="filter-section">
+                        <label class="form-label">
+                            <i class="fas fa-calendar me-1"></i>
+                            Rango de Fechas
+                        </label>
+                        <div class="row">
+                            <div class="col-6">
+                                <input type="date" class="form-control" id="fecha-inicio">
+                            </div>
+                            <div class="col-6">
+                                <input type="date" class="form-control" id="fecha-fin">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="filter-section">
+                        <label class="form-label">
+                            <i class="fas fa-store me-1"></i>
+                            Tienda
+                        </label>
+                        <select class="form-select" id="tienda-filter">
+                            <option value="">Todas las tiendas</option>
+                            <!-- Se llenaría dinámicamente -->
+                        </select>
+                    </div>
+                    
+                    <div class="filter-section">
+                        <label class="form-label">
+                            <i class="fas fa-layer-group me-1"></i>
+                            Secciones a Incluir
+                        </label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="include-metrics" checked>
+                            <label class="form-check-label" for="include-metrics">
+                                Métricas Generales
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="include-trends" checked>
+                            <label class="form-check-label" for="include-trends">
+                                Tendencias Temporales
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="include-customers" checked>
+                            <label class="form-check-label" for="include-customers">
+                                Análisis de Clientes
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="include-products" checked>
+                            <label class="form-check-label" for="include-products">
+                                Insights de Productos
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="include-predictions" checked>
+                            <label class="form-check-label" for="include-predictions">
+                                Analytics Predictivo
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <button class="btn btn-primary w-100 mt-3" onclick="startExport()">
+                        <i class="fas fa-play me-1"></i> Iniciar Exportación
+                    </button>
+                </div>
+            </div>
+
+            <!-- Main Export Content -->
+            <div class="col-lg-8">
+                <!-- Data Preview -->
+                <div class="export-card">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0">
+                            <i class="fas fa-eye me-2 text-primary"></i>
+                            Vista Previa de Datos
+                        </h5>
+                        <div class="btn-group">
+                            <button class="btn btn-outline-primary btn-sm" onclick="previewData()">
+                                <i class="fas fa-search me-1"></i> Previsualizar
+                            </button>
+                            <button class="btn btn-outline-success btn-sm" onclick="validateData()">
+                                <i class="fas fa-check-circle me-1"></i> Validar
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Preview Content -->
+                    <div id="data-preview-content">
+                        <div class="text-center py-5">
+                            <i class="fas fa-file-alt text-muted" style="font-size: 4rem;"></i>
+                            <h6 class="text-muted mt-3">Selecciona los parámetros y previsualiza los datos</h6>
+                            <p class="text-muted small">La vista previa te mostrará una muestra de los datos que se exportarán</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Export Progress -->
+                <div class="export-card d-none" id="export-progress-card">
+                    <div class="export-loading">
+                        <div class="progress-ring">
+                            <svg width="120" height="120">
+                                <circle class="progress-ring-circle" 
+                                        stroke="#43e97b" 
+                                        stroke-width="4" 
+                                        fill="transparent" 
+                                        r="52" 
+                                        cx="60" 
+                                        cy="60"/>
+                            </svg>
+                        </div>
+                        <h5 class="mt-3 mb-2">Procesando Exportación</h5>
+                        <p class="text-muted" id="export-status">Preparando datos...</p>
+                        <div class="progress mt-3" style="height: 8px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                 role="progressbar" style="width: 0%" id="export-progress-bar"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Export Success -->
+                <div class="export-success d-none" id="export-success-card">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h5 class="mb-2">
+                                <i class="fas fa-check-circle me-2"></i>
+                                Exportación Completada
+                            </h5>
+                            <p class="mb-0">Tu archivo está listo para descargar</p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <button class="btn btn-light" onclick="downloadFile()">
+                                <i class="fas fa-download me-1"></i> Descargar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Export Templates -->
+                <div class="export-card">
+                    <h5 class="mb-3">
+                        <i class="fas fa-bookmark me-2 text-primary"></i>
+                        Plantillas de Exportación
+                    </h5>
+                    
+                    <div class="row" id="export-templates">
+                        <div class="col-md-6 mb-3">
+                            <div class="template-card">
+                                <h6 class="mb-2">
+                                    <i class="fas fa-crown me-1 text-warning"></i>
+                                    Reporte Ejecutivo
+                                </h6>
+                                <p class="text-muted small mb-2">KPIs principales, tendencias y alertas críticas</p>
+                                <div class="mb-2">
+                                    <span class="metric-badge">Excel</span>
+                                    <span class="metric-badge">PDF</span>
+                                </div>
+                                <button class="btn btn-outline-primary btn-sm" onclick="useTemplate('executive')">
+                                    <i class="fas fa-magic me-1"></i> Usar Plantilla
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <div class="template-card">
+                                <h6 class="mb-2">
+                                    <i class="fas fa-users me-1 text-info"></i>
+                                    Análisis de Clientes
+                                </h6>
+                                <p class="text-muted small mb-2">Segmentación RFM y comportamiento detallado</p>
+                                <div class="mb-2">
+                                    <span class="metric-badge">CSV</span>
+                                    <span class="metric-badge">Excel</span>
+                                </div>
+                                <button class="btn btn-outline-primary btn-sm" onclick="useTemplate('customers')">
+                                    <i class="fas fa-magic me-1"></i> Usar Plantilla
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <div class="template-card">
+                                <h6 class="mb-2">
+                                    <i class="fas fa-box me-1 text-success"></i>
+                                    Performance de Productos
+                                </h6>
+                                <p class="text-muted small mb-2">Análisis de ventas y rotación por categoría</p>
+                                <div class="mb-2">
+                                    <span class="metric-badge">Excel</span>
+                                    <span class="metric-badge">PDF</span>
+                                </div>
+                                <button class="btn btn-outline-primary btn-sm" onclick="useTemplate('products')">
+                                    <i class="fas fa-magic me-1"></i> Usar Plantilla
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <div class="template-card">
+                                <h6 class="mb-2">
+                                    <i class="fas fa-chart-line me-1 text-primary"></i>
+                                    Tendencias Financieras
+                                </h6>
+                                <p class="text-muted small mb-2">Análisis temporal de ingresos y márgenes</p>
+                                <div class="mb-2">
+                                    <span class="metric-badge">Excel</span>
+                                    <span class="metric-badge">JSON</span>
+                                </div>
+                                <button class="btn btn-outline-primary btn-sm" onclick="useTemplate('financial')">
+                                    <i class="fas fa-magic me-1"></i> Usar Plantilla
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Export History & Scheduled Exports -->
+        <div class="row">
+            <!-- Export History -->
+            <div class="col-lg-6">
+                <div class="export-card">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0">
+                            <i class="fas fa-history me-2 text-primary"></i>
+                            Historial de Exportaciones
+                        </h5>
+                        <button class="btn btn-outline-danger btn-sm" onclick="clearHistory()">
+                            <i class="fas fa-trash me-1"></i> Limpiar
+                        </button>
+                    </div>
+                    
+                    <div id="export-history-content">
+                        <div class="export-history-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">Reporte Ejecutivo - Octubre 2024</h6>
+                                    <small class="text-muted">Excel • 2.4 MB • 15/10/2024 10:30</small>
+                                </div>
+                                <div class="btn-group">
+                                    <button class="btn btn-outline-primary btn-sm" onclick="redownload('exec_oct_2024')">
+                                        <i class="fas fa-download"></i>
+                                    </button>
+                                    <button class="btn btn-outline-danger btn-sm" onclick="deleteExport('exec_oct_2024')">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="export-history-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">Análisis de Clientes - Septiembre 2024</h6>
+                                    <small class="text-muted">CSV • 1.8 MB • 12/10/2024 14:15</small>
+                                </div>
+                                <div class="btn-group">
+                                    <button class="btn btn-outline-primary btn-sm" onclick="redownload('customers_sep_2024')">
+                                        <i class="fas fa-download"></i>
+                                    </button>
+                                    <button class="btn btn-outline-danger btn-sm" onclick="deleteExport('customers_sep_2024')">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="export-history-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">Dashboard Completo - Septiembre 2024</h6>
+                                    <small class="text-muted">PDF • 3.2 MB • 08/10/2024 09:45</small>
+                                </div>
+                                <div class="btn-group">
+                                    <button class="btn btn-outline-primary btn-sm" onclick="redownload('dashboard_sep_2024')">
+                                        <i class="fas fa-download"></i>
+                                    </button>
+                                    <button class="btn btn-outline-danger btn-sm" onclick="deleteExport('dashboard_sep_2024')">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scheduled Exports -->
+            <div class="col-lg-6">
+                <div class="export-card">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0">
+                            <i class="fas fa-clock me-2 text-primary"></i>
+                            Exportaciones Programadas
+                        </h5>
+                        <button class="btn btn-success btn-sm" onclick="scheduleNewExport()">
+                            <i class="fas fa-plus me-1"></i> Nueva
+                        </button>
+                    </div>
+                    
+                    <div id="scheduled-exports-content">
+                        <div class="schedule-card">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">
+                                        <i class="fas fa-crown me-1"></i>
+                                        Reporte Ejecutivo Mensual
+                                    </h6>
+                                    <small>Cada primer lunes del mes • Excel • Email automático</small>
+                                </div>
+                                <div class="btn-group">
+                                    <button class="btn btn-outline-warning btn-sm" onclick="editSchedule('monthly_exec')">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-outline-danger btn-sm" onclick="deleteSchedule('monthly_exec')">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="schedule-card">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">
+                                        <i class="fas fa-users me-1"></i>
+                                        Backup de Clientes
+                                    </h6>
+                                    <small>Cada viernes • CSV • Almacenamiento local</small>
+                                </div>
+                                <div class="btn-group">
+                                    <button class="btn btn-outline-warning btn-sm" onclick="editSchedule('weekly_customers')">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-outline-danger btn-sm" onclick="deleteSchedule('weekly_customers')">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="text-center mt-3">
+                            <p class="text-muted small mb-0">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Las exportaciones programadas se ejecutan automáticamente según la configuración
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Variables globales
+    let currentExportConfig = {};
+    let exportInProgress = false;
+    let previewData = null;
+    
+    // Configurar fechas por defecto
+    const today = new Date();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(today.getDate() - 30);
+    
+    document.getElementById('fecha-inicio').value = thirtyDaysAgo.toISOString().split('T')[0];
+    document.getElementById('fecha-fin').value = today.toISOString().split('T')[0];
+    
+    // Inicializar componentes
+    initializeExportDashboard();
+});
+
+// Componente Alpine.js principal
+function exportDashboard() {
+    return {
+        exportType: 'custom',
+        selectedFormat: 'excel',
+        isLoading: false,
+        
+        refreshData() {
+            this.isLoading = true;
+            // Simular refresh
+            setTimeout(() => {
+                this.isLoading = false;
+                showNotification('Datos actualizados correctamente', 'success');
+            }, 1000);
+        },
+        
+        quickExportAll() {
+            if (confirm('¿Exportar todos los reportes disponibles? Esta operación puede tomar varios minutos.')) {
+                startBulkExport();
+            }
+        }
+    };
+}
+
+// Inicializar dashboard
+function initializeExportDashboard() {
+    // Cargar tiendas disponibles
+    loadAvailableStores();
+    
+    // Configurar tooltips
+    initializeTooltips();
+    
+    // Configurar auto-save de configuración
+    setupAutoSave();
+}
+
+// Exportaciones rápidas
+function quickExport(type) {
+    const exportConfig = getQuickExportConfig(type);
+    currentExportConfig = exportConfig;
+    
+    showNotification(`Iniciando exportación rápida: ${exportConfig.name}`, 'info');
+    startExportProcess(exportConfig);
+}
+
+function getQuickExportConfig(type) {
+    const configs = {
+        dashboard: {
+            name: 'Dashboard Completo',
+            sections: ['metrics', 'trends', 'customers', 'products'],
+            format: 'excel',
+            filename: 'dashboard_completo'
+        },
+        customers: {
+            name: 'Análisis de Clientes',
+            sections: ['customers', 'segmentation'],
+            format: 'csv',
+            filename: 'analisis_clientes'
+        },
+        products: {
+            name: 'Insights de Productos',
+            sections: ['products', 'categories'],
+            format: 'excel',
+            filename: 'insights_productos'
+        },
+        orders: {
+            name: 'Reportes de Órdenes',
+            sections: ['orders', 'performance'],
+            format: 'excel',
+            filename: 'reporte_ordenes'
+        },
+        predictive: {
+            name: 'Analytics Predictivo',
+            sections: ['predictions', 'forecasting'],
+            format: 'pdf',
+            filename: 'analytics_predictivo'
+        },
+        financial: {
+            name: 'Reporte Financiero',
+            sections: ['financial', 'trends'],
+            format: 'excel',
+            filename: 'reporte_financiero'
+        }
+    };
+    
+    return configs[type] || configs.dashboard;
+}
+
+// Previsualización de datos
+function previewData() {
+    const config = getCurrentExportConfig();
+    
+    if (!validateConfig(config)) {
+        showNotification('Por favor, complete la configuración antes de previsualizar', 'warning');
+        return;
+    }
+    
+    showLoading('data-preview-content');
+    
+    // Simular carga de datos
+    setTimeout(() => {
+        displayPreview(generatePreviewData(config));
+        hideLoading('data-preview-content');
+    }, 1500);
+}
+
+function displayPreview(data) {
+    const container = document.getElementById('data-preview-content');
+    
+    container.innerHTML = `
+        <div class="data-preview">
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <h6 class="mb-2">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Resumen de Datos
+                    </h6>
+                    <div class="metric-badge">Registros: ${data.totalRecords}</div>
+                    <div class="metric-badge">Columnas: ${data.totalColumns}</div>
+                    <div class="metric-badge">Tamaño estimado: ${data.estimatedSize}</div>
+                </div>
+                <div class="col-md-6 text-end">
+                    <button class="btn btn-outline-primary btn-sm" onclick="exportPreviewData()">
+                        <i class="fas fa-download me-1"></i> Exportar Esta Vista
+                    </button>
+                </div>
+            </div>
+            
+            <div class="table-responsive">
+                <table class="table table-sm table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            ${data.headers.map(header => `<th>${header}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.rows.slice(0, 10).map(row => `
+                            <tr>
+                                ${row.map(cell => `<td>${cell}</td>`).join('')}
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+            
+            ${data.rows.length > 10 ? `
+                <div class="text-center mt-3">
+                    <small class="text-muted">
+                        Mostrando 10 de ${data.rows.length} registros. 
+                        La exportación incluirá todos los datos.
+                    </small>
+                </div>
+            ` : ''}
+        </div>
+    `;
+}
+
+function generatePreviewData(config) {
+    // Generar datos de ejemplo basados en la configuración
+    const headers = ['Fecha', 'Métrica', 'Valor', 'Categoría', 'Tendencia'];
+    const rows = [];
+    
+    for (let i = 0; i < 25; i++) {
+        rows.push([
+            new Date(Date.now() - i * 24 * 60 * 60 * 1000).toLocaleDateString(),
+            ['Ventas', 'Clientes', 'Productos', 'Ingresos'][i % 4],
+            (Math.random() * 10000).toFixed(2),
+            ['Deportivos', 'Formales', 'Casuales'][i % 3],
+            i % 2 === 0 ? '↗ +15%' : '↘ -5%'
+        ]);
+    }
+    
+    return {
+        headers,
+        rows,
+        totalRecords: rows.length,
+        totalColumns: headers.length,
+        estimatedSize: `${(rows.length * 0.5).toFixed(1)} KB`
+    };
+}
+
+// Validación de datos
+function validateData() {
+    const config = getCurrentExportConfig();
+    
+    if (!validateConfig(config)) {
+        showNotification('Configuración incompleta', 'error');
+        return;
+    }
+    
+    showLoading('data-preview-content');
+    
+    // Simular validación
+    setTimeout(() => {
+        const validationResult = {
+            isValid: true,
+            warnings: [
+                'Algunos registros tienen valores nulos',
+                'Rangos de fechas amplios pueden generar archivos grandes'
+            ],
+            errors: []
+        };
+        
+        displayValidationResult(validationResult);
+        hideLoading('data-preview-content');
+    }, 2000);
+}
+
+function displayValidationResult(result) {
+    const container = document.getElementById('data-preview-content');
+    
+    const warningsHtml = result.warnings.length > 0 ? `
+        <div class="alert alert-warning">
+            <h6><i class="fas fa-exclamation-triangle me-1"></i> Advertencias:</h6>
+            <ul class="mb-0">
+                ${result.warnings.map(warning => `<li>${warning}</li>`).join('')}
+            </ul>
+        </div>
+    ` : '';
+    
+    const errorsHtml = result.errors.length > 0 ? `
+        <div class="alert alert-danger">
+            <h6><i class="fas fa-times-circle me-1"></i> Errores:</h6>
+            <ul class="mb-0">
+                ${result.errors.map(error => `<li>${error}</li>`).join('')}
+            </ul>
+        </div>
+    ` : '';
+    
+    container.innerHTML = `
+        <div class="text-center">
+            <div class="mb-4">
+                <i class="fas fa-${result.isValid ? 'check-circle text-success' : 'times-circle text-danger'}" 
+                   style="font-size: 4rem;"></i>
+            </div>
+            <h5 class="mb-3">
+                Validación ${result.isValid ? 'Exitosa' : 'Fallida'}
+            </h5>
+            ${warningsHtml}
+            ${errorsHtml}
+            
+            ${result.isValid ? `
+                <div class="alert alert-success">
+                    <i class="fas fa-check me-1"></i>
+                    Los datos están listos para exportar
+                </div>
+                <button class="btn btn-success" onclick="startExport()">
+                    <i class="fas fa-play me-1"></i> Proceder con Exportación
+                </button>
+            ` : ''}
+        </div>
+    `;
+}
+
+// Proceso de exportación
+function startExport() {
+    if (exportInProgress) {
+        showNotification('Ya hay una exportación en progreso', 'warning');
+        return;
+    }
+    
+    const config = getCurrentExportConfig();
+    
+    if (!validateConfig(config)) {
+        showNotification('Por favor, complete la configuración', 'error');
+        return;
+    }
+    
+    startExportProcess(config);
+}
+
+function startExportProcess(config) {
+    exportInProgress = true;
+    currentExportConfig = config;
+    
+    // Mostrar card de progreso
+    document.getElementById('export-progress-card').classList.remove('d-none');
+    document.getElementById('export-success-card').classList.add('d-none');
+    
+    // Simular proceso de exportación
+    let progress = 0;
+    const steps = [
+        { progress: 20, message: 'Recopilando datos...' },
+        { progress: 40, message: 'Aplicando filtros...' },
+        { progress: 60, message: 'Procesando analytics...' },
+        { progress: 80, message: 'Generando archivo...' },
+        { progress: 100, message: 'Finalizando exportación...' }
+    ];
+    
+    let stepIndex = 0;
+    const interval = setInterval(() => {
+        if (stepIndex < steps.length) {
+            const step = steps[stepIndex];
+            updateExportProgress(step.progress, step.message);
+            stepIndex++;
+        } else {
+            clearInterval(interval);
+            completeExport();
+        }
+    }, 1500);
+}
+
+function updateExportProgress(progress, message) {
+    document.getElementById('export-status').textContent = message;
+    document.getElementById('export-progress-bar').style.width = `${progress}%`;
+    
+    // Actualizar círculo de progreso
+    const circle = document.querySelector('.progress-ring-circle');
+    const radius = circle.r.baseVal.value;
+    const circumference = radius * 2 * Math.PI;
+    const offset = circumference - (progress / 100) * circumference;
+    
+    circle.style.strokeDasharray = `${circumference} ${circumference}`;
+    circle.style.strokeDashoffset = offset;
+}
+
+function completeExport() {
+    exportInProgress = false;
+    
+    // Ocultar progreso y mostrar éxito
+    document.getElementById('export-progress-card').classList.add('d-none');
+    document.getElementById('export-success-card').classList.remove('d-none');
+    
+    // Agregar al historial
+    addToExportHistory(currentExportConfig);
+    
+    showNotification('Exportación completada exitosamente', 'success');
+}
+
+// Gestión de plantillas
+function useTemplate(templateType) {
+    const templates = {
+        executive: {
+            sections: ['metrics', 'alerts', 'trends'],
+            format: 'excel',
+            filename: 'reporte_ejecutivo'
+        },
+        customers: {
+            sections: ['customers', 'segmentation'],
+            format: 'csv',
+            filename: 'analisis_clientes'
+        },
+        products: {
+            sections: ['products', 'categories', 'performance'],
+            format: 'excel',
+            filename: 'performance_productos'
+        },
+        financial: {
+            sections: ['financial', 'trends', 'predictions'],
+            format: 'excel',
+            filename: 'reporte_financiero'
+        }
+    };
+    
+    const template = templates[templateType];
+    if (template) {
+        applyTemplate(template);
+        showNotification(`Plantilla "${templateType}" aplicada`, 'success');
+    }
+}
+
+function applyTemplate(template) {
+    // Aplicar configuración de plantilla
+    currentExportConfig = { ...template };
+    
+    // Actualizar UI
+    updateUIFromConfig(template);
+}
+
+// Exportaciones programadas
+function scheduleNewExport() {
+    // Abrir modal de programación (implementar según necesidades)
+    showNotification('Funcionalidad de programación en desarrollo', 'info');
+}
+
+function editSchedule(scheduleId) {
+    showNotification(`Editando programación: ${scheduleId}`, 'info');
+}
+
+function deleteSchedule(scheduleId) {
+    if (confirm('¿Eliminar esta exportación programada?')) {
+        showNotification(`Programación eliminada: ${scheduleId}`, 'success');
+    }
+}
+
+// Gestión de historial
+function addToExportHistory(config) {
+    const historyItem = {
+        id: Date.now(),
+        name: config.name || config.filename,
+        format: config.format,
+        date: new Date().toLocaleString(),
+        size: `${(Math.random() * 5 + 0.5).toFixed(1)} MB`
+    };
+    
+    // Agregar al localStorage (en un sistema real sería una API)
+    const history = JSON.parse(localStorage.getItem('exportHistory') || '[]');
+    history.unshift(historyItem);
+    localStorage.setItem('exportHistory', JSON.stringify(history.slice(0, 10)));
+    
+    updateHistoryDisplay();
+}
+
+function clearHistory() {
+    if (confirm('¿Limpiar todo el historial de exportaciones?')) {
+        localStorage.removeItem('exportHistory');
+        updateHistoryDisplay();
+        showNotification('Historial limpiado', 'success');
+    }
+}
+
+function redownload(exportId) {
+    showNotification(`Descargando: ${exportId}`, 'info');
+    // Implementar descarga
+}
+
+function deleteExport(exportId) {
+    if (confirm('¿Eliminar este archivo del historial?')) {
+        showNotification(`Archivo eliminado: ${exportId}`, 'success');
+        // Implementar eliminación
+    }
+}
+
+// Utilidades
+function getCurrentExportConfig() {
+    return {
+        type: document.querySelector('[x-data] [x-model="selectedType"]')?.value || 'custom',
+        format: document.querySelector('[x-data] [x-model="selectedFormat"]')?.value || 'excel',
+        fecha_inicio: document.getElementById('fecha-inicio').value,
+        fecha_fin: document.getElementById('fecha-fin').value,
+        tienda_id: document.getElementById('tienda-filter').value,
+        sections: getSelectedSections()
+    };
+}
+
+function getSelectedSections() {
+    const sections = [];
+    document.querySelectorAll('input[type="checkbox"]:checked').forEach(checkbox => {
+        sections.push(checkbox.id.replace('include-', ''));
+    });
+    return sections;
+}
+
+function validateConfig(config) {
+    return config.fecha_inicio && config.fecha_fin && config.sections.length > 0;
+}
+
+function loadAvailableStores() {
+    // Cargar tiendas desde API
+    const tiendaSelect = document.getElementById('tienda-filter');
+    tiendaSelect.innerHTML = `
+        <option value="">Todas las tiendas</option>
+        <option value="1">Tienda Principal</option>
+        <option value="2">Sucursal Centro</option>
+        <option value="3">Sucursal Norte</option>
+    `;
+}
+
+function initializeTooltips() {
+    // Inicializar tooltips de Bootstrap si están disponibles
+    if (typeof bootstrap !== 'undefined') {
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    }
+}
+
+function setupAutoSave() {
+    // Auto-guardar configuración cada 30 segundos
+    setInterval(() => {
+        const config = getCurrentExportConfig();
+        localStorage.setItem('lastExportConfig', JSON.stringify(config));
+    }, 30000);
+}
+
+function showLoading(containerId) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = `
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+            <p class="text-muted mt-3">Procesando datos...</p>
+        </div>
+    `;
+}
+
+function hideLoading(containerId) {
+    // El contenido se reemplaza en las funciones que llaman a showLoading
+}
+
+function showNotification(message, type = 'info') {
+    // Implementar sistema de notificaciones
+    console.log(`${type.toUpperCase()}: ${message}`);
+    
+    // Si SweetAlert está disponible
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            title: message,
+            icon: type === 'error' ? 'error' : type === 'warning' ? 'warning' : type === 'success' ? 'success' : 'info',
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 3000
+        });
+    }
+}
+
+function downloadFile() {
+    // Implementar descarga del archivo generado
+    const link = document.createElement('a');
+    link.href = '#'; // En un sistema real, sería la URL del archivo
+    link.download = `${currentExportConfig.filename || 'export'}.${currentExportConfig.format}`;
+    link.click();
+    
+    showNotification('Descarga iniciada', 'success');
+}
+
+function updateHistoryDisplay() {
+    const history = JSON.parse(localStorage.getItem('exportHistory') || '[]');
+    const container = document.getElementById('export-history-content');
+    
+    if (history.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-4">
+                <i class="fas fa-history text-muted" style="font-size: 3rem;"></i>
+                <p class="text-muted mt-3">No hay exportaciones en el historial</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = history.map(item => `
+        <div class="export-history-item">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-1">${item.name}</h6>
+                    <small class="text-muted">${item.format.toUpperCase()} • ${item.size} • ${item.date}</small>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-outline-primary btn-sm" onclick="redownload('${item.id}')">
+                        <i class="fas fa-download"></i>
+                    </button>
+                    <button class="btn btn-outline-danger btn-sm" onclick="deleteExport('${item.id}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function updateUIFromConfig(config) {
+    // Actualizar la interfaz basada en la configuración
+    if (config.format) {
+        document.querySelector(`[x-model="selectedFormat"][value="${config.format}"]`)?.click();
+    }
+    
+    if (config.sections) {
+        // Limpiar selecciones
+        document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+        
+        // Seleccionar secciones de la plantilla
+        config.sections.forEach(section => {
+            const checkbox = document.getElementById(`include-${section}`);
+            if (checkbox) checkbox.checked = true;
+        });
+    }
+}
+
+// Inicializar al cargar la página
+document.addEventListener('DOMContentLoaded', () => {
+    updateHistoryDisplay();
+    
+    // Cargar última configuración guardada
+    const lastConfig = localStorage.getItem('lastExportConfig');
+    if (lastConfig) {
+        try {
+            const config = JSON.parse(lastConfig);
+            updateUIFromConfig(config);
+        } catch (e) {
+            console.warn('Error loading last config:', e);
+        }
+    }
+});
+</script>
+{% endblock %}

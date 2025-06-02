@@ -1,0 +1,818 @@
+{% extends "pedidos_avanzados/base.html" %}
+{% load static %}
+
+{% block title %}Generador de Reportes Avanzados{% endblock %}
+
+{% block extra_head %}
+<style>
+    .reports-dashboard {
+        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        min-height: 100vh;
+        padding: 2rem 0;
+    }
+    
+    .report-card {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 15px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    
+    .report-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 40px rgba(31, 38, 135, 0.5);
+    }
+    
+    .report-type-card {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        border: 2px solid transparent;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .report-type-card:hover {
+        border-color: #43e97b;
+        background: rgba(255, 255, 255, 1);
+        transform: translateY(-2px);
+    }
+    
+    .report-type-card.selected {
+        border-color: #38f9d7;
+        background: linear-gradient(45deg, rgba(67, 233, 123, 0.1), rgba(56, 249, 215, 0.1));
+        box-shadow: 0 4px 20px rgba(67, 233, 123, 0.3);
+    }
+    
+    .report-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+        background: linear-gradient(45deg, #43e97b, #38f9d7);
+        color: white;
+    }
+    
+    .filter-section {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .progress-bar-animated {
+        background: linear-gradient(45deg, #43e97b, #38f9d7);
+    }
+    
+    .export-options {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 12px;
+        padding: 1.5rem;
+        border: 2px dashed #43e97b;
+    }
+    
+    .btn-generate {
+        background: linear-gradient(45deg, #43e97b, #38f9d7);
+        border: none;
+        color: white;
+        padding: 12px 30px;
+        border-radius: 25px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-generate:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(67, 233, 123, 0.4);
+        color: white;
+    }
+    
+    .result-preview {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 12px;
+        padding: 2rem;
+        margin-top: 2rem;
+        border-left: 4px solid #43e97b;
+    }
+    
+    .metric-summary {
+        background: linear-gradient(45deg, rgba(67, 233, 123, 0.1), rgba(56, 249, 215, 0.1));
+        border-radius: 10px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        text-align: center;
+    }
+    
+    .metric-summary .number {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #28a745;
+        margin-bottom: 0.5rem;
+    }
+    
+    .metric-summary .label {
+        color: #6c757d;
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+    
+    @media (max-width: 768px) {
+        .reports-dashboard {
+            padding: 1rem 0;
+        }
+        
+        .report-card {
+            padding: 1.5rem;
+        }
+        
+        .report-type-card {
+            padding: 1rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="reports-dashboard">
+    <div class="container-fluid">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="report-card">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h2 class="mb-0 text-primary">
+                                <i class="fas fa-file-chart me-2"></i>
+                                Generador de Reportes Avanzados
+                            </h2>
+                            <p class="text-muted mb-0">Crea reportes personalizados con insights detallados</p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <button class="btn btn-outline-primary" onclick="resetForm()">
+                                <i class="fas fa-redo me-1"></i> Reiniciar
+                            </button>
+                            <a href="{% url 'pedidos_avanzados:analytics_dashboard' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-1"></i> Volver
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Panel de Configuración -->
+            <div class="col-lg-4">
+                <!-- Tipos de Reporte -->
+                <div class="report-card" x-data="reportGenerator()">
+                    <h5 class="mb-3">
+                        <i class="fas fa-list me-2 text-primary"></i>
+                        Tipo de Reporte
+                    </h5>
+                    
+                    <div class="report-type-card" 
+                         :class="{ 'selected': reportType === 'executive' }"
+                         @click="reportType = 'executive'">
+                        <div class="report-icon">
+                            <i class="fas fa-crown"></i>
+                        </div>
+                        <h6 class="mb-2">Resumen Ejecutivo</h6>
+                        <p class="text-muted mb-0 small">
+                            KPIs principales y métricas clave para gerencia
+                        </p>
+                    </div>
+                    
+                    <div class="report-type-card" 
+                         :class="{ 'selected': reportType === 'detailed' }"
+                         @click="reportType = 'detailed'">
+                        <div class="report-icon">
+                            <i class="fas fa-chart-bar"></i>
+                        </div>
+                        <h6 class="mb-2">Reporte Detallado</h6>
+                        <p class="text-muted mb-0 small">
+                            Análisis completo con todos los datos y gráficos
+                        </p>
+                    </div>
+                    
+                    <div class="report-type-card" 
+                         :class="{ 'selected': reportType === 'custom' }"
+                         @click="reportType = 'custom'">
+                        <div class="report-icon">
+                            <i class="fas fa-cogs"></i>
+                        </div>
+                        <h6 class="mb-2">Personalizado</h6>
+                        <p class="text-muted mb-0 small">
+                            Selecciona secciones específicas de análisis
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Filtros -->
+                <div class="report-card">
+                    <h5 class="mb-3">
+                        <i class="fas fa-filter me-2 text-primary"></i>
+                        Filtros
+                    </h5>
+                    
+                    <form id="report-form">
+                        <div class="filter-section">
+                            <div class="mb-3">
+                                <label class="form-label">
+                                    <i class="fas fa-store me-1"></i>
+                                    Tienda
+                                </label>
+                                <select class="form-select" name="tienda_id" id="tienda-select">
+                                    <option value="">Todas las tiendas</option>
+                                    {% for tienda in tiendas %}
+                                    <option value="{{ tienda.id }}">{{ tienda.nombre }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">
+                                            <i class="fas fa-calendar me-1"></i>
+                                            Fecha Inicio
+                                        </label>
+                                        <input type="date" class="form-control" name="fecha_inicio" 
+                                               value="" id="fecha-inicio">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">
+                                            <i class="fas fa-calendar me-1"></i>
+                                            Fecha Fin
+                                        </label>
+                                        <input type="date" class="form-control" name="fecha_fin" 
+                                               value="" id="fecha-fin">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">
+                                    <i class="fas fa-file-export me-1"></i>
+                                    Formato de Exportación
+                                </label>
+                                <select class="form-select" name="formato" id="formato-select">
+                                    <option value="json">JSON (Datos)</option>
+                                    <option value="html">HTML (Vista Web)</option>
+                                    <option value="download">Descarga Directa</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Secciones Personalizadas (solo para tipo custom) -->
+                        <div x-show="reportType === 'custom'" x-transition class="filter-section">
+                            <h6 class="mb-3">
+                                <i class="fas fa-puzzle-piece me-2"></i>
+                                Secciones a Incluir
+                            </h6>
+                            
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" name="sections" value="general" checked>
+                                <label class="form-check-label">
+                                    <i class="fas fa-tachometer-alt me-1"></i>
+                                    Métricas Generales
+                                </label>
+                            </div>
+                            
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" name="sections" value="temporal" checked>
+                                <label class="form-check-label">
+                                    <i class="fas fa-chart-line me-1"></i>
+                                    Tendencias Temporales
+                                </label>
+                            </div>
+                            
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" name="sections" value="customers">
+                                <label class="form-check-label">
+                                    <i class="fas fa-users me-1"></i>
+                                    Análisis de Clientes
+                                </label>
+                            </div>
+                            
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" name="sections" value="products">
+                                <label class="form-check-label">
+                                    <i class="fas fa-box me-1"></i>
+                                    Análisis de Productos
+                                </label>
+                            </div>
+                            
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" name="sections" value="deliveries">
+                                <label class="form-check-label">
+                                    <i class="fas fa-truck me-1"></i>
+                                    Entregas Parciales
+                                </label>
+                            </div>
+                            
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" name="sections" value="predictive">
+                                <label class="form-check-label">
+                                    <i class="fas fa-crystal-ball me-1"></i>
+                                    Analytics Predictivo
+                                </label>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Botón de Generación -->
+                <div class="export-options text-center">
+                    <button type="button" class="btn btn-generate btn-lg" 
+                            onclick="generateReport()" id="generate-btn">
+                        <i class="fas fa-magic me-2"></i>
+                        Generar Reporte
+                    </button>
+                    
+                    <!-- Progress Bar -->
+                    <div class="progress mt-3 d-none" id="generation-progress">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                             role="progressbar" style="width: 0%"></div>
+                    </div>
+                    
+                    <p class="text-muted mt-2 mb-0 small">
+                        <i class="fas fa-info-circle me-1"></i>
+                        El reporte se generará con los filtros seleccionados
+                    </p>
+                </div>
+            </div>
+
+            <!-- Panel de Resultados -->
+            <div class="col-lg-8">
+                <div class="report-card">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-pie me-2 text-primary"></i>
+                            Vista Previa y Resultados
+                        </h5>
+                        <div id="report-actions" class="d-none">
+                            <button class="btn btn-outline-primary btn-sm me-2" onclick="exportReport('json')">
+                                <i class="fas fa-code me-1"></i> JSON
+                            </button>
+                            <button class="btn btn-outline-success btn-sm" onclick="exportReport('download')">
+                                <i class="fas fa-download me-1"></i> Descargar
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Estado Inicial -->
+                    <div id="initial-state">
+                        <div class="text-center py-5">
+                            <div class="mb-4">
+                                <i class="fas fa-file-chart" style="font-size: 4rem; color: #e9ecef;"></i>
+                            </div>
+                            <h6 class="text-muted mb-3">Selecciona los parámetros y genera tu reporte</h6>
+                            <p class="text-muted small">
+                                Los reportes incluyen métricas avanzadas, gráficos y análisis predictivo
+                                para ayudarte a tomar mejores decisiones de negocio.
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <!-- Loading State -->
+                    <div id="loading-state" class="d-none">
+                        <div class="text-center py-5">
+                            <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;">
+                                <span class="visually-hidden">Cargando...</span>
+                            </div>
+                            <h6 class="text-muted mb-2">Generando reporte...</h6>
+                            <p class="text-muted small mb-0">
+                                Analizando datos y calculando métricas
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <!-- Results Preview -->
+                    <div id="results-preview" class="d-none">
+                        <!-- Summary Metrics -->
+                        <div class="row mb-4" id="summary-metrics">
+                            <!-- Se llena dinámicamente -->
+                        </div>
+                        
+                        <!-- Report Content -->
+                        <div id="report-content">
+                            <!-- Se llena dinámicamente -->
+                        </div>
+                        
+                        <!-- Download Links -->
+                        <div class="result-preview mt-4" id="download-section">
+                            <h6 class="mb-3">
+                                <i class="fas fa-download me-2"></i>
+                                Opciones de Descarga
+                            </h6>
+                            <div class="row" id="download-links">
+                                <!-- Se llena dinámicamente -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Error State -->
+                    <div id="error-state" class="d-none">
+                        <div class="text-center py-5">
+                            <div class="mb-4">
+                                <i class="fas fa-exclamation-triangle text-warning" style="font-size: 3rem;"></i>
+                            </div>
+                            <h6 class="text-warning mb-3">Error al generar el reporte</h6>
+                            <p class="text-muted small" id="error-message">
+                                Ha ocurrido un error inesperado. Por favor, intenta nuevamente.
+                            </p>
+                            <button class="btn btn-outline-primary" onclick="resetForm()">
+                                <i class="fas fa-redo me-1"></i> Intentar Nuevamente
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Configurar fechas por defecto (últimos 30 días)
+    const today = new Date();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(today.getDate() - 30);
+    
+    document.getElementById('fecha-inicio').value = thirtyDaysAgo.toISOString().split('T')[0];
+    document.getElementById('fecha-fin').value = today.toISOString().split('T')[0];
+    
+    // Componente Alpine.js para el generador de reportes
+    window.reportGenerator = () => ({
+        reportType: 'detailed',
+        isGenerating: false,
+        currentReport: null
+    });
+});
+
+// Función para generar reporte
+function generateReport() {
+    const form = document.getElementById('report-form');
+    const formData = new FormData(form);
+    const reportType = document.querySelector('[x-data] [x-model="reportType"]')?.value || 'detailed';
+    
+    // Preparar datos del reporte
+    const reportData = {
+        type: reportType,
+        tienda_id: formData.get('tienda_id'),
+        fecha_inicio: formData.get('fecha_inicio'),
+        fecha_fin: formData.get('fecha_fin'),
+        formato: formData.get('formato'),
+        sections: []
+    };
+    
+    // Obtener secciones personalizadas si aplica
+    if (reportType === 'custom') {
+        const checkedSections = form.querySelectorAll('input[name="sections"]:checked');
+        reportData.sections = Array.from(checkedSections).map(cb => cb.value);
+    }
+    
+    // Cambiar a estado de carga
+    showLoadingState();
+    
+    // Generar reporte
+    fetch('/pedidos-avanzados/analytics/api/generate-report/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+        },
+        body: JSON.stringify(reportData)
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        showResults(data, reportData);
+    })
+    .catch(error => {
+        console.error('Error generating report:', error);
+        showError(error.message);
+    });
+}
+
+// Mostrar estado de carga
+function showLoadingState() {
+    document.getElementById('initial-state').classList.add('d-none');
+    document.getElementById('results-preview').classList.add('d-none');
+    document.getElementById('error-state').classList.add('d-none');
+    document.getElementById('loading-state').classList.remove('d-none');
+    
+    // Mostrar progreso
+    const progressBar = document.getElementById('generation-progress');
+    progressBar.classList.remove('d-none');
+    
+    let progress = 0;
+    const interval = setInterval(() => {
+        progress += Math.random() * 15;
+        if (progress >= 90) {
+            progress = 90;
+            clearInterval(interval);
+        }
+        progressBar.querySelector('.progress-bar').style.width = progress + '%';
+    }, 200);
+}
+
+// Mostrar resultados
+function showResults(data, reportConfig) {
+    // Ocultar loading
+    document.getElementById('loading-state').classList.add('d-none');
+    document.getElementById('generation-progress').classList.add('d-none');
+    
+    // Mostrar resultados
+    document.getElementById('results-preview').classList.remove('d-none');
+    document.getElementById('report-actions').classList.remove('d-none');
+    
+    // Completar progreso
+    document.querySelector('#generation-progress .progress-bar').style.width = '100%';
+    
+    // Crear métricas resumen
+    createSummaryMetrics(data);
+    
+    // Crear contenido del reporte
+    createReportContent(data, reportConfig);
+    
+    // Crear enlaces de descarga
+    createDownloadLinks(reportConfig);
+    
+    // Guardar reporte actual para exportación
+    window.currentReportData = data;
+    window.currentReportConfig = reportConfig;
+}
+
+// Crear métricas resumen
+function createSummaryMetrics(data) {
+    const metricas = data.kpis_principales || data.metricas_generales || {};
+    const container = document.getElementById('summary-metrics');
+    
+    const metrics = [
+        { 
+            key: 'total_ingresos', 
+            label: 'Ingresos Totales', 
+            icon: 'fas fa-dollar-sign',
+            format: 'currency'
+        },
+        { 
+            key: 'total_ordenes', 
+            label: 'Órdenes Totales', 
+            icon: 'fas fa-shopping-cart',
+            format: 'number'
+        },
+        { 
+            key: 'ticket_promedio', 
+            label: 'Ticket Promedio', 
+            icon: 'fas fa-receipt',
+            format: 'currency'
+        },
+        { 
+            key: 'tasa_conversion', 
+            label: 'Tasa Conversión', 
+            icon: 'fas fa-percentage',
+            format: 'percentage'
+        }
+    ];
+    
+    container.innerHTML = metrics.map(metric => {
+        const value = metricas[metric.key] || 0;
+        let formattedValue = value;
+        
+        switch(metric.format) {
+            case 'currency':
+                formattedValue = `$${parseFloat(value).toFixed(2)}`;
+                break;
+            case 'percentage':
+                formattedValue = `${parseFloat(value).toFixed(1)}%`;
+                break;
+            case 'number':
+                formattedValue = parseInt(value).toLocaleString();
+                break;
+        }
+        
+        return `
+            <div class="col-md-3 col-sm-6 mb-3">
+                <div class="metric-summary">
+                    <div class="number">${formattedValue}</div>
+                    <div class="label">
+                        <i class="${metric.icon} me-1"></i>
+                        ${metric.label}
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Crear contenido del reporte
+function createReportContent(data, config) {
+    const container = document.getElementById('report-content');
+    let content = '';
+    
+    // Título del reporte
+    const reportTitle = config.type === 'executive' ? 'Resumen Ejecutivo' : 
+                       config.type === 'detailed' ? 'Reporte Detallado' : 'Reporte Personalizado';
+    
+    content += `
+        <div class="result-preview mb-4">
+            <h5 class="mb-3">
+                <i class="fas fa-file-alt me-2"></i>
+                ${reportTitle}
+            </h5>
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Período:</strong> ${data.periodo?.inicio || 'N/A'} - ${data.periodo?.fin || 'N/A'}</p>
+                    <p><strong>Tienda:</strong> ${config.tienda_id ? 'Tienda específica' : 'Todas las tiendas'}</p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>Generado:</strong> ${new Date().toLocaleString()}</p>
+                    <p><strong>Formato:</strong> ${config.formato.toUpperCase()}</p>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Alertas ejecutivas si existen
+    if (data.alertas_ejecutivas || data.alertas_automaticas) {
+        const alertas = data.alertas_ejecutivas || data.alertas_automaticas.criticas || [];
+        if (alertas.length > 0) {
+            content += `
+                <div class="result-preview mb-4">
+                    <h6 class="mb-3">
+                        <i class="fas fa-exclamation-triangle me-2 text-warning"></i>
+                        Alertas Importantes
+                    </h6>
+                    ${alertas.slice(0, 5).map(alerta => `
+                        <div class="alert alert-warning mb-2">
+                            <strong>${alerta.tipo || 'Alerta'}:</strong> ${alerta.mensaje}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+    }
+    
+    // Top insights
+    if (data.top_clientes || data.analisis_clientes?.top_clientes_ingresos) {
+        const topClientes = data.top_clientes || data.analisis_clientes.top_clientes_ingresos.slice(0, 5);
+        content += `
+            <div class="result-preview mb-4">
+                <h6 class="mb-3">
+                    <i class="fas fa-star me-2 text-warning"></i>
+                    Top 5 Clientes
+                </h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Cliente</th>
+                                <th>Ingresos</th>
+                                <th>Pedidos</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${topClientes.map(cliente => `
+                                <tr>
+                                    <td>${cliente.cliente__nombre || cliente.nombre}</td>
+                                    <td>$${parseFloat(cliente.total_ingresos || 0).toFixed(2)}</td>
+                                    <td>${cliente.total_pedidos || 0}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Top productos
+    if (data.top_productos || data.analisis_productos?.productos_mas_vendidos) {
+        const topProductos = data.top_productos || data.analisis_productos.productos_mas_vendidos.slice(0, 5);
+        content += `
+            <div class="result-preview mb-4">
+                <h6 class="mb-3">
+                    <i class="fas fa-trophy me-2 text-warning"></i>
+                    Top 5 Productos
+                </h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th>Cantidad</th>
+                                <th>Ingresos</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${topProductos.map(producto => `
+                                <tr>
+                                    <td>${producto.producto__nombre || producto.nombre}</td>
+                                    <td>${producto.total_vendido || 0}</td>
+                                    <td>$${parseFloat(producto.total_ingresos || 0).toFixed(2)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+    
+    container.innerHTML = content;
+}
+
+// Crear enlaces de descarga
+function createDownloadLinks(config) {
+    const container = document.getElementById('download-links');
+    
+    const formats = [
+        { name: 'JSON', icon: 'fas fa-code', format: 'json', description: 'Datos estructurados' },
+        { name: 'Descarga', icon: 'fas fa-download', format: 'download', description: 'Archivo completo' }
+    ];
+    
+    container.innerHTML = formats.map(format => `
+        <div class="col-md-6 mb-3">
+            <div class="export-options text-center py-3">
+                <i class="${format.icon} mb-2" style="font-size: 2rem; color: #43e97b;"></i>
+                <h6>${format.name}</h6>
+                <p class="text-muted small mb-2">${format.description}</p>
+                <button class="btn btn-outline-primary btn-sm" onclick="exportReport('${format.format}')">
+                    <i class="${format.icon} me-1"></i> Exportar
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Mostrar error
+function showError(message) {
+    document.getElementById('loading-state').classList.add('d-none');
+    document.getElementById('generation-progress').classList.add('d-none');
+    document.getElementById('error-state').classList.remove('d-none');
+    document.getElementById('error-message').textContent = message;
+}
+
+// Exportar reporte
+function exportReport(format) {
+    if (!window.currentReportConfig) {
+        showError('No hay reporte generado para exportar');
+        return;
+    }
+    
+    const config = { ...window.currentReportConfig };
+    config.formato = format;
+    
+    const params = new URLSearchParams(config);
+    
+    if (format === 'download') {
+        // Descarga directa
+        window.open(`/pedidos-avanzados/analytics/api/generate-report/?${params}`, '_blank');
+    } else {
+        // Mostrar en nueva ventana
+        window.open(`/pedidos-avanzados/analytics/api/generate-report/?${params}`, '_blank');
+    }
+}
+
+// Reiniciar formulario
+function resetForm() {
+    document.getElementById('report-form').reset();
+    document.getElementById('initial-state').classList.remove('d-none');
+    document.getElementById('results-preview').classList.add('d-none');
+    document.getElementById('error-state').classList.add('d-none');
+    document.getElementById('loading-state').classList.add('d-none');
+    document.getElementById('generation-progress').classList.add('d-none');
+    document.getElementById('report-actions').classList.add('d-none');
+    
+    // Resetear fechas
+    const today = new Date();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(today.getDate() - 30);
+    
+    document.getElementById('fecha-inicio').value = thirtyDaysAgo.toISOString().split('T')[0];
+    document.getElementById('fecha-fin').value = today.toISOString().split('T')[0];
+    
+    // Limpiar datos guardados
+    window.currentReportData = null;
+    window.currentReportConfig = null;
+}
+</script>
+{% endblock %}

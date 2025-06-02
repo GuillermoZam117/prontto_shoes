@@ -1,0 +1,908 @@
+{% extends "pedidos_avanzados/base.html" %}
+{% load static %}
+
+{% block title %}Segmentación de Clientes - Pronto Shoes{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<style>
+    .segmentation-dashboard {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        min-height: 100vh;
+        padding: 2rem 0;
+    }
+    
+    .segment-card {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 20px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        backdrop-filter: blur(15px);
+        box-shadow: 0 15px 35px rgba(79, 172, 254, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .segment-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #4facfe, #00f2fe);
+    }
+    
+    .segment-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 20px 40px rgba(79, 172, 254, 0.3);
+    }
+    
+    .rfm-segment {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .rfm-segment:hover {
+        transform: scale(1.05);
+        box-shadow: 0 15px 30px rgba(102, 126, 234, 0.4);
+    }
+    
+    .rfm-segment.champions {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    }
+    
+    .rfm-segment.loyal {
+        background: linear-gradient(135deg, #17a2b8 0%, #6f42c1 100%);
+    }
+    
+    .rfm-segment.potential {
+        background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
+    }
+    
+    .rfm-segment.at-risk {
+        background: linear-gradient(135deg, #fd7e14 0%, #dc3545 100%);
+    }
+    
+    .rfm-segment.lost {
+        background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+    }
+    
+    .segment-metric {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .segment-label {
+        font-size: 1rem;
+        opacity: 0.9;
+        font-weight: 500;
+    }
+    
+    .customer-list {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 1rem;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    
+    .customer-item {
+        background: white;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 0.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+        border-left: 4px solid transparent;
+    }
+    
+    .customer-item:hover {
+        transform: translateX(5px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+    
+    .customer-item.champion { border-left-color: #28a745; }
+    .customer-item.loyal { border-left-color: #17a2b8; }
+    .customer-item.potential { border-left-color: #ffc107; }
+    .customer-item.at-risk { border-left-color: #fd7e14; }
+    .customer-item.lost { border-left-color: #6c757d; }
+    
+    .behavior-card {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        height: 100%;
+    }
+    
+    .behavior-metric {
+        text-align: center;
+        padding: 1rem;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        margin-bottom: 1rem;
+    }
+    
+    .behavior-number {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+    }
+    
+    .behavior-text {
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+    
+    .filter-tabs {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 15px;
+        padding: 1rem;
+        margin-bottom: 2rem;
+        backdrop-filter: blur(10px);
+    }
+    
+    .tab-button {
+        background: transparent;
+        border: 2px solid transparent;
+        border-radius: 10px;
+        padding: 0.75rem 1.5rem;
+        margin: 0.25rem;
+        color: #495057;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .tab-button:hover {
+        border-color: #4facfe;
+        color: #4facfe;
+    }
+    
+    .tab-button.active {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        border-color: #4facfe;
+        color: white;
+        box-shadow: 0 5px 15px rgba(79, 172, 254, 0.3);
+    }
+    
+    .value-indicator {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-right: 0.5rem;
+    }
+    
+    .value-high { background: #28a745; }
+    .value-medium { background: #ffc107; }
+    .value-low { background: #dc3545; }
+    
+    .action-recommendations {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        padding: 1rem;
+        margin-top: 1rem;
+    }
+    
+    .recommendation-item {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 8px;
+        padding: 0.75rem;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+    }
+    
+    .loading-segmentation {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 300px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 15px;
+        backdrop-filter: blur(10px);
+    }
+    
+    .spinner-segmentation {
+        width: 50px;
+        height: 50px;
+        border: 3px solid rgba(255, 255, 255, 0.3);
+        border-top: 3px solid white;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    @media (max-width: 768px) {
+        .segmentation-dashboard {
+            padding: 1rem 0;
+        }
+        
+        .segment-card {
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .segment-metric {
+            font-size: 2rem;
+        }
+        
+        .tab-button {
+            padding: 0.5rem 1rem;
+            font-size: 0.9rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="segmentation-dashboard">
+    <div class="container-fluid">
+        <!-- Header Section -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="segment-card">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h2 class="mb-2 text-primary">
+                                <i class="fas fa-users-cog me-2"></i>
+                                Segmentación de Clientes - Análisis RFM
+                            </h2>
+                            <p class="text-muted mb-0">
+                                Análisis avanzado de comportamiento de clientes basado en Recencia, Frecuencia y Valor Monetario
+                            </p>
+                            <small class="text-secondary">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Segmentación automática para estrategias de marketing personalizadas
+                            </small>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="btn-group" role="group">
+                                <button class="btn btn-outline-primary" onclick="refreshSegmentation()">
+                                    <i class="fas fa-sync-alt me-1"></i> Actualizar
+                                </button>
+                                <button class="btn btn-success" onclick="exportSegmentation()">
+                                    <i class="fas fa-download me-1"></i> Exportar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filtros de Segmentación -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="filter-tabs" x-data="{ activeTab: 'overview' }">
+                    <div class="text-center">
+                        <button class="tab-button" 
+                                :class="{ 'active': activeTab === 'overview' }" 
+                                @click="activeTab = 'overview'">
+                            <i class="fas fa-chart-pie me-1"></i> Vista General
+                        </button>
+                        <button class="tab-button" 
+                                :class="{ 'active': activeTab === 'champions' }" 
+                                @click="activeTab = 'champions'">
+                            <i class="fas fa-crown me-1"></i> Campeones
+                        </button>
+                        <button class="tab-button" 
+                                :class="{ 'active': activeTab === 'loyal' }" 
+                                @click="activeTab = 'loyal'">
+                            <i class="fas fa-heart me-1"></i> Leales
+                        </button>
+                        <button class="tab-button" 
+                                :class="{ 'active': activeTab === 'potential' }" 
+                                @click="activeTab = 'potential'">
+                            <i class="fas fa-seedling me-1"></i> Potenciales
+                        </button>
+                        <button class="tab-button" 
+                                :class="{ 'active': activeTab === 'at-risk' }" 
+                                @click="activeTab = 'at-risk'">
+                            <i class="fas fa-exclamation-triangle me-1"></i> En Riesgo
+                        </button>
+                        <button class="tab-button" 
+                                :class="{ 'active': activeTab === 'lost' }" 
+                                @click="activeTab = 'lost'">
+                            <i class="fas fa-user-times me-1"></i> Perdidos
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Métricas de Segmentos RFM -->
+        <div class="row mb-4" id="rfm-segments">
+            <div class="col-xl-2 col-md-4 col-sm-6">
+                <div class="rfm-segment champions" onclick="showSegmentDetails('champions')">
+                    <div class="segment-metric">{{ segmentacion.campeones|default:"0" }}</div>
+                    <div class="segment-label">
+                        <i class="fas fa-crown me-1"></i>
+                        Campeones
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-2 col-md-4 col-sm-6">
+                <div class="rfm-segment loyal" onclick="showSegmentDetails('loyal')">
+                    <div class="segment-metric">{{ segmentacion.clientes_leales|default:"0" }}</div>
+                    <div class="segment-label">
+                        <i class="fas fa-heart me-1"></i>
+                        Leales
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-2 col-md-4 col-sm-6">
+                <div class="rfm-segment potential" onclick="showSegmentDetails('potential')">
+                    <div class="segment-metric">{{ segmentacion.potenciales_leales|default:"0" }}</div>
+                    <div class="segment-label">
+                        <i class="fas fa-seedling me-1"></i>
+                        Potenciales
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-2 col-md-4 col-sm-6">
+                <div class="rfm-segment at-risk" onclick="showSegmentDetails('at-risk')">
+                    <div class="segment-metric">{{ segmentacion.en_riesgo|default:"0" }}</div>
+                    <div class="segment-label">
+                        <i class="fas fa-exclamation-triangle me-1"></i>
+                        En Riesgo
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-2 col-md-4 col-sm-6">
+                <div class="rfm-segment lost" onclick="showSegmentDetails('lost')">
+                    <div class="segment-metric">{{ segmentacion.perdidos|default:"0" }}</div>
+                    <div class="segment-label">
+                        <i class="fas fa-user-times me-1"></i>
+                        Perdidos
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-2 col-md-4 col-sm-6">
+                <div class="rfm-segment" onclick="showSegmentDetails('nuevos')">
+                    <div class="segment-metric">{{ segmentacion.nuevos_clientes|default:"0" }}</div>
+                    <div class="segment-label">
+                        <i class="fas fa-user-plus me-1"></i>
+                        Nuevos
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Análisis de Distribución y Comportamiento -->
+        <div class="row mb-4">
+            <div class="col-lg-8">
+                <div class="segment-card">
+                    <h5 class="mb-3">
+                        <i class="fas fa-chart-donut me-2 text-primary"></i>
+                        Distribución de Segmentos RFM
+                    </h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <canvas id="rfmDistributionChart" height="300"></canvas>
+                        </div>
+                        <div class="col-md-6">
+                            <canvas id="rfmValueChart" height="300"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="behavior-card">
+                    <h6 class="mb-3">
+                        <i class="fas fa-chart-bar me-2"></i>
+                        Comportamiento Promedio
+                    </h6>
+                    
+                    <div class="behavior-metric">
+                        <div class="behavior-number">{{ comportamiento.recencia_promedio|default:"30" }}</div>
+                        <div class="behavior-text">días desde última compra</div>
+                    </div>
+                    
+                    <div class="behavior-metric">
+                        <div class="behavior-number">{{ comportamiento.frecuencia_promedio|default:"3.2" }}</div>
+                        <div class="behavior-text">compras por cliente</div>
+                    </div>
+                    
+                    <div class="behavior-metric">
+                        <div class="behavior-number">${{ comportamiento.valor_promedio|floatformat:2|default:"150.00" }}</div>
+                        <div class="behavior-text">valor promedio por cliente</div>
+                    </div>
+                    
+                    <div class="action-recommendations">
+                        <h6 class="mb-2">
+                            <i class="fas fa-lightbulb me-1"></i>
+                            Acciones Recomendadas
+                        </h6>
+                        <div class="recommendation-item">
+                            <i class="fas fa-envelope me-1"></i>
+                            Campaña de reactivación para clientes perdidos
+                        </div>
+                        <div class="recommendation-item">
+                            <i class="fas fa-gift me-1"></i>
+                            Programa VIP para campeones
+                        </div>
+                        <div class="recommendation-item">
+                            <i class="fas fa-percentage me-1"></i>
+                            Descuentos especiales para potenciales
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Análisis Detallado por Segmento -->
+        <div class="row mb-4">
+            <div class="col-lg-6">
+                <div class="segment-card">
+                    <h5 class="mb-3">
+                        <i class="fas fa-users me-2 text-primary"></i>
+                        Top Clientes por Segmento
+                    </h5>
+                    
+                    <div class="customer-list" id="top-customers-list">
+                        {% for cliente in top_clientes|slice:":10" %}
+                        <div class="customer-item {{ cliente.segmento|default:'champion' }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">{{ cliente.nombre|default:"Cliente" }}</h6>
+                                    <small class="text-muted">
+                                        <span class="value-indicator value-{{ cliente.valor_nivel|default:'high' }}"></span>
+                                        Última compra: {{ cliente.ultima_compra|default:"15 días" }}
+                                    </small>
+                                </div>
+                                <div class="text-end">
+                                    <div class="fw-bold">${{ cliente.valor_total|floatformat:2|default:"500.00" }}</div>
+                                    <small class="text-muted">{{ cliente.total_compras|default:"5" }} compras</small>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-users text-muted" style="font-size: 3rem;"></i>
+                            <p class="text-muted mt-2">No hay datos de clientes disponibles</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="segment-card">
+                    <h5 class="mb-3">
+                        <i class="fas fa-chart-line me-2 text-primary"></i>
+                        Evolución de Segmentos
+                    </h5>
+                    <canvas id="segmentEvolutionChart" height="300"></canvas>
+                    
+                    <div class="mt-3">
+                        <h6 class="mb-2">Tendencias del Mes</h6>
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <div class="text-success">
+                                    <i class="fas fa-arrow-up"></i> +12%
+                                </div>
+                                <small class="text-muted">Campeones</small>
+                            </div>
+                            <div class="col-4">
+                                <div class="text-warning">
+                                    <i class="fas fa-minus"></i> -3%
+                                </div>
+                                <small class="text-muted">En Riesgo</small>
+                            </div>
+                            <div class="col-4">
+                                <div class="text-danger">
+                                    <i class="fas fa-arrow-down"></i> -8%
+                                </div>
+                                <small class="text-muted">Perdidos</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Matriz RFM Detallada -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="segment-card">
+                    <h5 class="mb-3">
+                        <i class="fas fa-table me-2 text-primary"></i>
+                        Matriz RFM Detallada
+                    </h5>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Segmento</th>
+                                    <th>Clientes</th>
+                                    <th>Recencia Promedio (días)</th>
+                                    <th>Frecuencia Promedio</th>
+                                    <th>Valor Monetario Promedio</th>
+                                    <th>% del Total</th>
+                                    <th>Acción Recomendada</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rfm-matrix-table">
+                                <tr class="table-success">
+                                    <td>
+                                        <i class="fas fa-crown text-warning me-1"></i>
+                                        <strong>Campeones</strong>
+                                    </td>
+                                    <td>{{ segmentacion.campeones|default:"0" }}</td>
+                                    <td>15</td>
+                                    <td>8.5</td>
+                                    <td>$750.00</td>
+                                    <td>15%</td>
+                                    <td>
+                                        <span class="badge bg-success">Programa VIP</span>
+                                    </td>
+                                </tr>
+                                <tr class="table-info">
+                                    <td>
+                                        <i class="fas fa-heart text-danger me-1"></i>
+                                        <strong>Leales</strong>
+                                    </td>
+                                    <td>{{ segmentacion.clientes_leales|default:"0" }}</td>
+                                    <td>25</td>
+                                    <td>6.2</td>
+                                    <td>$520.00</td>
+                                    <td>25%</td>
+                                    <td>
+                                        <span class="badge bg-info">Fidelización</span>
+                                    </td>
+                                </tr>
+                                <tr class="table-warning">
+                                    <td>
+                                        <i class="fas fa-seedling text-success me-1"></i>
+                                        <strong>Potenciales</strong>
+                                    </td>
+                                    <td>{{ segmentacion.potenciales_leales|default:"0" }}</td>
+                                    <td>45</td>
+                                    <td>3.8</td>
+                                    <td>$320.00</td>
+                                    <td>30%</td>
+                                    <td>
+                                        <span class="badge bg-warning">Desarrollo</span>
+                                    </td>
+                                </tr>
+                                <tr class="table-danger">
+                                    <td>
+                                        <i class="fas fa-exclamation-triangle text-warning me-1"></i>
+                                        <strong>En Riesgo</strong>
+                                    </td>
+                                    <td>{{ segmentacion.en_riesgo|default:"0" }}</td>
+                                    <td>75</td>
+                                    <td>2.1</td>
+                                    <td>$180.00</td>
+                                    <td>20%</td>
+                                    <td>
+                                        <span class="badge bg-danger">Reactivación</span>
+                                    </td>
+                                </tr>
+                                <tr class="table-secondary">
+                                    <td>
+                                        <i class="fas fa-user-times text-muted me-1"></i>
+                                        <strong>Perdidos</strong>
+                                    </td>
+                                    <td>{{ segmentacion.perdidos|default:"0" }}</td>
+                                    <td>120+</td>
+                                    <td>1.2</td>
+                                    <td>$95.00</td>
+                                    <td>10%</td>
+                                    <td>
+                                        <span class="badge bg-secondary">Recuperación</span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div class="loading-segmentation d-none" id="loading-overlay">
+    <div class="text-center text-white">
+        <div class="spinner-segmentation mb-3"></div>
+        <h6>Analizando segmentación...</h6>
+        <p class="small">Procesando datos RFM de clientes</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Configuración inicial
+    let charts = {};
+    let currentSegmentData = {};
+    
+    // Cargar datos iniciales
+    loadSegmentationData();
+    
+    // Inicializar gráficos
+    initializeCharts();
+    
+    // Función principal para cargar datos de segmentación
+    function loadSegmentationData() {
+        showLoading();
+        
+        const params = new URLSearchParams({
+            tipo: 'customer_segmentation',
+            format: 'json'
+        });
+        
+        fetch(`/pedidos-avanzados/analytics/api/customers/?${params}`)
+            .then(response => response.json())
+            .then(data => {
+                currentSegmentData = data;
+                updateSegmentMetrics(data.segmentacion_rfm || {});
+                updateCharts(data);
+                updateCustomersList(data.top_clientes_ingresos || []);
+                hideLoading();
+            })
+            .catch(error => {
+                console.error('Error loading segmentation data:', error);
+                hideLoading();
+                showError('Error al cargar datos de segmentación');
+            });
+    }
+    
+    // Inicializar gráficos
+    function initializeCharts() {
+        // Gráfico de distribución RFM
+        const distributionCtx = document.getElementById('rfmDistributionChart').getContext('2d');
+        charts.rfmDistribution = new Chart(distributionCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Campeones', 'Leales', 'Potenciales', 'En Riesgo', 'Perdidos'],
+                datasets: [{
+                    data: [15, 25, 30, 20, 10],
+                    backgroundColor: [
+                        '#28a745',
+                        '#17a2b8',
+                        '#ffc107',
+                        '#fd7e14',
+                        '#6c757d'
+                    ],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    },
+                    title: {
+                        display: true,
+                        text: 'Distribución por Segmentos'
+                    }
+                }
+            }
+        });
+        
+        // Gráfico de valor por segmento
+        const valueCtx = document.getElementById('rfmValueChart').getContext('2d');
+        charts.rfmValue = new Chart(valueCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Campeones', 'Leales', 'Potenciales', 'En Riesgo', 'Perdidos'],
+                datasets: [{
+                    label: 'Valor Promedio ($)',
+                    data: [750, 520, 320, 180, 95],
+                    backgroundColor: [
+                        'rgba(40, 167, 69, 0.8)',
+                        'rgba(23, 162, 184, 0.8)',
+                        'rgba(255, 193, 7, 0.8)',
+                        'rgba(253, 126, 20, 0.8)',
+                        'rgba(108, 117, 125, 0.8)'
+                    ],
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    title: {
+                        display: true,
+                        text: 'Valor Promedio por Segmento'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Valor ($)'
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Gráfico de evolución de segmentos
+        const evolutionCtx = document.getElementById('segmentEvolutionChart').getContext('2d');
+        charts.segmentEvolution = new Chart(evolutionCtx, {
+            type: 'line',
+            data: {
+                labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'],
+                datasets: [{
+                    label: 'Campeones',
+                    data: [12, 15, 18, 16, 20, 25],
+                    borderColor: '#28a745',
+                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                    tension: 0.4
+                }, {
+                    label: 'Leales',
+                    data: [20, 22, 25, 28, 30, 32],
+                    borderColor: '#17a2b8',
+                    backgroundColor: 'rgba(23, 162, 184, 0.1)',
+                    tension: 0.4
+                }, {
+                    label: 'En Riesgo',
+                    data: [25, 23, 20, 18, 15, 12],
+                    borderColor: '#fd7e14',
+                    backgroundColor: 'rgba(253, 126, 20, 0.1)',
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Cantidad de Clientes'
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Actualizar métricas de segmentos
+    function updateSegmentMetrics(segmentacion) {
+        // Las métricas ya se muestran desde el template
+        // Aquí se podrían actualizar dinámicamente si es necesario
+    }
+    
+    // Actualizar gráficos
+    function updateCharts(data) {
+        if (data.segmentacion_rfm && charts.rfmDistribution) {
+            const segmentacion = data.segmentacion_rfm;
+            charts.rfmDistribution.data.datasets[0].data = [
+                segmentacion.campeones || 0,
+                segmentacion.clientes_leales || 0,
+                segmentacion.potenciales_leales || 0,
+                segmentacion.en_riesgo || 0,
+                segmentacion.perdidos || 0
+            ];
+            charts.rfmDistribution.update();
+        }
+    }
+    
+    // Actualizar lista de clientes
+    function updateCustomersList(customers) {
+        const container = document.getElementById('top-customers-list');
+        if (customers.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-4">
+                    <i class="fas fa-users text-muted" style="font-size: 3rem;"></i>
+                    <p class="text-muted mt-2">No hay datos de clientes disponibles</p>
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = customers.slice(0, 10).map(cliente => {
+            const segmento = determineSegment(cliente);
+            const valorNivel = cliente.total_ingresos > 500 ? 'high' : cliente.total_ingresos > 200 ? 'medium' : 'low';
+            
+            return `
+                <div class="customer-item ${segmento}">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-1">${cliente.cliente__nombre || 'Cliente'}</h6>
+                            <small class="text-muted">
+                                <span class="value-indicator value-${valorNivel}"></span>
+                                Última compra: ${calculateDaysSince(cliente.ultima_compra)}
+                            </small>
+                        </div>
+                        <div class="text-end">
+                            <div class="fw-bold">$${parseFloat(cliente.total_ingresos || 0).toFixed(2)}</div>
+                            <small class="text-muted">${cliente.total_pedidos || 0} compras</small>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+    
+    // Funciones auxiliares
+    function determineSegment(cliente) {
+        const ingresos = cliente.total_ingresos || 0;
+        const pedidos = cliente.total_pedidos || 0;
+        
+        if (ingresos > 500 && pedidos > 5) return 'champion';
+        if (ingresos > 300 && pedidos > 3) return 'loyal';
+        if (ingresos > 150) return 'potential';
+        if (pedidos > 0) return 'at-risk';
+        return 'lost';
+    }
+    
+    function calculateDaysSince(fecha) {
+        if (!fecha) return '30+ días';
+        const now = new Date();
+        const lastPurchase = new Date(fecha);
+        const diffTime = Math.abs(now - lastPurchase);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return `${diffDays} días`;
+    }
+    
+    function showLoading() {
+        document.getElementById('loading-overlay').classList.remove('d-none');
+    }
+    
+    function hideLoading() {
+        document.getElementById('loading-overlay').classList.add('d-none');
+    }
+    
+    function showError(message) {
+        console.error(message);
+        // Implementar notificación de error
+    }
+    
+    // Funciones globales
+    window.refreshSegmentation = function() {
+        loadSegmentationData();
+    };
+    
+    window.exportSegmentation = function() {
+        const params = new URLSearchParams({
+            tipo: 'customer_segmentation',
+            formato: 'download'
+        });
+        window.open(`/pedidos-avanzados/analytics/api/customers/?${params}`, '_blank');
+    };
+    
+    window.showSegmentDetails = function(segment) {
+        // Implementar modal o navegación a detalles del segmento
+        console.log(`Showing details for segment: ${segment}`);
+    };
+});
+</script>
+{% endblock %}

@@ -1,0 +1,960 @@
+{% extends "pedidos_avanzados/base.html" %}
+{% load static %}
+
+{% block title %}Insights de Productos - Pronto Shoes{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<style>
+    .insights-dashboard {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 2rem 0;
+    }
+    
+    .insight-card {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 20px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        backdrop-filter: blur(15px);
+        box-shadow: 0 15px 35px rgba(102, 126, 234, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .insight-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #667eea, #764ba2);
+    }
+    
+    .insight-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 20px 40px rgba(102, 126, 234, 0.3);
+    }
+    
+    .product-metric {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+    
+    .product-metric:hover {
+        transform: scale(1.05);
+        box-shadow: 0 15px 30px rgba(240, 147, 251, 0.4);
+    }
+    
+    .product-metric.sales {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+    
+    .product-metric.margin {
+        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    }
+    
+    .product-metric.rotation {
+        background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    }
+    
+    .product-metric.stock {
+        background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+        color: #333;
+    }
+    
+    .metric-number {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .metric-label {
+        font-size: 1rem;
+        opacity: 0.9;
+        font-weight: 500;
+    }
+    
+    .product-card {
+        background: white;
+        border-radius: 15px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+        border-left: 4px solid transparent;
+        position: relative;
+    }
+    
+    .product-card:hover {
+        transform: translateX(5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+    
+    .product-card.bestseller { border-left-color: #28a745; }
+    .product-card.profitable { border-left-color: #17a2b8; }
+    .product-card.slow-moving { border-left-color: #ffc107; }
+    .product-card.low-stock { border-left-color: #dc3545; }
+    
+    .product-status {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        padding: 0.25rem 0.75rem;
+        border-radius: 15px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+    
+    .status-bestseller { background: #28a745; color: white; }
+    .status-profitable { background: #17a2b8; color: white; }
+    .status-slow { background: #ffc107; color: #333; }
+    .status-critical { background: #dc3545; color: white; }
+    .status-normal { background: #6c757d; color: white; }
+    
+    .category-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .category-card:hover {
+        transform: scale(1.05);
+        box-shadow: 0 15px 30px rgba(102, 126, 234, 0.4);
+    }
+    
+    .category-metric {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+    
+    .category-label {
+        font-size: 1rem;
+        opacity: 0.9;
+    }
+    
+    .performance-indicator {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 0.5rem;
+    }
+    
+    .perf-excellent { background: #28a745; }
+    .perf-good { background: #17a2b8; }
+    .perf-average { background: #ffc107; }
+    .perf-poor { background: #fd7e14; }
+    .perf-critical { background: #dc3545; }
+    
+    .trend-arrow {
+        font-size: 1.2rem;
+        margin-left: 0.5rem;
+    }
+    
+    .trend-up { color: #28a745; }
+    .trend-down { color: #dc3545; }
+    .trend-stable { color: #6c757d; }
+    
+    .filter-panel {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 15px;
+        padding: 1rem;
+        margin-bottom: 2rem;
+        backdrop-filter: blur(10px);
+    }
+    
+    .filter-button {
+        background: transparent;
+        border: 2px solid transparent;
+        border-radius: 10px;
+        padding: 0.5rem 1rem;
+        margin: 0.25rem;
+        color: #495057;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .filter-button:hover {
+        border-color: #667eea;
+        color: #667eea;
+    }
+    
+    .filter-button.active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-color: #667eea;
+        color: white;
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+    }
+    
+    .alert-badge {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        display: inline-block;
+        margin: 0.25rem;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(255, 107, 107, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(255, 107, 107, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(255, 107, 107, 0); }
+    }
+    
+    .loading-insights {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 300px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 15px;
+        backdrop-filter: blur(10px);
+    }
+    
+    .spinner-insights {
+        width: 50px;
+        height: 50px;
+        border: 3px solid rgba(255, 255, 255, 0.3);
+        border-top: 3px solid white;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    .heatmap-cell {
+        display: inline-block;
+        width: 25px;
+        height: 25px;
+        margin: 1px;
+        border-radius: 3px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .heatmap-cell:hover {
+        transform: scale(1.2);
+        border: 2px solid #333;
+    }
+    
+    .heatmap-low { background: #c6e48b; }
+    .heatmap-medium { background: #7bc96f; }
+    .heatmap-high { background: #239a3b; }
+    .heatmap-very-high { background: #196127; }
+    
+    @media (max-width: 768px) {
+        .insights-dashboard {
+            padding: 1rem 0;
+        }
+        
+        .insight-card {
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .metric-number {
+            font-size: 2rem;
+        }
+        
+        .filter-button {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.9rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="insights-dashboard">
+    <div class="container-fluid">
+        <!-- Header Section -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="insight-card">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h2 class="mb-2 text-primary">
+                                <i class="fas fa-chart-pie me-2"></i>
+                                Insights de Productos - Análisis Avanzado
+                            </h2>
+                            <p class="text-muted mb-0">
+                                Análisis profundo de rendimiento, rentabilidad y rotación de productos
+                            </p>
+                            <small class="text-secondary">
+                                <i class="fas fa-clock me-1"></i>
+                                Última actualización: <span id="last-update">{{ last_update|default:"Cargando..." }}</span>
+                            </small>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="btn-group" role="group">
+                                <button class="btn btn-outline-primary" onclick="refreshInsights()">
+                                    <i class="fas fa-sync-alt me-1"></i> Actualizar
+                                </button>
+                                <button class="btn btn-success" onclick="exportInsights()">
+                                    <i class="fas fa-download me-1"></i> Exportar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel de Filtros -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="filter-panel" x-data="{ activeFilter: 'all' }">
+                    <div class="text-center">
+                        <button class="filter-button" 
+                                :class="{ 'active': activeFilter === 'all' }" 
+                                @click="activeFilter = 'all'">
+                            <i class="fas fa-th me-1"></i> Todos
+                        </button>
+                        <button class="filter-button" 
+                                :class="{ 'active': activeFilter === 'bestsellers' }" 
+                                @click="activeFilter = 'bestsellers'">
+                            <i class="fas fa-star me-1"></i> Más Vendidos
+                        </button>
+                        <button class="filter-button" 
+                                :class="{ 'active': activeFilter === 'profitable' }" 
+                                @click="activeFilter = 'profitable'">
+                            <i class="fas fa-coins me-1"></i> Más Rentables
+                        </button>
+                        <button class="filter-button" 
+                                :class="{ 'active': activeFilter === 'slow' }" 
+                                @click="activeFilter = 'slow'">
+                            <i class="fas fa-snail me-1"></i> Baja Rotación
+                        </button>
+                        <button class="filter-button" 
+                                :class="{ 'active': activeFilter === 'alerts' }" 
+                                @click="activeFilter = 'alerts'">
+                            <i class="fas fa-exclamation-triangle me-1"></i> Alertas
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Métricas Principales de Productos -->
+        <div class="row mb-4" id="product-metrics">
+            <div class="col-xl-3 col-md-6">
+                <div class="product-metric sales">
+                    <div class="metric-number">{{ metricas.productos_vendidos|default:"0" }}</div>
+                    <div class="metric-label">
+                        <i class="fas fa-shopping-cart me-1"></i>
+                        Productos Vendidos
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6">
+                <div class="product-metric margin">
+                    <div class="metric-number">${{ metricas.margen_total|floatformat:2|default:"0.00" }}</div>
+                    <div class="metric-label">
+                        <i class="fas fa-chart-line me-1"></i>
+                        Margen Total
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6">
+                <div class="product-metric rotation">
+                    <div class="metric-number">{{ metricas.rotacion_promedio|floatformat:1|default:"0.0" }}</div>
+                    <div class="metric-label">
+                        <i class="fas fa-sync-alt me-1"></i>
+                        Rotación Promedio
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6">
+                <div class="product-metric stock">
+                    <div class="metric-number">{{ metricas.productos_stock_bajo|default:"0" }}</div>
+                    <div class="metric-label">
+                        <i class="fas fa-exclamation-triangle me-1"></i>
+                        Stock Bajo
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alertas de Productos -->
+        <div class="row mb-4" id="product-alerts">
+            <div class="col-12">
+                <div class="insight-card">
+                    <h5 class="mb-3">
+                        <i class="fas fa-bell me-2 text-danger"></i>
+                        Alertas de Productos
+                    </h5>
+                    <div id="alerts-container">
+                        <div class="alert-badge">
+                            <i class="fas fa-exclamation-triangle me-1"></i>
+                            15 productos con stock crítico
+                        </div>
+                        <div class="alert-badge">
+                            <i class="fas fa-clock me-1"></i>
+                            8 productos sin ventas en 30 días
+                        </div>
+                        <div class="alert-badge">
+                            <i class="fas fa-chart-line me-1"></i>
+                            3 productos con margen negativo
+                        </div>
+                        <div class="alert-badge">
+                            <i class="fas fa-warehouse me-1"></i>
+                            12 productos próximos a vencimiento
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Análisis por Categorías -->
+        <div class="row mb-4">
+            <div class="col-lg-8">
+                <div class="insight-card">
+                    <h5 class="mb-3">
+                        <i class="fas fa-layer-group me-2 text-primary"></i>
+                        Rendimiento por Categorías
+                    </h5>
+                    <div class="row">
+                        <div class="col-md-8">
+                            <canvas id="categoriesPerformanceChart" height="300"></canvas>
+                        </div>
+                        <div class="col-md-4">
+                            <canvas id="categoriesDistributionChart" height="300"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="insight-card">
+                    <h5 class="mb-3">
+                        <i class="fas fa-tags me-2 text-primary"></i>
+                        Top Categorías
+                    </h5>
+                    <div id="top-categories-list">
+                        {% for categoria in top_categorias|slice:":6" %}
+                        <div class="category-card" onclick="showCategoryDetails('{{ categoria.nombre }}')">
+                            <div class="category-metric">${{ categoria.ingresos|floatformat:2|default:"0.00" }}</div>
+                            <div class="category-label">{{ categoria.nombre|default:"Categoría" }}</div>
+                            <small class="d-block mt-2">
+                                {{ categoria.productos_vendidos|default:"0" }} productos vendidos
+                            </small>
+                        </div>
+                        {% empty %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-tags text-muted" style="font-size: 3rem;"></i>
+                            <p class="text-muted mt-2">No hay datos de categorías</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Productos y Análisis Detallado -->
+        <div class="row mb-4">
+            <div class="col-lg-6">
+                <div class="insight-card">
+                    <h5 class="mb-3">
+                        <i class="fas fa-medal me-2 text-primary"></i>
+                        Top Productos Más Vendidos
+                    </h5>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Producto</th>
+                                    <th>Vendidos</th>
+                                    <th>Ingresos</th>
+                                    <th>Tendencia</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bestsellers-table">
+                                {% for producto in productos_top|slice:":10" %}
+                                <tr>
+                                    <td>
+                                        <span class="performance-indicator perf-excellent"></span>
+                                        <strong>{{ producto.nombre|default:"Producto" }}</strong>
+                                        <br><small class="text-muted">{{ producto.codigo|default:"SKU" }}</small>
+                                    </td>
+                                    <td>{{ producto.total_vendido|default:"0" }}</td>
+                                    <td>${{ producto.total_ingresos|floatformat:2|default:"0.00" }}</td>
+                                    <td>
+                                        <i class="fas fa-arrow-up trend-arrow trend-up"></i>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted">No hay datos disponibles</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="insight-card">
+                    <h5 class="mb-3">
+                        <i class="fas fa-coins me-2 text-primary"></i>
+                        Productos Más Rentables
+                    </h5>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Producto</th>
+                                    <th>Margen</th>
+                                    <th>% Margen</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody id="profitable-table">
+                                {% for producto in productos_margen|slice:":10" %}
+                                <tr>
+                                    <td>
+                                        <span class="performance-indicator perf-good"></span>
+                                        <strong>{{ producto.nombre|default:"Producto" }}</strong>
+                                        <br><small class="text-muted">{{ producto.codigo|default:"SKU" }}</small>
+                                    </td>
+                                    <td>${{ producto.margen_total|floatformat:2|default:"0.00" }}</td>
+                                    <td>{{ producto.margen_porcentaje|floatformat:1|default:"0.0" }}%</td>
+                                    <td>
+                                        <span class="badge bg-success">Rentable</span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted">No hay datos disponibles</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mapa de Calor de Ventas y Productos de Baja Rotación -->
+        <div class="row mb-4">
+            <div class="col-lg-8">
+                <div class="insight-card">
+                    <h5 class="mb-3">
+                        <i class="fas fa-fire me-2 text-primary"></i>
+                        Mapa de Calor - Ventas por Día
+                    </h5>
+                    <div id="sales-heatmap-container">
+                        <canvas id="salesHeatmapChart" height="250"></canvas>
+                    </div>
+                    <div class="mt-3">
+                        <small class="text-muted">
+                            <span class="heatmap-cell heatmap-low"></span> Bajo
+                            <span class="heatmap-cell heatmap-medium"></span> Medio
+                            <span class="heatmap-cell heatmap-high"></span> Alto
+                            <span class="heatmap-cell heatmap-very-high"></span> Muy Alto
+                        </small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="insight-card">
+                    <h5 class="mb-3">
+                        <i class="fas fa-turtle me-2 text-warning"></i>
+                        Productos Baja Rotación
+                    </h5>
+                    <div id="slow-moving-products" style="max-height: 400px; overflow-y: auto;">
+                        {% for producto in productos_baja_rotacion|slice:":8" %}
+                        <div class="product-card slow-moving">
+                            <div class="product-status status-slow">Sin movimiento</div>
+                            <h6 class="mb-1">{{ producto.nombre|default:"Producto" }}</h6>
+                            <small class="text-muted d-block">{{ producto.codigo|default:"SKU" }}</small>
+                            <div class="d-flex justify-content-between mt-2">
+                                <span class="small">Stock: {{ producto.stock_actual|default:"0" }}</span>
+                                <span class="small text-warning">
+                                    <i class="fas fa-clock me-1"></i>
+                                    {{ producto.dias_sin_venta|default:"30" }} días
+                                </span>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-check-circle text-success" style="font-size: 3rem;"></i>
+                            <p class="text-muted mt-2">Todos los productos tienen buena rotación</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Análisis de Tendencias y Estacionalidad -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="insight-card">
+                    <h5 class="mb-3">
+                        <i class="fas fa-chart-area me-2 text-primary"></i>
+                        Análisis de Tendencias y Estacionalidad
+                    </h5>
+                    <div class="row">
+                        <div class="col-lg-8">
+                            <canvas id="seasonalityChart" height="300"></canvas>
+                        </div>
+                        <div class="col-lg-4">
+                            <h6 class="mb-3">Insights Estacionales</h6>
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>Temporada Alta:</strong> Diciembre - Febrero
+                            </div>
+                            <div class="alert alert-warning">
+                                <i class="fas fa-leaf me-2"></i>
+                                <strong>Tendencia:</strong> Calzado deportivo en aumento
+                            </div>
+                            <div class="alert alert-success">
+                                <i class="fas fa-chart-line me-2"></i>
+                                <strong>Oportunidad:</strong> Incrementar stock de sandalias
+                            </div>
+                            <div class="alert alert-secondary">
+                                <i class="fas fa-calendar me-2"></i>
+                                <strong>Próximo Pico:</strong> Inicio del año escolar
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div class="loading-insights d-none" id="loading-overlay">
+    <div class="text-center text-white">
+        <div class="spinner-insights mb-3"></div>
+        <h6>Analizando productos...</h6>
+        <p class="small">Procesando datos de rendimiento y rotación</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Configuración inicial
+    let charts = {};
+    let currentInsightsData = {};
+    
+    // Cargar datos iniciales
+    loadInsightsData();
+    
+    // Inicializar gráficos
+    initializeCharts();
+    
+    // Función principal para cargar datos de insights
+    function loadInsightsData() {
+        showLoading();
+        
+        const params = new URLSearchParams({
+            tipo: 'product_insights',
+            format: 'json'
+        });
+        
+        fetch(`/pedidos-avanzados/analytics/api/products/?${params}`)
+            .then(response => response.json())
+            .then(data => {
+                currentInsightsData = data;
+                updateMetrics(data.metricas_productos || {});
+                updateCharts(data);
+                updateAlerts(data.alertas || []);
+                updateTables(data);
+                hideLoading();
+                updateLastRefresh();
+            })
+            .catch(error => {
+                console.error('Error loading insights data:', error);
+                hideLoading();
+                showError('Error al cargar insights de productos');
+            });
+    }
+    
+    // Inicializar gráficos
+    function initializeCharts() {
+        // Gráfico de rendimiento por categorías
+        const performanceCtx = document.getElementById('categoriesPerformanceChart').getContext('2d');
+        charts.categoriesPerformance = new Chart(performanceCtx, {
+            type: 'radar',
+            data: {
+                labels: ['Ventas', 'Margen', 'Rotación', 'Stock', 'Satisfacción'],
+                datasets: [{
+                    label: 'Deportivos',
+                    data: [85, 75, 90, 60, 80],
+                    borderColor: '#4facfe',
+                    backgroundColor: 'rgba(79, 172, 254, 0.2)',
+                    pointBackgroundColor: '#4facfe'
+                }, {
+                    label: 'Casual',
+                    data: [70, 85, 60, 80, 75],
+                    borderColor: '#f093fb',
+                    backgroundColor: 'rgba(240, 147, 251, 0.2)',
+                    pointBackgroundColor: '#f093fb'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    r: {
+                        beginAtZero: true,
+                        max: 100
+                    }
+                }
+            }
+        });
+        
+        // Gráfico de distribución por categorías
+        const distributionCtx = document.getElementById('categoriesDistributionChart').getContext('2d');
+        charts.categoriesDistribution = new Chart(distributionCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Deportivos', 'Casual', 'Formal', 'Sandalias', 'Botas'],
+                datasets: [{
+                    data: [35, 25, 15, 15, 10],
+                    backgroundColor: [
+                        '#4facfe',
+                        '#f093fb',
+                        '#43e97b',
+                        '#fa709a',
+                        '#a8edea'
+                    ],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+        
+        // Gráfico de mapa de calor
+        const heatmapCtx = document.getElementById('salesHeatmapChart').getContext('2d');
+        charts.salesHeatmap = new Chart(heatmapCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
+                datasets: [{
+                    label: 'Ventas por Día',
+                    data: [120, 150, 180, 165, 200, 250, 190],
+                    backgroundColor: [
+                        '#c6e48b',
+                        '#7bc96f',
+                        '#239a3b',
+                        '#7bc96f',
+                        '#239a3b',
+                        '#196127',
+                        '#239a3b'
+                    ],
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+        
+        // Gráfico de estacionalidad
+        const seasonalityCtx = document.getElementById('seasonalityChart').getContext('2d');
+        charts.seasonality = new Chart(seasonalityCtx, {
+            type: 'line',
+            data: {
+                labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
+                datasets: [{
+                    label: 'Deportivos',
+                    data: [100, 110, 120, 90, 85, 80, 75, 85, 130, 140, 150, 180],
+                    borderColor: '#4facfe',
+                    backgroundColor: 'rgba(79, 172, 254, 0.1)',
+                    tension: 0.4
+                }, {
+                    label: 'Sandalias',
+                    data: [60, 70, 80, 120, 150, 180, 200, 190, 140, 100, 70, 50],
+                    borderColor: '#fa709a',
+                    backgroundColor: 'rgba(247, 112, 154, 0.1)',
+                    tension: 0.4
+                }, {
+                    label: 'Botas',
+                    data: [150, 140, 120, 90, 70, 60, 55, 60, 90, 120, 140, 160],
+                    borderColor: '#a8edea',
+                    backgroundColor: 'rgba(168, 237, 234, 0.1)',
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Unidades Vendidas'
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Actualizar métricas
+    function updateMetrics(metrics) {
+        // Las métricas se actualizan desde el template
+        // Aquí se pueden hacer actualizaciones dinámicas si es necesario
+    }
+    
+    // Actualizar gráficos
+    function updateCharts(data) {
+        if (data.analisis_categorias && charts.categoriesDistribution) {
+            const categorias = data.analisis_categorias.slice(0, 5);
+            charts.categoriesDistribution.data.labels = categorias.map(c => c.categoria__nombre || 'Sin categoría');
+            charts.categoriesDistribution.data.datasets[0].data = categorias.map(c => c.total_ingresos || 0);
+            charts.categoriesDistribution.update();
+        }
+    }
+    
+    // Actualizar alertas
+    function updateAlerts(alerts) {
+        const container = document.getElementById('alerts-container');
+        if (alerts.length === 0) {
+            container.innerHTML = '<div class="alert alert-success"><i class="fas fa-check me-2"></i>No hay alertas críticas</div>';
+            return;
+        }
+        
+        container.innerHTML = alerts.map(alert => `
+            <div class="alert-badge">
+                <i class="fas fa-${alert.icon || 'exclamation-triangle'} me-1"></i>
+                ${alert.mensaje || alert.message}
+            </div>
+        `).join('');
+    }
+    
+    // Actualizar tablas
+    function updateTables(data) {
+        // Actualizar tabla de bestsellers
+        const bestsellersTable = document.getElementById('bestsellers-table');
+        if (data.productos_mas_vendidos) {
+            bestsellersTable.innerHTML = data.productos_mas_vendidos.slice(0, 10).map(producto => `
+                <tr>
+                    <td>
+                        <span class="performance-indicator perf-excellent"></span>
+                        <strong>${producto.producto__nombre || 'Producto'}</strong>
+                        <br><small class="text-muted">${producto.producto__codigo || 'SKU'}</small>
+                    </td>
+                    <td>${producto.total_vendido || 0}</td>
+                    <td>$${parseFloat(producto.total_ingresos || 0).toFixed(2)}</td>
+                    <td>
+                        <i class="fas fa-arrow-up trend-arrow trend-up"></i>
+                    </td>
+                </tr>
+            `).join('');
+        }
+        
+        // Actualizar tabla de rentables
+        const profitableTable = document.getElementById('profitable-table');
+        if (data.productos_mayor_margen) {
+            profitableTable.innerHTML = data.productos_mayor_margen.slice(0, 10).map(producto => `
+                <tr>
+                    <td>
+                        <span class="performance-indicator perf-good"></span>
+                        <strong>${producto.producto__nombre || 'Producto'}</strong>
+                        <br><small class="text-muted">${producto.producto__codigo || 'SKU'}</small>
+                    </td>
+                    <td>$${parseFloat(producto.margen_total || 0).toFixed(2)}</td>
+                    <td>${parseFloat(producto.margen_promedio || 0).toFixed(1)}%</td>
+                    <td>
+                        <span class="badge bg-success">Rentable</span>
+                    </td>
+                </tr>
+            `).join('');
+        }
+    }
+    
+    // Funciones auxiliares
+    function showLoading() {
+        document.getElementById('loading-overlay').classList.remove('d-none');
+    }
+    
+    function hideLoading() {
+        document.getElementById('loading-overlay').classList.add('d-none');
+    }
+    
+    function showError(message) {
+        console.error(message);
+        // Implementar notificación de error
+    }
+    
+    function updateLastRefresh() {
+        document.getElementById('last-update').textContent = new Date().toLocaleString();
+    }
+    
+    // Funciones globales
+    window.refreshInsights = function() {
+        loadInsightsData();
+    };
+    
+    window.exportInsights = function() {
+        const params = new URLSearchParams({
+            tipo: 'product_insights',
+            formato: 'download'
+        });
+        window.open(`/pedidos-avanzados/analytics/api/products/?${params}`, '_blank');
+    };
+    
+    window.showCategoryDetails = function(category) {
+        // Implementar modal o navegación a detalles de categoría
+        console.log(`Showing details for category: ${category}`);
+    };
+});
+</script>
+{% endblock %}
