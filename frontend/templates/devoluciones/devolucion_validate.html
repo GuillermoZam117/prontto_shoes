@@ -1,0 +1,285 @@
+{% extends 'layouts/base.html' %}
+{% load static %}
+
+{% block title %}Validar Devolución #{{ devolucion.id }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .devolucion-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+    }
+    .info-card {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    .status-badge {
+        font-size: 0.9rem;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-weight: 600;
+    }
+    .status-pendiente { background-color: #fff3cd; color: #856404; }
+    .status-validada { background-color: #d4edda; color: #155724; }
+    .status-rechazada { background-color: #f8d7da; color: #721c24; }
+    .status-completada { background-color: #cce7ff; color: #004085; }
+    .detail-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #eee;
+    }
+    .detail-label {
+        font-weight: 600;
+        color: #495057;
+    }
+    .detail-value {
+        color: #212529;
+    }
+    .validation-card {
+        border-left: 4px solid #17a2b8;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="devolucion-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="mb-1">
+                    <i class="fas fa-check-circle"></i>
+                    Validar Devolución #{{ devolucion.id }}
+                </h1>
+                <p class="mb-0 opacity-75">
+                    Registrada el {{ devolucion.fecha|date:"d/m/Y H:i" }}
+                </p>
+            </div>
+            <div class="col-md-4 text-md-end">
+                <span class="status-badge status-{{ devolucion.estado }}">
+                    {{ devolucion.get_estado_display|upper }}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Información Principal -->
+        <div class="col-lg-8">
+            <!-- Datos del Cliente y Producto -->
+            <div class="info-card">
+                <h5 class="card-title mb-3">
+                    <i class="fas fa-info-circle text-primary"></i>
+                    Información General
+                </h5>
+                
+                <div class="detail-row">
+                    <span class="detail-label">Cliente:</span>
+                    <span class="detail-value">{{ devolucion.cliente.nombre }}</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">Producto:</span>
+                    <span class="detail-value">{{ devolucion.producto.nombre }}</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">Tipo de devolución:</span>
+                    <span class="detail-value">
+                        <span class="badge bg-info">{{ devolucion.get_tipo_display }}</span>
+                    </span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">Motivo:</span>
+                    <span class="detail-value">{{ devolucion.motivo }}</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">Precio de devolución:</span>
+                    <span class="detail-value">
+                        <strong class="text-success">${{ devolucion.precio_devolucion|floatformat:2 }}</strong>
+                    </span>
+                </div>
+                
+                {% if devolucion.afecta_inventario %}
+                <div class="detail-row">
+                    <span class="detail-label">Afecta inventario:</span>
+                    <span class="detail-value">
+                        <span class="badge bg-warning">Sí</span>
+                    </span>
+                </div>
+                {% endif %}
+                
+                {% if devolucion.saldo_a_favor_generado %}
+                <div class="detail-row">
+                    <span class="detail-label">Saldo a favor:</span>
+                    <span class="detail-value">
+                        <span class="badge bg-success">${{ devolucion.saldo_a_favor_generado|floatformat:2 }}</span>
+                    </span>
+                </div>
+                {% endif %}
+                
+                <div class="detail-row">
+                    <span class="detail-label">Registrada por:</span>
+                    <span class="detail-value">{{ devolucion.created_by.get_full_name|default:devolucion.created_by.username }}</span>
+                </div>
+            </div>
+            
+            {% if devolucion.pedido %}
+            <div class="info-card">
+                <h5 class="card-title mb-3">
+                    <i class="fas fa-receipt text-success"></i>
+                    Compra Original
+                </h5>
+                <div class="detail-row">
+                    <span class="detail-label">Número de pedido:</span>
+                    <span class="detail-value">
+                        <a href="{% url 'ventas:detalle_pedido' devolucion.pedido.id %}" class="text-decoration-none">
+                            #{{ devolucion.pedido.id }}
+                        </a>
+                    </span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">Fecha de compra:</span>
+                    <span class="detail-value">{{ devolucion.pedido.fecha|date:"d/m/Y H:i" }}</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">Total original:</span>
+                    <span class="detail-value">${{ devolucion.pedido.total|floatformat:2 }}</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">Estado del pedido:</span>
+                    <span class="detail-value">
+                        <span class="badge bg-primary">{{ devolucion.pedido.get_estado_display }}</span>
+                    </span>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Confirmación del Proveedor -->
+            {% if devolucion.confirmacion_proveedor %}
+            <div class="info-card border-warning">
+                <h5 class="card-title mb-3 text-warning">
+                    <i class="fas fa-truck text-warning"></i>
+                    Confirmación del Proveedor
+                </h5>
+                <div class="alert alert-warning mb-0">
+                    <i class="fas fa-info-circle"></i>
+                    Esta devolución requiere confirmación del proveedor.
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Tarjeta de Validación -->
+            <div class="info-card validation-card">
+                <h5 class="card-title mb-3 text-primary">
+                    <i class="fas fa-clipboard-check"></i>
+                    Validación de Devolución
+                </h5>
+                
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    Revise la información de la devolución antes de validarla o rechazarla.
+                </div>
+                
+                <div class="mt-4">
+                    <form id="validateForm" method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="validation_notes" class="form-label">Notas de validación (opcional):</label>
+                            <textarea class="form-control" id="validation_notes" name="notas" rows="3" placeholder="Ingrese observaciones o notas adicionales sobre esta validación..."></textarea>
+                        </div>
+                        
+                        <div class="row mt-4">
+                            <div class="col-md-6 mb-2">
+                                <button type="submit" name="action" value="validate" class="btn btn-success w-100">
+                                    <i class="fas fa-check"></i> Validar Devolución
+                                </button>
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <button type="submit" name="action" value="reject" class="btn btn-danger w-100">
+                                    <i class="fas fa-times"></i> Rechazar Devolución
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Resumen de Impactos -->
+            <div class="info-card">
+                <h5 class="card-title mb-3">
+                    <i class="fas fa-impact text-warning"></i>
+                    Impacto de la Validación
+                </h5>
+                
+                <div class="alert alert-light">
+                    <p class="mb-2"><i class="fas fa-exclamation-triangle text-warning"></i> <strong>Al validar esta devolución:</strong></p>
+                    <ul class="mb-0">
+                        {% if devolucion.afecta_inventario %}
+                        <li>Se aumentará el stock del producto en inventario</li>
+                        {% endif %}
+                        
+                        {% if devolucion.saldo_a_favor_generado > 0 %}
+                        <li>Se acreditará un saldo a favor de ${{ devolucion.saldo_a_favor_generado|floatformat:2 }} al cliente</li>
+                        <li>Se registrará un egreso en caja por el mismo monto</li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Acciones adicionales -->
+            <div class="info-card">
+                <h5 class="card-title mb-3">
+                    <i class="fas fa-cogs text-secondary"></i>
+                    Acciones
+                </h5>
+                
+                <div class="d-grid gap-2">
+                    <a href="{% url 'devoluciones:detalle' devolucion.id %}" class="btn btn-outline-primary">
+                        <i class="fas fa-eye"></i> Ver Detalle Completo
+                    </a>
+                    
+                    {% if devolucion.estado == 'pendiente' and perms.devoluciones.change_devolucion %}
+                    <a href="{% url 'devoluciones:editar' devolucion.id %}" class="btn btn-outline-warning">
+                        <i class="fas fa-edit"></i> Editar Devolución
+                    </a>
+                    {% endif %}
+                    
+                    <a href="{% url 'devoluciones:lista' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Volver al Listado
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const validateForm = document.getElementById('validateForm');
+        validateForm.addEventListener('submit', function(e) {
+            if (!confirm('¿Está seguro de realizar esta acción? Esta operación no se puede deshacer.')) {
+                e.preventDefault();
+            }
+        });
+    });
+</script>
+{% endblock %}
